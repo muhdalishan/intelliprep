@@ -1,0 +1,183 @@
+Final balance: 0
+Line 1501: bl=0 -> </div>
+Line 1502: bl=0 -> 
+Line 1503: bl=1 -> {flashcards.length > 0 ? (
+Line 1504: bl=1 -> <div className="w-full max-w-3xl space-y-6 relative flex items-center justify-center">
+Line 1505: bl=1 -> 
+Line 1506: bl=1 -> {/* Left Navigation Arrow */}
+Line 1507: bl=1 -> <Button
+Line 1508: bl=1 -> variant="ghost"
+Line 1509: bl=1 -> size="icon"
+Line 1510: bl=1 -> className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full hidden sm:flex bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm -translate-x-4 lg:-translate-x-8"
+Line 1511: bl=1 -> onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }}
+Line 1512: bl=1 -> disabled={activeCardIndex === 0}
+Line 1513: bl=1 -> >
+Line 1514: bl=1 -> <ChevronLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+Line 1515: bl=1 -> </Button>
+Line 1516: bl=1 -> 
+Line 1517: bl=1 -> {/* Card Container */}
+Line 1518: bl=1 -> <div className="w-full max-w-lg space-y-6">
+Line 1519: bl=1 -> {/* Rotating Card */}
+Line 1520: bl=1 -> <div
+Line 1521: bl=1 -> className="perspective-1000 w-full h-80 relative cursor-pointer active:scale-[0.99] transition-transform"
+Line 1522: bl=1 -> onClick={() => setIsFlipped(!isFlipped)}
+Line 1523: bl=1 -> >
+Line 1524: bl=2 -> <div className={cn(
+Line 1525: bl=2 -> "w-full h-full transition-transform duration-500 transform-style-3d relative shadow-xl rounded-2xl border border-gray-200 dark:border-gray-700",
+Line 1526: bl=2 -> isFlipped ? "rotate-y-180" : ""
+Line 1527: bl=1 -> )}>
+Line 1528: bl=1 -> {/* Front face query block */}
+Line 1529: bl=1 -> <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 p-8 flex flex-col justify-between rounded-2xl">
+Line 1530: bl=1 -> <div className="flex justify-between items-center">
+Line 1531: bl=1 -> <span className="uppercase text-[10px] font-extrabold text-primary-500 tracking-wider">Concept Question</span>
+Line 1532: bl=1 -> <HelpCircle className="w-4 h-4 text-gray-350" />
+Line 1533: bl=1 -> </div>
+Line 1534: bl=1 -> 
+Line 1535: bl=1 -> <div className="text-center py-6">
+Line 1536: bl=1 -> <p className="text-xl md:text-2xl font-black text-gray-850 dark:text-white leading-snug">
+Line 1537: bl=1 -> {flashcards[activeCardIndex].front}
+Line 1538: bl=1 -> </p>
+Line 1539: bl=1 -> </div>
+Line 1540: bl=1 -> 
+Line 1541: bl=1 -> <div className="text-center text-[11px] text-gray-400 font-medium tracking-wide">
+Line 1542: bl=1 -> <span className="font-mono text-gray-300">[{activeCardIndex + 1}/{flashcards.length}]</span> Click card to reveal answer
+Line 1543: bl=1 -> </div>
+Line 1544: bl=1 -> </div>
+Line 1545: bl=1 -> 
+Line 1546: bl=1 -> {/* Back face explanation block */}
+Line 1547: bl=1 -> <div className="absolute inset-0 backface-hidden rotate-y-180 bg-gradient-to-br from-primary-700 to-primary-950 text-white p-8 flex flex-col justify-between rounded-2xl shadow-inner">
+Line 1548: bl=1 -> <div className="flex justify-between items-center">
+Line 1549: bl=1 -> <span className="uppercase text-[10px] font-bold text-primary-200 tracking-wider">Tutor Verification</span>
+Line 1550: bl=1 -> <CheckCircle2 className="w-4 h-4 text-emerald-450" />
+Line 1551: bl=1 -> </div>
+Line 1552: bl=1 -> 
+Line 1553: bl=1 -> <div className="text-center py-6">
+Line 1554: bl=1 -> <p className="text-lg md:text-xl font-bold leading-relaxed text-blue-50">
+Line 1555: bl=1 -> {flashcards[activeCardIndex].back}
+Line 1556: bl=1 -> </p>
+Line 1557: bl=1 -> </div>
+Line 1558: bl=1 -> 
+Line 1559: bl=1 -> <div className="text-center text-[10px] text-primary-200 font-medium">
+Line 1560: bl=1 -> <span className="font-mono text-primary-300/50">[{activeCardIndex + 1}/{flashcards.length}]</span> Click card to return to question
+Line 1561: bl=1 -> </div>
+Line 1562: bl=1 -> </div>
+Line 1563: bl=1 -> </div>
+Line 1564: bl=1 -> </div>
+Line 1565: bl=1 -> 
+Line 1566: bl=1 -> {/* Feedback Action Row: Mastered vs Flag Weak */}
+Line 1567: bl=1 -> <div className="flex justify-center flex-wrap items-center gap-3">
+Line 1568: bl=1 -> <Button
+Line 1569: bl=1 -> variant="secondary"
+Line 1570: bl=1 -> className="text-xs font-bold border-red-200/50 hover:bg-red-50 text-red-600 flex items-center gap-1.5"
+Line 1571: bl=1 -> size="sm"
+Line 1572: bl=3 -> onClick={(e) => {
+Line 1573: bl=3 -> e.stopPropagation();
+Line 1574: bl=3 -> flagFlashcardAsWeak(flashcards[activeCardIndex]);
+Line 1575: bl=1 -> }}
+Line 1576: bl=1 -> >
+Line 1577: bl=1 -> <AlertTriangle className="w-3.5 h-3.5" /> Flag as Weak
+Line 1578: bl=1 -> </Button>
+Line 1579: bl=1 -> 
+Line 1580: bl=1 -> <Button
+Line 1581: bl=1 -> variant="secondary"
+Line 1582: bl=2 -> className={cn(
+Line 1583: bl=2 -> "text-xs font-bold flex items-center gap-1.5",
+Line 1584: bl=2 -> flashcards[activeCardIndex].mastered
+Line 1585: bl=2 -> ? "bg-green-150 border-green-300 text-green-700"
+Line 1586: bl=2 -> : "hover:bg-green-50 text-emerald-600"
+Line 1587: bl=1 -> )}
+Line 1588: bl=1 -> size="sm"
+Line 1589: bl=3 -> onClick={(e) => {
+Line 1590: bl=3 -> e.stopPropagation();
+Line 1591: bl=3 -> const updated = flashcards.map((c, i) => i === activeCardIndex ? { ...c, mastered: !c.mastered } : c);
+Line 1592: bl=3 -> setFlashcards(updated);
+Line 1593: bl=3 -> alert(updated[activeCardIndex].mastered ? "Marked as mastered!" : "Marked outstanding.");
+Line 1594: bl=1 -> }}
+Line 1595: bl=1 -> >
+Line 1596: bl=1 -> <CheckCircle2 className="w-3.5 h-3.5" /> {flashcards[activeCardIndex].mastered ? "Mastered ✓" : "Mark Mastered"}
+Line 1597: bl=1 -> </Button>
+Line 1598: bl=1 -> </div>
+Line 1599: bl=1 -> 
+Line 1600: bl=1 -> {/* Mobile Navigation (only visible on small screens) */}
+Line 1601: bl=1 -> <div className="flex sm:hidden items-center justify-between mt-4">
+Line 1602: bl=1 -> <Button
+Line 1603: bl=1 -> variant="secondary"
+Line 1604: bl=1 -> size="sm"
+Line 1605: bl=1 -> onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }}
+Line 1606: bl=1 -> disabled={activeCardIndex === 0}
+Line 1607: bl=1 -> >
+Line 1608: bl=1 -> <ChevronLeft className="w-4 h-4" /> Prev
+Line 1609: bl=1 -> </Button>
+Line 1610: bl=1 -> <span className="text-[10px] font-mono font-bold text-gray-400">
+Line 1611: bl=1 -> {activeCardIndex + 1} / {flashcards.length}
+Line 1612: bl=1 -> </span>
+Line 1613: bl=1 -> <Button
+Line 1614: bl=1 -> variant="secondary"
+Line 1615: bl=1 -> size="sm"
+Line 1616: bl=1 -> onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }}
+Line 1617: bl=1 -> disabled={activeCardIndex === flashcards.length-1}
+Line 1618: bl=1 -> >
+Line 1619: bl=1 -> Next <ChevronRight className="w-4 h-4" />
+Line 1620: bl=1 -> </Button>
+Line 1621: bl=1 -> </div>
+Line 1622: bl=1 -> </div>
+Line 1623: bl=1 -> 
+Line 1624: bl=1 -> {/* Right Navigation Arrow */}
+Line 1625: bl=1 -> <Button
+Line 1626: bl=1 -> variant="ghost"
+Line 1627: bl=1 -> size="icon"
+Line 1628: bl=1 -> className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full hidden sm:flex bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm translate-x-4 lg:translate-x-8"
+Line 1629: bl=1 -> onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }}
+Line 1630: bl=1 -> disabled={activeCardIndex === flashcards.length-1}
+Line 1631: bl=1 -> >
+Line 1632: bl=1 -> <ChevronRight className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+Line 1633: bl=1 -> </Button>
+Line 1634: bl=1 -> </div>
+Line 1635: bl=1 -> ) : (
+Line 1636: bl=1 -> <div className="text-center text-gray-500">No cards registered. Click regenerate AI Deck to generate textbook items!</div>
+Line 1637: bl=0 -> )}
+Line 1638: bl=0 -> </div>
+Line 1639: bl=0 -> <div className="shrink-0">
+Line 1640: bl=0 -> {renderDualInputHeader("Flashcards Room", "Flip cards to test active recall definitions", handleGenerateFlashcards, isGenerating, "Generate Deck")}
+Line 1641: bl=0 -> </div>
+Line 1642: bl=0 -> </div>
+Line 1643: bl=0 -> 
+Line 1644: bl=0 -> <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
+Line 1645: bl=0 -> {/* Right Pane: Flashcard Deck History */}
+Line 1646: bl=0 -> <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
+Line 1647: bl=0 -> <h3 className="font-bold text-base mb-4 flex items-center gap-2">
+Line 1648: bl=0 -> <Layers className="w-4 h-4 text-purple-500"/> Deck History Vault
+Line 1649: bl=0 -> </h3>
+Line 1650: bl=0 -> <div className="flex-1 overflow-y-auto space-y-3">
+Line 1651: bl=1 -> {flashcardDeckHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
+Line 1652: bl=1 -> <div className="text-xs text-gray-400 text-center py-8">No flashcard decks generated for this source yet.</div>
+Line 1653: bl=1 -> ) : (
+Line 1654: bl=1 -> flashcardDeckHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).map((hist, idx) => (
+Line 1655: bl=1 -> <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl flex justify-between items-center">
+Line 1656: bl=1 -> <div>
+Line 1657: bl=1 -> <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Revision Deck ({hist.cardCount} cards)</p>
+Line 1658: bl=1 -> <p className="text-[10px] text-gray-400">{hist.date}</p>
+Line 1659: bl=1 -> </div>
+Line 1660: bl=1 -> <Button size="sm" variant="secondary" className="h-7 text-[10px] font-bold" onClick={() => alert("Launched past deck!")}>
+Line 1661: bl=1 -> Launch Study Session
+Line 1662: bl=1 -> </Button>
+Line 1663: bl=1 -> </div>
+Line 1664: bl=1 -> ))
+Line 1665: bl=0 -> )}
+Line 1666: bl=0 -> </div>
+Line 1667: bl=0 -> </Card>
+Line 1668: bl=0 -> </div>
+Line 1669: bl=0 -> </div>
+Line 1670: bl=-1 -> )}
+Line 1671: bl=-1 -> 
+Line 1672: bl=-1 -> {/* TAB 4.5: PRACTICE QUIZ */}
+Line 1673: bl=0 -> {activeTab === 'quiz' && (
+Line 1674: bl=0 -> <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 h-full min-h-0 animate-in fade-in duration-300">
+Line 1675: bl=0 -> <div className="lg:col-span-7 flex flex-col h-full min-h-0 gap-6 text-left">
+Line 1676: bl=0 -> <div className="flex-1 flex flex-col overflow-y-auto min-h-0 space-y-6">
+Line 1677: bl=0 -> 
+Line 1678: bl=1 -> {!quizActive ? (
+Line 1679: bl=1 -> <Card className="flex-1 flex flex-col items-center justify-center text-center py-12 p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6 min-h-[300px]">
+Line 1680: bl=1 -> <div className="w-14 h-14 rounded-full bg-primary-100 dark:bg-primary-950/40 text-primary-600 flex items-center justify-center mx-auto shadow-md">
+Line 1681: bl=1 -> <CheckSquare className="w-8 h-8" />
+Line 1682: bl=1 -> </div>
