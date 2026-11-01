@@ -8,7 +8,7 @@ velocity allows · **C**ould: nice to have · **W**on't (this release).
 
 **Owner:** **MB** = Murtaza · **MA** = Alishan
 
-**Totals:** Must 107 · Should 62 · Could 12 · **All 181 points**
+**Totals:** Must 107 · Should 80 · Could 12 · **All 199 points**
 
 ---
 
@@ -126,6 +126,17 @@ velocity allows · **C**ould: nice to have · **W**on't (this release).
 | IP-131 | As the team, we want the main student journey tested end to end. | Playwright test: sign up → upload → ask → flashcards → quiz, runs in CI against staging. | 3 | S | MA |
 | IP-132 | As the team, we want to know the system handles 10 concurrent users. | k6 load test; p95 within 20% of single-user baseline (SRS NFR); results recorded. | 2 | S | MB |
 | IP-133 | As the team, we want a reliable final demo. | Seed account with real course material; demo script; fallback recordings; final docs updated. | 3 | M | MB |
+
+## E14 — Tutor companion
+
+Added 2026-11-02 from the team's product decision: the tutor is a personal companion you can talk to,
+which replies like a teacher and can act for you. Needs PO ordering at the next Review.
+
+| ID | Story | Acceptance criteria | Pts | Pri | Owner |
+|---|---|---|---|---|---|
+| IP-140 | As a student, I want to chat with a tutor that explains things from my notes. | Floating tutor calls the backend (no browser AI calls); answers use RAG with page citations (builds on IP-34); conversation kept per subject. | 5 | S | MA |
+| IP-141 | As a student, I want to talk to the tutor out loud and hear it reply. | Speech in and spoken reply in the browser; hands-free turn-taking; transcript saved like a text chat; works in Chrome and Edge. | 5 | S | MA |
+| IP-142 | As a student, I want the tutor to set reminders, save notes and add tasks for me. | Tutor uses tool calls for: create reminder (IP-110), add note to a subject, add Kanban task (IP-100); shows what it will do and asks before saving; every action appears in the matching screen. | 8 | S | MB |
 
 ## Won't (this release)
 
