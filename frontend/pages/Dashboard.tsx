@@ -168,7 +168,7 @@ export const Dashboard: React.FC = () => {
               className="hidden md:flex items-center gap-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-full px-4 py-2"
               size="sm"
             >
-              <Settings className="w-4 h-4 text-slate-400" /> Edit Profile & Goals
+              <Settings className="w-4 h-4 text-slate-400" /> Profile
             </Button>
 
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-slate-200/80 dark:border-slate-800">
@@ -201,7 +201,7 @@ export const Dashboard: React.FC = () => {
               Welcome back, {userName}
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xl">
-              Take control of your Semester. Ready to perform some AI quizzes, predict questions, or launch a group study session?
+              What are we studying today? Pick a subject and jump back in.
             </p>
           </div>
 
@@ -209,7 +209,7 @@ export const Dashboard: React.FC = () => {
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input 
-                placeholder="Filter subjects..." 
+                placeholder="Search subjects" 
                 className="pl-10 h-11 w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl focus:ring-primary-500/30 text-xs" 
                 value={search} 
                 onChange={e => setSearch(e.target.value)} 
@@ -256,10 +256,10 @@ export const Dashboard: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary-600" />
-            Active Course Workspaces ({filtered.length})
+            Your subjects ({filtered.length})
           </h2>
           <span className="text-[11px] text-slate-400 font-medium">
-            Select a course card below to launch work modules
+            Tap a subject to jump in
           </span>
         </div>
 
@@ -268,15 +268,15 @@ export const Dashboard: React.FC = () => {
           {filtered.length === 0 ? (
             <div className="col-span-full text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
               <GraduationCap className="w-12 h-12 text-slate-300 mx-auto" />
-              <h5 className="font-bold text-slate-700 dark:text-slate-300 text-sm">No Active Workspaces Found</h5>
-              <p className="text-xs text-slate-400">Search is empty or no subjects have been created.</p>
+              <h5 className="font-bold text-slate-700 dark:text-slate-300 text-sm">No subjects here yet</h5>
+              <p className="text-xs text-slate-400">Try another search, or add your first subject.</p>
             </div>
           ) : (
             filtered.map((sub, idx) => (
               <div 
                 key={sub.id}
                 onClick={() => navigate(`/subject/${sub.id}`)}
-                className="group cursor-pointer bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all text-left relative overflow-hidden flex flex-col justify-between min-h-[190px]"
+                className="lift group cursor-pointer bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all text-left relative overflow-hidden flex flex-col justify-between min-h-[190px]"
               >
                 {/* Accent border strip */}
                 <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", sub.color || "bg-primary-500")} />
@@ -318,7 +318,7 @@ export const Dashboard: React.FC = () => {
                   <div className="flex flex-col items-end gap-1">
                     <span className="text-[10px] font-medium text-slate-500">Class: {sub.nextClass || "Thu 09:00 AM"}</span>
                     <div className="flex items-center gap-1 text-[11px] font-bold text-primary-600 dark:text-primary-400 group-hover:text-primary-700">
-                      Enter Workspace <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                      Open <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
                 </div>
@@ -331,10 +331,10 @@ export const Dashboard: React.FC = () => {
       {/* Add Subject Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-md animate-in zoom-in-95 duration-200 bg-white dark:bg-slate-905 shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-800">
+          <Card className="w-full max-w-md animate-in zoom-in-95 duration-200 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-800">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Plus className="w-5 h-5 text-primary-500" /> Create Workspace
+                <Plus className="w-5 h-5 text-primary-500" /> New subject
               </h2>
               <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -386,7 +386,7 @@ export const Dashboard: React.FC = () => {
 
               <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} className="text-xs font-bold">Cancel</Button>
-                <Button type="submit" className="bg-primary-600 text-white hover:bg-primary-700 text-xs font-bold">Establish Workspace</Button>
+                <Button type="submit" className="bg-primary-600 text-white hover:bg-primary-700 text-xs font-bold">Add subject</Button>
               </div>
             </form>
           </Card>
@@ -396,7 +396,7 @@ export const Dashboard: React.FC = () => {
       {/* Profile, Goals & Notification Preferences Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <Card className="w-full max-w-sm animate-in zoom-in-95 duration-200 bg-white dark:bg-slate-905 shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-800">
+          <Card className="w-full max-w-sm animate-in zoom-in-95 duration-200 bg-white dark:bg-slate-950 shadow-2xl rounded-2xl border border-slate-200 dark:border-slate-800">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <Settings className="w-5 h-5 text-primary-500" /> Goals & Personal Setup
@@ -407,7 +407,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="space-y-4 max-h-[75vh] overflow-y-auto no-scrollbar pb-2 pr-1 text-left">
-              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-150 dark:border-slate-850 flex items-center justify-between">
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-150 dark:border-slate-800 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] text-slate-450 font-bold uppercase tracking-wider mb-1">Scholar Profile</p>
                   <p className="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">{userName}@scholar.com</p>
@@ -498,7 +498,7 @@ export const Dashboard: React.FC = () => {
                       type="checkbox" 
                       checked={telegramAlerts} 
                       onChange={() => setTelegramAlerts(!telegramAlerts)}
-                      className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4 border-slate-300 dark:border-slate-750" 
+                      className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4 border-slate-300 dark:border-slate-700" 
                     />
                     <div className="text-xs">
                       <p className="font-extrabold text-slate-800 dark:text-slate-200">Telegram Prep Bot Alerts</p>
@@ -511,7 +511,7 @@ export const Dashboard: React.FC = () => {
                       type="checkbox" 
                       checked={emailAlerts} 
                       onChange={() => setEmailAlerts(!emailAlerts)}
-                      className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4 border-slate-300 dark:border-slate-750" 
+                      className="rounded text-primary-600 focus:ring-primary-500 h-4 w-4 border-slate-300 dark:border-slate-700" 
                     />
                     <div className="text-xs">
                       <p className="font-extrabold text-slate-800 dark:text-slate-200">Weekly Performance Dashboard (Email)</p>
@@ -523,7 +523,7 @@ export const Dashboard: React.FC = () => {
 
               <div className="flex justify-end gap-2 mt-6 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <Button type="button" onClick={handleSaveProfile} className="w-full bg-primary-600 font-bold hover:bg-primary-700">
-                  Commit Configuration Changes
+                  Save
                 </Button>
               </div>
             </div>
@@ -539,12 +539,12 @@ export const Dashboard: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
-              <h2 className="text-base font-extrabold text-slate-900 dark:text-white mb-2">Delete Subject Workspace?</h2>
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white mb-2">Delete this subject?</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                Are you sure you want to permanently delete this course workspace? All associated notes, flashcards, and quizzes will be removed. This action cannot be undone.
+                Its notes, flashcards and quizzes go with it. This can't be undone.
               </p>
               <div className="flex justify-center gap-3">
-                <Button variant="ghost" onClick={() => setSubjectToDelete(null)} className="flex-1 text-xs font-bold border-slate-200 dark:border-slate-850">
+                <Button variant="ghost" onClick={() => setSubjectToDelete(null)} className="flex-1 text-xs font-bold border-slate-200 dark:border-slate-800">
                   Cancel
                 </Button>
                 <Button onClick={confirmDeleteSubject} className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-500/10">

@@ -514,7 +514,7 @@ Section 2: Practice applications
   // Set selected upload as active material
   const handleSelectMaterial = (content: string) => {
     setSummaryText(content);
-    alert("Subject Material locked in! Navigating to Summary tab to processes content.");
+    alert("Got it. Opening Summaries for this file.");
     setActiveTab('summary');
   };
 
@@ -886,7 +886,7 @@ Section 2: Practice applications
 
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-905 overflow-hidden font-sans">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden font-sans">
       
       {/* 1. Left Vertical Action Sidebar */}
       <aside className="w-18 lg:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col z-20">
@@ -900,7 +900,7 @@ Section 2: Practice applications
             <ArrowLeft className="w-5 h-5" />
           </div>
           <div className="hidden lg:block truncate">
-            <span className="block text-[10px] text-gray-400 font-extrabold uppercase leading-none">Console Back</span>
+            <span className="block text-[10px] text-gray-400 font-extrabold uppercase leading-none">Back</span>
             <span className="font-extrabold text-base text-primary-900 dark:text-white leading-tight truncate block">{subject.name}</span>
           </div>
         </div>
@@ -972,7 +972,7 @@ Section 2: Practice applications
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-[#ccfbf1] text-[#0f172a] px-3 py-1 rounded-full text-xs font-bold border border-transparent">
+            <div className="flex items-center gap-2 bg-[#ccfbf1] text-[#0f172a] dark:bg-primary-900/50 dark:text-primary-100 px-3 py-1 rounded-full text-xs font-bold border border-transparent">
               <Flame className="w-4 h-4 text-[#0b957f]" /> 5 Days Streak
             </div>
             
@@ -1183,7 +1183,7 @@ Section 2: Practice applications
                     <div className="space-y-2.5">
                       {weakTopics.length === 0 ? (
                         <div className="text-xs text-emerald-600 font-bold flex items-center gap-1.5 py-2">
-                          <CheckCircle2 className="w-4 h-4" /> Phenomenal! Dynamic Tracker reports zero weak components currently.
+                          <CheckCircle2 className="w-4 h-4" /> Nothing to fix right now. Nice.
                         </div>
                       ) : (
                         weakTopics.slice(0, 2).map((wt, idx) => (
@@ -1454,7 +1454,7 @@ Section 2: Practice applications
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-gray-400 py-12">
                         <BrainCircuit className="w-12 h-12 mb-3 text-gray-300 animate-pulse" />
-                        <p className="font-bold text-sm text-gray-600 dark:text-gray-350">AI Output Workspace Empty</p>
+                        <p className="font-bold text-sm text-gray-600 dark:text-gray-300">No summary yet</p>
                         <p className="text-[11px] text-gray-400 mt-1 max-w-sm text-center">
                           Generate an AI summary from your selected document or custom topic below.
                         </p>
@@ -1926,7 +1926,7 @@ Section 2: Practice applications
                   {!guessResults ? (
                     <Card className="flex-1 flex flex-col items-center justify-center text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 min-h-[300px]">
                       <BrainCircuit className="w-14 h-14 text-emerald-500/80 mx-auto mb-4 animate-bounce" />
-                      <h3 className="text-base font-bold text-gray-800 dark:text-gray-250">Predicted Exam Blueprints Empty</h3>
+                      <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No predictions yet</h3>
                       <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1 leading-relaxed">
                         Attach a document or provide a topic and click "Predict Exams" below to rank likely exam topics.
                       </p>
@@ -1945,7 +1945,7 @@ Section 2: Practice applications
                             return (
                               <Card key={idx} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3 flex flex-col justify-between">
                                 <div className="flex justify-between items-start">
-                                  <span className="font-extrabold text-xs text-gray-800 dark:text-gray-205 leading-tight">{p.topic}</span>
+                                  <span className="font-extrabold text-xs text-gray-800 dark:text-gray-200 leading-tight">{p.topic}</span>
                                   <Badge color={
                                     isHigh 
                                       ? "bg-red-50 text-red-700 font-bold" 
@@ -2059,7 +2059,7 @@ Section 2: Practice applications
               {weakTopics.length === 0 ? (
                 <Card className="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                   <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
-                  <h3 className="text-base font-bold text-gray-800 dark:text-gray-250">Academic Mastery Complete!</h3>
+                  <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No weak topics. You're on it.</h3>
                   <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
                     No weak items recorded. Run more practice quizzes or flag card modules to track focus areas.
                   </p>
@@ -2120,12 +2120,12 @@ Section 2: Practice applications
                 /* Discord Welcome Lobby */
                 <div className="p-8 max-w-4xl mx-auto space-y-8 w-full">
                   <div className="text-center space-y-2">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-450 border border-emerald-150">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-150">
                       <Users className="w-6 h-6" />
                     </div>
-                    <h2 className="text-xl font-black text-gray-901">Discord Study Guild Lobbies</h2>
+                    <h2 className="text-xl font-black text-gray-901">Study groups</h2>
                     <p className="text-xs text-gray-450 max-w-lg mx-auto">
-                      Unify your workflow: create or join invitation-only peer hubs. Stream real-time classmate chat conversations, instantly share notes, and run synchronous study timers.
+                      Start a group or join one with a code. Chat, share notes and run study timers together.
                     </p>
                   </div>
 
@@ -2135,7 +2135,7 @@ Section 2: Practice applications
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="p-1 px-2 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold">INVITE RECIPIENT</span>
-                          <h3 className="font-extrabold text-sm text-gray-800">Join Existing Study Guild</h3>
+                          <h3 className="font-extrabold text-sm text-gray-800">Join a group</h3>
                         </div>
                         <p className="text-[11px] text-gray-400">Specify an invitation code received from a peer, or jump instantly into a recommended room below.</p>
                       </div>
@@ -2159,7 +2159,7 @@ Section 2: Practice applications
                             else alert("Please enter a valid invitation code.");
                           }}
                         >
-                          Establish Guild Link
+                          Join group
                         </Button>
                       </div>
 
@@ -2168,14 +2168,14 @@ Section 2: Practice applications
                         <div className="grid grid-cols-2 gap-2 text-left">
                           <button 
                             onClick={() => handleJoinGuild('MATH101')}
-                            className="p-2 border rounded-lg hover:border-emerald-500 bg-gray-50/50 hover:bg-emerald-50/20 text-xs transition-all text-left"
+                            className="p-2 border rounded-lg hover:border-emerald-500 bg-gray-50/50 hover:bg-emerald-50/20 dark:bg-gray-900/40 dark:border-gray-700 dark:text-gray-200 text-xs transition-all text-left"
                           >
                             <span className="block font-bold text-gray-700 text-[11px]">📐 Math-Prep-101</span>
                             <span className="text-[9px] text-gray-400 font-mono">Code: MATH101</span>
                           </button>
                           <button 
                             onClick={() => handleJoinGuild('PHYS202')}
-                            className="p-2 border rounded-lg hover:border-emerald-500 bg-gray-50/50 hover:bg-emerald-50/20 text-xs transition-all text-left"
+                            className="p-2 border rounded-lg hover:border-emerald-500 bg-gray-50/50 hover:bg-emerald-50/20 dark:bg-gray-900/40 dark:border-gray-700 dark:text-gray-200 text-xs transition-all text-left"
                           >
                             <span className="block font-bold text-gray-700 text-[11px]">⚡ Phys-Core Guild</span>
                             <span className="text-[9px] text-gray-400 font-mono">Code: PHYS202</span>
@@ -2189,7 +2189,7 @@ Section 2: Practice applications
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <span className="p-1 px-2 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold">ORGANIZER HUB</span>
-                          <h3 className="font-extrabold text-sm text-gray-800">Bootstrap New Study Circle</h3>
+                          <h3 className="font-extrabold text-sm text-gray-800">Start a group</h3>
                         </div>
                         <p className="text-[11px] text-gray-400">Generate a unique dynamic invitation link to broadcast to teammates. Complete with dedicated channels.</p>
                       </div>
@@ -2357,7 +2357,7 @@ Section 2: Practice applications
                             <p className="text-xs text-gray-600 leading-relaxed">
                               This study room has been established matching your active syllabus code block. Invitation credentials are saved locally to allow classmates to link up automatically.
                             </p>
-                            <div className="p-3 bg-white/80 dark:bg-gray-850 rounded-xl border flex items-center justify-between text-xs font-semibold">
+                            <div className="p-3 bg-white/80 dark:bg-gray-800 rounded-xl border flex items-center justify-between text-xs font-semibold">
                               <span>Dynamic Room Invite Link:</span>
                               <span className="font-mono bg-gray-100 rounded px-1.5 py-0.5 text-primary-600">{currentGuildCode}</span>
                             </div>
@@ -2433,7 +2433,7 @@ Section 2: Practice applications
                         <div className="space-y-6 animate-in fade-in">
                           
                           {/* Add Resource Form Inline */}
-                          <Card className="p-4 border border-gray-200 dark:border-gray-700 bg-slate-50/10 dark:bg-gray-850/30 space-y-4">
+                          <Card className="p-4 border border-gray-200 dark:border-gray-700 bg-slate-50/10 dark:bg-gray-800/30 space-y-4">
                             <h4 className="text-xs font-extrabold uppercase text-gray-400 tracking-wider">Deploy Note or slide deck Link</h4>
                             
                             <form 
@@ -2714,7 +2714,7 @@ Section 2: Practice applications
 
               {/* Form creation card */}
               <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left space-y-4">
-                <h4 className="font-extrabold text-sm text-gray-800">Establish Custom Reminder Alert</h4>
+                <h4 className="font-extrabold text-sm text-gray-800">New reminder</h4>
                 
                 <form onSubmit={handleCreateReminder} className="space-y-4 text-xs font-medium">
                   <div>
@@ -2738,7 +2738,7 @@ Section 2: Practice applications
                   </div>
 
                   <div className="flex justify-end pt-2">
-                    <Button type="submit">Establish Reminder Dispatch</Button>
+                    <Button type="submit">Add reminder</Button>
                   </div>
                 </form>
               </Card>

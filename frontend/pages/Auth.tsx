@@ -228,7 +228,7 @@ export const Auth: React.FC = () => {
           <div className="flex items-center gap-5">
             <button 
               onClick={() => triggerAuth(true)}
-              className="text-sm font-bold text-slate-600 dark:text-slate-350 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
               Log in
             </button>
@@ -307,7 +307,7 @@ export const Auth: React.FC = () => {
               <div className="p-6 md:p-8 flex flex-col gap-5">
                 
                 {/* Welcome Card matching image exact layout */}
-                <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-850 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
+                <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
                   <div className="text-left">
                     <h4 className="font-extrabold text-[15px] text-slate-800 dark:text-white mb-1">
                       Welcome back, Scholar 👋
@@ -325,7 +325,7 @@ export const Auth: React.FC = () => {
 
                 {/* Progress Cards Split block */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-850 p-4 sm:p-5 text-left flex flex-col gap-2">
+                  <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-5 text-left flex flex-col gap-2">
                     <h5 className="font-extrabold text-[13px] text-slate-800 dark:text-white">Calculus II</h5>
                     <div className="space-y-1.5 mt-2">
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden flex">
@@ -335,7 +335,7 @@ export const Auth: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-850 p-4 sm:p-5 text-left flex flex-col gap-2">
+                  <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-5 text-left flex flex-col gap-2">
                     <h5 className="font-extrabold text-[13px] text-slate-800 dark:text-white">Data Structures</h5>
                     <div className="space-y-1.5 mt-2">
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden flex">
@@ -347,7 +347,7 @@ export const Auth: React.FC = () => {
                 </div>
 
                 {/* Status Bar */}
-                <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-850 p-4 flex items-center justify-between mt-1">
+                <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 flex items-center justify-between mt-1">
                   <div className="flex items-center gap-3">
                     <div className="text-left ml-2 sm:ml-4">
                       <span className="text-[13px] font-extrabold text-slate-800 dark:text-white block">Exam Ready</span>
@@ -384,7 +384,7 @@ export const Auth: React.FC = () => {
             {featuresList.map((feat, index) => (
               <div 
                 key={index} 
-                className="flex flex-col text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                className="lift flex flex-col text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md group overflow-hidden"
               >
                 {/* The card content wireframe placeholder on top */}
                 {feat.illustration}
@@ -403,7 +403,7 @@ export const Auth: React.FC = () => {
                     onClick={() => triggerAuth(false)}
                     className="text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center gap-1 mt-3 transition-colors uppercase tracking-wider"
                   >
-                    Quick try this module <ChevronRight className="w-3 h-3" />
+                    Try it <ChevronRight className="w-3 h-3" />
                   </button>
                 </div>
               </div>
@@ -638,7 +638,7 @@ export const Auth: React.FC = () => {
                 {isLogin ? 'Sign In' : 'Create Account'}
               </button>
 
-              <div className="text-center pt-3 text-xs border-t border-slate-100 dark:border-slate-850">
+              <div className="text-center pt-3 text-xs border-t border-slate-100 dark:border-slate-800">
                 <button 
                   type="button" 
                   onClick={() => setIsLogin(!isLogin)}
