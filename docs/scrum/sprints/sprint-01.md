@@ -71,3 +71,9 @@ bug fixes stay in and the API client part moves to Sprint 2.
 - **Went well:**
 - **Didn't go well:**
 - **We will change:**
+- 2026-11-02: While account setup (GitHub push, Supabase projects) waits on the team, the pure-logic parts of
+  later items were built ahead, each on its own branch with tests; they are not Done until their API,
+  storage and UI parts land in their planned sprints:
+  `feat/IP-50-sm2-scheduler` (SM-2 + streak, flashcards tables), `feat/IP-22-pdf-chunking` (PDF extraction,
+  chunking, documents/chunks tables), `feat/IP-61-exam-guess-ranking` (topic clustering and ranking,
+  past paper tables). Their points stay in Sprints 2, 4 and 6.
