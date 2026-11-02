@@ -79,6 +79,17 @@ export const NovaAssistant: React.FC = () => {
   useEffect(() => { localStorage.setItem('nova_wake', String(wakeEnabled)); }, [wakeEnabled]);
   useEffect(() => { localStorage.setItem('nova_muted', String(muted)); }, [muted]);
 
+  // The Settings page changes Nova's name, wake word and voice; follow along.
+  useEffect(() => {
+    const sync = () => {
+      setName(localStorage.getItem('nova_name') || 'Nova');
+      setWakeEnabled(localStorage.getItem('nova_wake') === 'true' && speechSupported);
+      setMuted(localStorage.getItem('nova_muted') === 'true');
+    };
+    window.addEventListener('nova-settings', sync);
+    return () => window.removeEventListener('nova-settings', sync);
+  }, []);
+
   const turnsRef = useRef(turns);
   turnsRef.current = turns;
   const mutedRef = useRef(muted);
@@ -181,7 +192,7 @@ export const NovaAssistant: React.FC = () => {
   const lastTurns = turns.slice(-4);
 
   return (
-    <div className="fixed bottom-6 right-24 z-50 flex flex-col items-end">
+    <div className="fixed bottom-20 right-24 z-50 flex flex-col items-end md:bottom-6">
       {isOpen && (
         <div className="mb-4 flex h-[560px] w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-white shadow-2xl md:w-[380px] animate-in" role="dialog" aria-label={`${name} assistant`}>
           {/* Header */}

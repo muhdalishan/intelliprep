@@ -101,3 +101,11 @@ bug fixes stay in and the API client part moves to Sprint 2.
   subjects can be saved to the account when shared; shared subjects appear on the dashboard and use the
   shared planner and moodboard; Nova writes to them. Tested in the app: Ali shares a subject, Sara joins
   by code, both edit one planner and chat; Hamza sees nothing.
+- 2026-11-03: Branch `feat/ux-cleanup`, from a full UX review. Removed made-up content (fake stats, testimonials,
+  sample reminders), so every number on the dashboard and subject overview is now real. Features that aren't
+  connected yet (Google sign-in, forgot password, Telegram and email reminders, adaptive exams, change
+  password, delete account) stay visible with a "Soon" label instead of being removed. The subject
+  workspace went from 12 tabs to 7 sections with a phone bottom bar. Results (summaries, decks, quizzes,
+  predictions) now persist per subject, and history buttons work. New pages: Groups, Settings, About,
+  Privacy (discloses that notes go to OpenAI for processing), Terms, and a not-found page. Browser
+  alert/confirm pop-ups are replaced by in-app messages and confirmation dialogs. Favicon and meta tags added.

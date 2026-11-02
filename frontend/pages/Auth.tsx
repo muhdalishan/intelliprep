@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, Button, Input } from '../components/UIComponents';
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, Button, Input, SoonBadge } from '../components/UIComponents';
 import { 
   BookOpen, BrainCircuit, Users, CheckSquare, Layers, FileText, 
   ArrowRight, Shield, Clock, Flame, CheckCircle, GraduationCap,
@@ -13,8 +13,9 @@ export const Auth: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [userName, setUserName] = useState('');
-  const [email, setEmail] = useState('student@demo.com');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [soonNotice, setSoonNotice] = useState<string | null>(null);
   
   // Interactive preview state in Hero Section
   const [activeScreen, setActiveScreen] = useState<'screen1' | 'screen2' | 'screen3'>('screen1');
@@ -23,6 +24,7 @@ export const Auth: React.FC = () => {
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('isAuthenticated', 'true');
+    if (email) localStorage.setItem('userEmail', email.trim());
     if (!isLogin && userName) {
       localStorage.setItem('userName', userName);
     } else if (isLogin && !localStorage.getItem('userName')) {
@@ -33,13 +35,14 @@ export const Auth: React.FC = () => {
 
   const triggerAuth = (loginMode: boolean) => {
     setIsLogin(loginMode);
+    setSoonNotice(null);
     setShowAuthModal(true);
   };
 
   const featuresList = [
     {
       title: "AI Summaries",
-      description: "Synthesize textbook modules or lecture notes into beautiful, scannable summaries in single-click actions.",
+      description: "Turn long lecture PDFs into short, structured notes, taken only from what you uploaded.",
       illustration: (
         <div className="h-32 w-full border-b border-slate-100 dark:border-slate-800/80 bg-blue-50/40 dark:bg-blue-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-blue-100/60 dark:group-hover:bg-blue-900/30 transition-colors">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -68,7 +71,7 @@ export const Auth: React.FC = () => {
     },
     {
       title: "Practice Quizzes",
-      description: "Auto-generate diagnostic multi-choice questions covering your documents to test memory retention safely.",
+      description: "Multiple-choice questions from your notes, with explanations and a list of what you got wrong.",
       illustration: (
         <div className="h-32 w-full border-b border-emerald-100 dark:border-emerald-800/80 bg-emerald-50/40 dark:bg-emerald-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-emerald-100/60 dark:group-hover:bg-emerald-900/30 transition-colors">
           <div className="relative w-40 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-3 transform transition-transform duration-500 group-hover:translate-x-1">
@@ -94,8 +97,8 @@ export const Auth: React.FC = () => {
       )
     },
     {
-      title: "Flashcards Room",
-      description: "Study key vocabulary modules with rapid 3D flipping interfaces styled for zero distractions.",
+      title: "Flashcards",
+      description: "Cards made from your notes. Flip them, mark what you know, and come back to the rest.",
       illustration: (
         <div className="h-32 w-full border-b border-amber-100 dark:border-amber-800/80 bg-amber-50/40 dark:bg-amber-950/20 flex items-center justify-center overflow-hidden relative perspective-1000 group-hover:bg-amber-100/60 dark:group-hover:bg-amber-900/30 transition-colors">
           <div className="relative w-32 h-20 transform-style-3d transition-transform duration-700 group-hover:rotate-y-180">
@@ -115,8 +118,8 @@ export const Auth: React.FC = () => {
       )
     },
     {
-      title: "Exam Guess Engine",
-      description: "Estimate textbook blueprint probabilities using deep prediction pipelines built for prompt discovery.",
+      title: "Exam Predictions",
+      description: "See which topics are most likely to come, with sample questions and an answer outline for each.",
       illustration: (
         <div className="h-32 w-full border-b border-indigo-100 dark:border-indigo-800/80 bg-indigo-50/40 dark:bg-indigo-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-indigo-100/60 dark:group-hover:bg-indigo-900/30 transition-colors">
           <div className="relative w-40 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 transform transition-transform duration-500 group-hover:-translate-y-1">
@@ -137,8 +140,8 @@ export const Auth: React.FC = () => {
       )
     },
     {
-      title: "Planner Kanban",
-      description: "Visualize work states cleanly in responsive columns to manage your weekly semester goals physically.",
+      title: "Nova, your voice assistant",
+      description: "Say “Hey Nova” to set reminders, save notes, add tasks or ask a quick question, hands-free.",
       illustration: (
         <div className="h-32 w-full border-b border-violet-100 dark:border-violet-800/80 bg-violet-50/40 dark:bg-violet-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-violet-100/60 dark:group-hover:bg-violet-900/30 transition-colors">
           <div className="flex gap-2 transform transition-transform duration-500 group-hover:scale-105">
@@ -160,8 +163,8 @@ export const Auth: React.FC = () => {
       )
     },
     {
-      title: "Group Study Guild",
-      description: "Synchronize study sprints together with live online timers, shared dashboards and team whiteboards.",
+      title: "Study Groups",
+      description: "Invite classmates with a code, share subjects, plan together and chat while you prepare.",
       illustration: (
          <div className="h-32 w-full border-b border-rose-100 dark:border-rose-800/80 bg-rose-50/40 dark:bg-rose-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-rose-100/60 dark:group-hover:bg-rose-900/30 transition-colors">
           <div className="w-40 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 transform transition-transform duration-500 group-hover:-translate-y-1">
@@ -187,20 +190,20 @@ export const Auth: React.FC = () => {
   const stepsList = [
     {
       step: "01",
-      title: "Create your workspace",
-      description: "Construct folders or central lecture lists for your subjects.",
+      title: "Add your subjects",
+      description: "One space per course, with its exam date and class times.",
       icon: <Plus className="w-6 h-6 text-primary-500" />
     },
     {
       step: "02",
-      title: "Add your courses",
-      description: "Paste loose documents, upload pdf slides or enter core syllabus outlines.",
+      title: "Upload your notes",
+      description: "Lecture PDFs or text notes. Everything the AI does comes from them.",
       icon: <FileText className="w-6 h-6 text-primary-500" />
     },
     {
       step: "03",
       title: "Study smarter with AI",
-      description: "Estimate probabilities, flash adaptive modules, and take targeted questionnaires.",
+      description: "Summaries, flashcards, quizzes and exam predictions, with a tutor when you get stuck.",
       icon: <BrainCircuit className="w-6 h-6 text-primary-500" />
     }
   ];
@@ -251,7 +254,7 @@ export const Auth: React.FC = () => {
             {/* Tag */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 text-[11.5px] font-bold tracking-wide">
               <Sparkles className="w-3.5 h-3.5" />
-              AI-Powered Academic Workspace
+              AI exam prep from your own notes
             </div>
             
             {/* Display Headline */}
@@ -261,7 +264,7 @@ export const Auth: React.FC = () => {
             </h1>
             
             <p className="text-base sm:text-[1.05rem] text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
-              IntelliPrep AI combines personalized AI summaries, adaptive quizzes, and predicted exam topics — so you can prepare confidently and efficiently.
+              Upload your lecture notes and IntelliPrep turns them into summaries, flashcards, quizzes and likely exam topics. Every answer comes from your own material.
             </p>
             
             {/* CTA Trigger Row */}
@@ -279,7 +282,7 @@ export const Auth: React.FC = () => {
                 }}
                 className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:text-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-extrabold rounded-xl h-12 px-7 shadow-sm cursor-pointer transition-colors"
               >
-                Watch demo
+                See how it works
               </button>
             </div>
             
@@ -310,16 +313,16 @@ export const Auth: React.FC = () => {
                 <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
                   <div className="text-left">
                     <h4 className="font-extrabold text-[15px] text-slate-800 dark:text-white mb-1">
-                      Welcome back, Scholar 👋
+                      Next paper: Data Structures
                     </h4>
                     <p className="text-xs text-slate-400 font-medium">
-                      You have 3 upcoming exams
+                      12 days left · 18 flashcards due today
                     </p>
                   </div>
 
                   <div className="bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-xs font-extrabold px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 shadow-sm border border-amber-100 dark:border-amber-900/30">
                     <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
-                    <span>5 days</span>
+                    <span>4-day streak</span>
                   </div>
                 </div>
 
@@ -331,7 +334,7 @@ export const Auth: React.FC = () => {
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden flex">
                         <div className="bg-primary-500 h-full w-[72%] rounded-full"></div>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium pt-0.5">72% proficiency</p>
+                      <p className="text-[10px] text-slate-400 font-medium pt-0.5">Last quiz: 4 / 5</p>
                     </div>
                   </div>
 
@@ -341,7 +344,7 @@ export const Auth: React.FC = () => {
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden flex">
                         <div className="bg-primary-500 h-full w-[58%] rounded-full"></div>
                       </div>
-                      <p className="text-[10px] text-slate-400 font-medium pt-0.5">58% proficiency</p>
+                      <p className="text-[10px] text-slate-400 font-medium pt-0.5">Last quiz: 3 / 5</p>
                     </div>
                   </div>
                 </div>
@@ -484,7 +487,7 @@ export const Auth: React.FC = () => {
           </div>
 
           <p className="text-[10px] text-slate-450 uppercase font-mono tracking-wider pt-2">
-            No credit card required • Free forever plan
+            Final Year Project · University of Central Punjab
           </p>
         </div>
       </section>
@@ -501,7 +504,7 @@ export const Auth: React.FC = () => {
               <span className="font-extrabold text-slate-900 dark:text-white tracking-tight">IntelliPrep AI</span>
             </div>
             <p className="text-slate-400 dark:text-slate-500 max-w-sm leading-relaxed">
-              Academic workspaces designed strictly for memory reinforcement, custom prediction models and collaborative study groups.
+              AI exam preparation from your own notes: summaries, flashcards, quizzes, exam predictions, study groups and a voice assistant.
             </p>
           </div>
 
@@ -509,26 +512,27 @@ export const Auth: React.FC = () => {
             <h5 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-[10px] mb-3">Product</h5>
             <ul className="space-y-2 font-medium text-slate-500 dark:text-slate-400">
               <li><a href="#features" className="hover:text-slate-900 dark:hover:text-white">Features</a></li>
-              <li><a href="#pricing" className="hover:text-slate-900 dark:hover:text-white">Pricing</a></li>
-              <li><a href="#how-it-works" className="hover:text-slate-900 dark:hover:text-white">Changelog</a></li>
+              <li><a href="#how-it-works" className="hover:text-slate-900 dark:hover:text-white">How it works</a></li>
+              <li className="cursor-default">Pricing <SoonBadge /></li>
+              <li className="cursor-default">Changelog <SoonBadge /></li>
             </ul>
           </div>
 
           <div className="md:col-span-2 text-left">
             <h5 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-[10px] mb-3">Company</h5>
             <ul className="space-y-2 font-medium text-slate-500 dark:text-slate-400">
-              <li><span className="hover:text-slate-900 dark:hover:text-white cursor-pointer">About</span></li>
-              <li><span className="hover:text-slate-900 dark:hover:text-white cursor-pointer">Blog</span></li>
-              <li><span className="hover:text-slate-900 dark:hover:text-white cursor-pointer">Careers</span></li>
+              <li><Link to="/about" className="hover:text-slate-900 dark:hover:text-white">About the project</Link></li>
+              <li className="cursor-default">Blog <SoonBadge /></li>
+              <li className="cursor-default">Careers <SoonBadge /></li>
             </ul>
           </div>
 
           <div className="md:col-span-2 text-left">
             <h5 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-[10px] mb-3">Legal</h5>
             <ul className="space-y-2 font-medium text-slate-500 dark:text-slate-400">
-              <li><span className="hover:text-slate-900 dark:hover:text-white cursor-pointer">Privacy</span></li>
-              <li><span className="hover:text-slate-900 dark:hover:text-white cursor-pointer">Terms</span></li>
-              <li><span className="hover:text-slate-900 dark:hover:text-white cursor-pointer">Cookies</span></li>
+              <li><Link to="/privacy" className="hover:text-slate-900 dark:hover:text-white">Privacy</Link></li>
+              <li><Link to="/terms" className="hover:text-slate-900 dark:hover:text-white">Terms</Link></li>
+              <li className="cursor-default">Cookies <SoonBadge /></li>
             </ul>
           </div>
 
@@ -536,7 +540,7 @@ export const Auth: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-slate-200/50 dark:border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-6">
           <p className="text-slate-400 dark:text-slate-500 font-medium">
-            IntelliPrep AI © 2026. Secure, private on-device cloud-hosted study systems.
+            IntelliPrep AI © 2026. Your notes stay private to your account.
           </p>
           <div className="flex gap-4">
             <div className="font-mono text-[10px] tracking-wide text-slate-400 bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded">BS(CS) Final Year Project · UCP</div>
@@ -569,7 +573,8 @@ export const Auth: React.FC = () => {
             {/* Continue with Google button */}
             <button 
               type="button"
-              onClick={handleAuth}
+              onClick={() => setSoonNotice('Google sign-in is coming soon. Use your email for now.')}
+              aria-describedby="soon-notice"
               className="w-full bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-95 transition-all text-center"
             >
               {/* Simple inline G Google SVG */}
@@ -580,7 +585,14 @@ export const Auth: React.FC = () => {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.85c.87-2.6 3.3-4.53 6.13-4.53z"/>
               </svg>
               Continue with Google
+              <SoonBadge />
             </button>
+
+            {soonNotice && (
+              <p id="soon-notice" role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-center text-[11px] font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                {soonNotice}
+              </p>
+            )}
 
             {/* Or Divider */}
             <div className="relative my-5 flex items-center justify-center">
@@ -597,7 +609,7 @@ export const Auth: React.FC = () => {
                   <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Your Full Name</label>
                   <Input 
                     type="text" 
-                    placeholder="Scholar Name" 
+                    placeholder="Your name" 
                     value={userName} 
                     onChange={(e) => setUserName(e.target.value)} 
                     required
@@ -620,7 +632,7 @@ export const Auth: React.FC = () => {
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Password</label>
-                  <a href="#" onClick={(e) => e.preventDefault()} className="text-[10px] font-semibold text-slate-450 hover:text-slate-600 transition-colors">Forgot password?</a>
+                  <button type="button" onClick={() => setSoonNotice('Password reset by email is coming soon, along with full accounts.')} className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 transition-colors">Forgot password?</button>
                 </div>
                 <Input 
                   type="password" 

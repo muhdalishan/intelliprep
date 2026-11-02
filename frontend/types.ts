@@ -51,7 +51,7 @@ export interface Reminder {
   id: string;
   message: string;
   date: string;
-  platform: 'telegram' | 'email';
+  platform: 'app' | 'telegram' | 'email';
   fired?: boolean; // already shown as a notification
 }
 

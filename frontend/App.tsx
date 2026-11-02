@@ -3,8 +3,12 @@ import { HashRouter, Routes, Route, Navigate, useLocation, useParams } from 'rea
 import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
 import { SubjectWorkspace } from './pages/SubjectWorkspace';
+import { Groups } from './pages/Groups';
+import { Settings } from './pages/Settings';
+import { About, NotFound, Privacy, Terms } from './pages/InfoPages';
 import { JarvisChat } from './components/JarvisChat';
 import { NovaAssistant } from './components/NovaAssistant';
+import { FeedbackHost } from './components/Feedback';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuth = localStorage.getItem('isAuthenticated') === 'true';
@@ -21,7 +25,8 @@ const SubjectRoute: React.FC = () => {
 const Assistants: React.FC = () => {
   const { pathname } = useLocation();
   const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-  if (!isAuth || pathname === '/') return null;
+  const publicPages = ['/', '/about', '/privacy', '/terms'];
+  if (!isAuth || publicPages.includes(pathname)) return null;
   return (
     <>
       <NovaAssistant />
@@ -46,8 +51,15 @@ const App: React.FC = () => {
               <SubjectRoute />
             </ProtectedRoute>
           } />
+          <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/about" element={<About />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <Assistants />
+        <FeedbackHost />
       </div>
     </HashRouter>
   );

@@ -8,9 +8,11 @@ import type { GroupDetail, GroupMessage, GroupSummary } from '../services/groupS
 import { saveSubjectToAccount } from '../services/workspaceService';
 import { DevStudentSwitcher } from './DevStudentSwitcher';
 import { Subject } from '../types';
+import { confirmAction } from './Feedback';
 
 interface Props {
-  subject: Subject;
+  /** The subject the student is in; the Groups page passes none. */
+  subject?: Subject;
 }
 
 const initials = (name: string) => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() || '?';
@@ -21,14 +23,15 @@ const timeLabel = (iso: string) =>
 /** Study groups: create or join with a code, share subjects, chat. Data and access rules live on the server. */
 export const StudyGroups: React.FC<Props> = ({ subject }) => {
   const navigate = useNavigate();
-  const { id: subjectId, name: subjectName } = subject;
+  const subjectId = subject?.id ?? '';
+  const subjectName = subject?.name ?? 'a subject';
   const [list, setList] = useState<GroupSummary[] | null>(null);
   const [selected, setSelected] = useState<GroupDetail | null>(null);
   const [messages, setMessages] = useState<GroupMessage[]>([]);
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [newName, setNewName] = useState(`${subjectName} study group`);
+  const [newName, setNewName] = useState(subject ? `${subject.name} study group` : '');
   const [code, setCode] = useState('');
   const [draft, setDraft] = useState('');
   const [copied, setCopied] = useState(false);
@@ -203,7 +206,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
         <Card className="flex min-h-[320px] flex-col items-center justify-center border border-dashed border-gray-300 bg-white text-center dark:border-gray-700 dark:bg-gray-800">
           <Users className="mb-3 h-10 w-10 text-gray-300" />
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200">Pick a group, start one, or join with a code</p>
-          <p className="mt-1 max-w-sm text-xs text-gray-400">Share {subjectName} into a group so everyone can see its documents and edit its planner and moodboard together.</p>
+          <p className="mt-1 max-w-sm text-xs text-gray-400">{subject ? `Share ${subject.name} into a group` : 'Open a subject and share it into a group'} so everyone can see its documents and edit its planner and board together.</p>
         </Card>
       ) : (
         <div className="grid min-h-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -216,7 +219,8 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
                 </div>
                 <Button variant="ghost" size="sm" icon={LogOut} className="text-xs text-red-600"
                   onClick={async () => {
-                    if (!confirm(`Leave ${selected.name}? You'll lose access to its shared subjects and chat.`)) return;
+                    const ok = await confirmAction({ title: `Leave ${selected.name}?`, message: "You'll lose access to its shared subjects and chat.", confirmLabel: 'Leave group', danger: true });
+                    if (!ok) return;
                     await run(() => groups.leaveGroup(selected.id));
                     setSelected(null);
                     refreshList();
@@ -238,7 +242,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
             <Card className="space-y-3 border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <div className="flex items-center justify-between">
                 <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-500"><BookOpen className="h-4 w-4" /> Shared subjects</h4>
-                {!alreadyShared && (
+                {subject && !alreadyShared && (
                   <Button size="sm" icon={Share2} disabled={busy}
                     onClick={async () => {
                       if (canShareHere) {
@@ -246,7 +250,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
                         return;
                       }
                       // Subjects that live only in this browser are saved to the account first.
-                      const accountId = await run(() => saveSubjectToAccount(subject));
+                      const accountId = await run(() => saveSubjectToAccount(subject!));
                       if (!accountId) return;
                       const detail = await run(() => groups.shareSubject(selected.id, accountId));
                       if (detail) navigate(`/subject/${accountId}?tab=studyroom`, { replace: true });
@@ -255,7 +259,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
                   </Button>
                 )}
               </div>
-              {!canShareHere && !alreadyShared && (
+              {subject && !canShareHere && !alreadyShared && (
                 <p className="text-[11px] text-gray-400">Sharing saves {subjectName} to your account first, with its planner and moodboard.</p>
               )}
               {selected.subjects.length === 0 ? (
@@ -291,7 +295,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
                       ? <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600"><Crown className="h-3.5 w-3.5" /> Lead</span>
                       : selected.role === 'lead' && (
                         <button className="text-[11px] font-semibold text-gray-400 hover:text-red-500"
-                          onClick={async () => { if (confirm(`Remove ${member.full_name} from the group?`)) afterChange(await run(() => groups.removeMember(selected.id, member.user_id))); }}>
+                          onClick={async () => { if (await confirmAction({ title: `Remove ${member.full_name}?`, message: 'They lose access to the shared subjects and chat. They can rejoin with the invite code.', confirmLabel: 'Remove', danger: true })) afterChange(await run(() => groups.removeMember(selected.id, member.user_id))); }}>
                           Remove
                         </button>
                       )}
