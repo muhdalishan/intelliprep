@@ -82,3 +82,70 @@ export const formatDue = (value: string) => {
     ? date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
     : date.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 };
+
+// Study activity ------------------------------------------------------------
+// One entry per day the student did something real (quiz, flashcards, summary, exam...).
+
+const STUDY_DAYS_KEY = "ip_study_days";
+
+const localDay = (date = new Date()) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+const studyDays = (): Set<string> => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(STUDY_DAYS_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+};
+
+export const logStudyDay = () => {
+  const days = studyDays();
+  days.add(localDay());
+  localStorage.setItem(STUDY_DAYS_KEY, JSON.stringify([...days].sort().slice(-400)));
+};
+
+/** Consecutive study days ending today (or yesterday, if today hasn't been studied yet). */
+export const studyStreak = (): number => {
+  const days = studyDays();
+  const day = new Date();
+  if (!days.has(localDay(day))) day.setDate(day.getDate() - 1);
+  let streak = 0;
+  while (days.has(localDay(day))) {
+    streak += 1;
+    day.setDate(day.getDate() - 1);
+  }
+  return streak;
+};
+
+/** Days studied in the last 7 days, including today. */
+export const studyDaysThisWeek = (): number => {
+  const days = studyDays();
+  let count = 0;
+  const day = new Date();
+  for (let i = 0; i < 7; i++) {
+    if (days.has(localDay(day))) count += 1;
+    day.setDate(day.getDate() - 1);
+  }
+  return count;
+};
+
+/** Reads a per-subject list saved by the workspace (e.g. "cards", "quizzes", "weak"). */
+export const readSubjectList = <T>(kind: string, subjectId: string): T[] => {
+  try {
+    return JSON.parse(localStorage.getItem(`ip_${kind}_${subjectId}`) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+/** Whole days from today until an ISO date; null when there's no date. */
+export const daysUntil = (isoDate?: string): number | null => {
+  if (!isoDate) return null;
+  const target = new Date(`${isoDate.slice(0, 10)}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+};

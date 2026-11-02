@@ -86,3 +86,9 @@ export const Badge: React.FC<{ children: React.ReactNode; color?: string }> = ({
     </span>
   );
 };
+/** Marks a feature that is planned but not switched on yet. */
+export const SoonBadge: React.FC<{ className?: string }> = ({ className }) => (
+  <span className={cn("ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-900/40 dark:text-amber-300", className)}>
+    Soon
+  </span>
+);

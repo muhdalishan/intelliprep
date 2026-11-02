@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote, Reminder } from '../types';
 import { MOCK_SUBJECTS, MOCK_FLASHCARDS, MOCK_QUIZ, MOCK_KANBAN, MOCK_NOTES, MOCK_REMINDERS } from '../constants';
-import { Button, Card, cn, Input, ProgressBar, Badge } from '../components/UIComponents';
+import { Button, Card, cn, Input, ProgressBar, Badge, SoonBadge } from '../components/UIComponents';
 import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
 import { StudyGroups } from '../components/StudyGroups';
 import { useSharedBoard } from '../hooks/useSharedBoard';
+import { usePersistentState } from '../hooks/usePersistentState';
 import { isAccountSubjectId, listAccountSubjects, toSubject } from '../services/workspaceService';
 import { 
   generateSummary, 
@@ -16,7 +17,7 @@ import {
   ChatMessage,
   GuessPaperResult
 } from '../services/aiService';
-import { formatDue, GLOBAL_SUBJECT, loadItems, saveItems, STORE_EVENT } from '../services/studyStore';
+import { daysUntil, formatDue, GLOBAL_SUBJECT, loadItems, logStudyDay, saveItems, STORE_EVENT, studyDaysThisWeek, studyStreak } from '../services/studyStore';
 import { readStudyFile } from '../services/documentService';
 import { 
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare, 
@@ -144,12 +145,12 @@ Section 2: Practice applications
   const [generatedSummary, setGeneratedSummary] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [loadedFiles, setLoadedFiles] = useState<{name: string, content: string, date: string}[]>([
-    { name: `Syllabus_${subject?.name?.replace(/\s+/g, '_')}_QuickNotes.txt`, content: getDefaultSyllabusNotes(subject?.name || ''), date: "Today" }
+  const [loadedFiles, setLoadedFiles] = usePersistentState<{name: string, content: string, date: string}[]>(`ip_files_${id}`, () => [
+    { name: `Sample notes – ${subject?.name ?? 'this subject'}.txt`, content: getDefaultSyllabusNotes(subject?.name || ''), date: "Sample" }
   ]);
 
   // Flashcards state
-  const [flashcards, setFlashcards] = useState<Flashcard[]>(() => {
+  const [flashcards, setFlashcards] = usePersistentState<Flashcard[]>(`ip_cards_${id}`, () => {
     // Generate some mock topic specific flashcards initially
     const subName = subject?.name || '';
     if (subName.includes("Math")) {
@@ -172,9 +173,7 @@ Section 2: Practice applications
   const [isFlipped, setIsFlipped] = useState(false);
 
   // Weak Topic list dynamically aggregated from Quiz failures and manual flags
-  const [weakTopics, setWeakTopics] = useState<{id: string, name: string, origin: 'quiz' | 'flashcard', date: string, reviewIdea: string}[]>([
-    { id: 'wt-init-1', name: `Limits calculations (${subject?.name})`, origin: 'flashcard', date: "Recently", reviewIdea: "Review Rolle's theorem derivatives and practice 5 standard L'Hopital algebraic identities." }
-  ]);
+  const [weakTopics, setWeakTopics] = usePersistentState<{id: string, name: string, origin: 'quiz' | 'flashcard', date: string, reviewIdea: string}[]>(`ip_weak_${id}`, () => []);
 
   // Quiz state
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() => {
@@ -234,7 +233,7 @@ Section 2: Practice applications
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Reminders list
-  const [reminders, setReminders] = useState<Reminder[]>(() => loadItems('reminders', storeId, MOCK_REMINDERS));
+  const [reminders, setReminders] = useState<Reminder[]>(() => loadItems('reminders', storeId, []));
 
   useEffect(() => { saveItems('tasks', storeId, kanbanTasks); }, [storeId, kanbanTasks]);
   useEffect(() => { saveItems('notes', storeId, moodNotes); }, [storeId, moodNotes]);
@@ -268,10 +267,10 @@ Section 2: Practice applications
   const [customTopic, setCustomTopic] = useState('');
   const [showDocSelector, setShowDocSelector] = useState(false);
   
-  const [summaryHistory, setSummaryHistory] = useState<{id: string, doc: string[], content: string, date: string}[]>([]);
-  const [quizHistory, setQuizHistory] = useState<{id: string, doc: string[], score: number, total: number, date: string}[]>([]);
-  const [flashcardDeckHistory, setFlashcardDeckHistory] = useState<{id: string, doc: string[], cardCount: number, date: string}[]>([]);
-  const [guessPaperHistory, setGuessPaperHistory] = useState<{id: string, doc: string[], date: string, questions: number}[]>([]);
+  const [summaryHistory, setSummaryHistory] = usePersistentState<{id: string, doc: string[], content: string, date: string}[]>(`ip_summaries_${id}`, () => []);
+  const [quizHistory, setQuizHistory] = usePersistentState<{id: string, doc: string[], score: number, total: number, date: string, questions?: QuizQuestion[]}[]>(`ip_quizzes_${id}`, () => []);
+  const [flashcardDeckHistory, setFlashcardDeckHistory] = usePersistentState<{id: string, doc: string[], cardCount: number, date: string, cards?: Flashcard[]}[]>(`ip_decks_${id}`, () => []);
+  const [guessPaperHistory, setGuessPaperHistory] = usePersistentState<{id: string, doc: string[], date: string, questions: number, result?: GuessPaperResult}[]>(`ip_guesses_${id}`, () => []);
   
   const [previewContent, setPreviewContent] = useState<{title: string, text: string} | null>(null);
 
@@ -507,6 +506,7 @@ Section 2: Practice applications
     setIsGenerating(true);
     const result = await generateSummary(textToSummarize);
     setGeneratedSummary(result);
+    logStudyDay();
     setSummaryHistory(prev => [{
       id: Math.random().toString(),
       doc: [...selectedDocs],
@@ -531,10 +531,12 @@ Section 2: Practice applications
       setFlashcards(result);
       setActiveCardIndex(0);
       setIsFlipped(false);
+      logStudyDay();
       setFlashcardDeckHistory(prev => [{
         id: Math.random().toString(),
         doc: [...selectedDocs],
         cardCount: result.length,
+        cards: result,
         date: new Date().toLocaleTimeString()
       }, ...prev]);
     }
@@ -598,11 +600,13 @@ Section 2: Practice applications
       setCurrentQuestion(c => c + 1);
     } else {
       setShowQuizResult(true);
+      logStudyDay();
       setQuizHistory(prev => [{
         id: Math.random().toString(),
         doc: [...selectedDocs],
         score: quizScore,
         total: quizQuestions.length,
+        questions: quizQuestions,
         date: new Date().toLocaleTimeString()
       }, ...prev]);
     }
@@ -662,11 +666,13 @@ Section 2: Practice applications
     setIsGuessing(true);
     const result = await generateGuessPaper(subject.name, textToSummarize);
     setGuessResults(result);
+    logStudyDay();
     setGuessPaperHistory(prev => [{
       id: Math.random().toString(),
       doc: [...selectedDocs],
       date: new Date().toLocaleTimeString(),
-      questions: result.sampleQuestions.length
+      questions: result.sampleQuestions.length,
+      result
     }, ...prev]);
     setIsGuessing(false);
   };
@@ -704,6 +710,7 @@ Section 2: Practice applications
 
   // High Stakes Exam submission
   const handleExamSubmit = () => {
+    logStudyDay();
     setExamActive(false);
     // Grade calculations
     let correctCount = 0;
@@ -757,8 +764,8 @@ Section 2: Practice applications
     setReminders([...reminders, {
       id: `rem-${Date.now()}`,
       message: msg,
-      date: dateInput || '2026-06-15',
-      platform: platform
+      date: dateInput,
+      platform: platform || 'app'
     }]);
     form.reset();
   };
@@ -819,17 +826,16 @@ Section 2: Practice applications
           ))}
         </nav>
 
-        {/* Dynamic Goal tracker indicator bottom sidebar */}
+        {/* Study days in the last week, from real activity */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 hidden lg:block bg-gray-50/50 dark:bg-gray-800/40">
           <div className="bg-primary-900 rounded-xl p-3.5 text-white shadow-inner relative overflow-hidden">
-            <div className="absolute right-0 top-0 w-8 h-8 rounded-full bg-primary-700/25 blur-sm"></div>
-            <p className="text-[10px] uppercase font-bold text-primary-200 leading-none">Weekly Goals</p>
+            <p className="text-[10px] uppercase font-bold text-primary-200 leading-none">This week</p>
             <div className="flex justify-between items-baseline mt-1.5 mb-1 text-xs">
-              <span className="font-black text-sm">12.5 hrs</span>
-              <span className="opacity-80">62% done</span>
+              <span className="font-black text-sm">{studyDaysThisWeek()} of 7 days</span>
+              <span className="opacity-80">studied</span>
             </div>
             <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-white h-full" style={{ width: '62%' }}></div>
+              <div className="bg-white h-full" style={{ width: `${Math.round((studyDaysThisWeek() / 7) * 100)}%` }}></div>
             </div>
           </div>
         </div>
@@ -839,20 +845,20 @@ Section 2: Practice applications
       <main className="flex-1 min-w-0 min-h-0 flex flex-col h-full overflow-hidden relative">
         
         {/* Wide Header Info */}
-        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-8 z-10">
-          <div className="flex items-center gap-3">
+        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 px-4 md:px-8 z-10">
+          <div className="flex min-w-0 items-center gap-3">
             <div className={cn("w-3 h-3 rounded-full", subject.color)}></div>
-            <div>
-              <h1 className="text-base font-extrabold text-gray-900 dark:text-white leading-tight">
-                {subject.name} <span className="text-xs text-gray-400 font-normal">({subject.credits} Credits Syllabus)</span>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-extrabold text-gray-900 dark:text-white leading-tight">
+                {subject.name} <span className="hidden text-xs text-gray-400 font-normal sm:inline">· {subject.credits} credit hours</span>
               </h1>
-              <p className="text-xs text-gray-400 font-medium">Instructor: {subject.teacher} • Level 1 Core</p>
+              <p className="truncate text-xs text-gray-500 font-medium">{subject.teacher ? `Instructor: ${subject.teacher}` : 'No instructor added'}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-[#ccfbf1] text-[#0f172a] dark:bg-primary-900/50 dark:text-primary-100 px-3 py-1 rounded-full text-xs font-bold border border-transparent">
-              <Flame className="w-4 h-4 text-[#0b957f]" /> 5 Days Streak
+          <div className="flex shrink-0 items-center gap-4">
+            <div className="hidden items-center gap-2 bg-[#ccfbf1] text-[#0f172a] dark:bg-primary-900/50 dark:text-primary-100 px-3 py-1 rounded-full text-xs font-bold border border-transparent sm:flex" title="Days in a row you've studied">
+              <Flame className="w-4 h-4 text-[#0b957f]" /> {studyStreak()}-day streak
             </div>
             
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xs overflow-hidden">
@@ -961,161 +967,82 @@ Section 2: Practice applications
           !['moodboard', 'studyroom'].includes(activeTab) && !['overview', 'upload', 'kanban', 'reminders'].includes(activeTab) ? "p-6 md:p-8" : ""
         )}>
           
-          {/* TAB 4.1: OVERVIEW */}
-          {activeTab === 'overview' && (
-            <div className="space-y-8 animate-in fade-in duration-300">
-              
-              {/* Dynamic stats cards & Topic Weightage split */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                {/* Course Completion and statistics widgets */}
-                <div className="lg:col-span-2 space-y-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    
-                    {/* Completion Circular Progress pie chart */}
-                    <Card className="flex flex-col justify-between items-center text-center p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                      <div className="w-full flex justify-between items-center mb-4">
-                        <span className="text-xs font-bold uppercase text-gray-400">Sylabus Coverage</span>
-                        <Badge color="bg-emerald-50 text-emerald-700">Excellent</Badge>
-                      </div>
+          {/* TAB 4.1: OVERVIEW: real numbers for this subject and what to do next */}
+          {activeTab === 'overview' && (() => {
+            const daysLeft = daysUntil(subject.examDate);
+            const mastered = flashcards.filter(c => c.mastered).length;
+            const lastQuiz = quizHistory[0];
+            const ownNotes = loadedFiles.filter(file => file.date !== 'Sample').length;
+            const isLocalSubject = subjects.some(s => s.id === subject.id);
+            const nextSteps: { label: string; detail: string; tab: TabType }[] = [];
+            if (ownNotes === 0) nextSteps.push({ label: 'Upload your lecture notes', detail: 'Everything the AI makes comes from them.', tab: 'upload' });
+            if (flashcards.length - mastered > 0) nextSteps.push({ label: `Review ${flashcards.length - mastered} flashcard${flashcards.length - mastered === 1 ? '' : 's'}`, detail: 'Mark the ones you know as mastered.', tab: 'flashcards' });
+            if (weakTopics.length > 0) nextSteps.push({ label: `Go over ${weakTopics.length} weak topic${weakTopics.length === 1 ? '' : 's'}`, detail: 'From questions you got wrong or flagged.', tab: 'weak-topics' });
+            if (!lastQuiz) nextSteps.push({ label: 'Take a practice quiz', detail: 'Find out what you already know.', tab: 'quiz' });
+            if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 14) nextSteps.push({ label: 'Do a timed exam', detail: 'Practise under exam conditions.', tab: 'exam' });
 
-                      <div className="h-32 w-32 flex justify-center items-center relative my-2">
-                        <svg className="w-28 h-28 transform -rotate-90">
-                          {/* Track Circle */}
-                          <circle
-                            cx="56"
-                            cy="56"
-                            r="42"
-                            stroke="currentColor"
-                            strokeWidth="8"
-                            fill="transparent"
-                            className="text-gray-200 dark:text-gray-700"
-                          />
-                          {/* Progress Circle with Stroke Dasharray */}
-                          <circle
-                            cx="56"
-                            cy="56"
-                            r="42"
-                            stroke="currentColor"
-                            strokeWidth="8"
-                            fill="transparent"
-                            strokeDasharray={263.89}
-                            strokeDashoffset={263.89 - (263.89 * (subject.progress || 0)) / 100}
-                            strokeLinecap="round"
-                            className="text-primary-600 dark:text-primary-400 transition-all duration-500 ease-out"
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                          <span className="text-2xl font-black text-gray-800 dark:text-white leading-none">{subject.progress}%</span>
-                          <span className="text-[9px] text-gray-400 mt-0.5">Coverage</span>
-                        </div>
-                      </div>
+            return (
+            <div className="space-y-6 animate-in fade-in duration-300 text-left">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
+                  <p className="text-xs font-bold uppercase text-gray-400">Next paper</p>
+                  {daysLeft !== null && daysLeft >= 0 ? (
+                    <>
+                      <p className="mt-2 text-3xl font-black text-gray-900 dark:text-white">{daysLeft === 0 ? 'Today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'}`}</p>
+                      <p className="text-xs text-gray-500">{formatDue(subject.examDate!)}</p>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-500">{daysLeft !== null ? 'This exam date has passed.' : 'No exam date set yet.'}</p>
+                  )}
+                  {isLocalSubject && (
+                    <label className="mt-4 block text-[11px] font-semibold text-gray-500">
+                      Exam date
+                      <Input type="date" value={subject.examDate ?? ''} className="mt-1 text-xs"
+                        onChange={e => setSubjects(subjects.map(s => s.id === subject.id ? { ...s, examDate: e.target.value || undefined } : s))} />
+                    </label>
+                  )}
+                </Card>
 
-                      <p className="text-xs text-gray-400 mt-2 text-center">
-                        Keep active summaries generated to increase your mastery percentage automatically!
-                      </p>
-                    </Card>
-
-                    {/* Topic Weightage / Syllabus details */}
-                    <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="text-xs font-bold uppercase text-gray-400">Curriculum Weightage</span>
-                        <BrainCircuit className="w-4 h-4 text-primary-500" />
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 md:col-span-2">
+                  <p className="text-xs font-bold uppercase text-gray-400">Your progress</p>
+                  <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {[
+                      { label: 'Flashcards mastered', value: `${mastered} / ${flashcards.length}` },
+                      { label: 'Last quiz', value: lastQuiz ? `${lastQuiz.score} / ${lastQuiz.total}` : '—' },
+                      { label: 'Weak topics', value: String(weakTopics.length) },
+                      { label: 'Your documents', value: String(ownNotes) },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <dt className="text-[11px] font-medium text-gray-500">{item.label}</dt>
+                        <dd className="mt-1 text-2xl font-black text-gray-900 dark:text-white">{item.value}</dd>
                       </div>
-                      
-                      <div className="flex-1 space-y-3.5">
-                        {[
-                          { name: 'Core Principles', weight: 40, proficiency: 85, color: 'bg-green-500' },
-                          { name: 'Advanced Theory and Limits', weight: 30, proficiency: Math.max(subject.progress, 30), color: 'bg-primary-500' },
-                          { name: 'Practical Applications case models', weight: 20, proficiency: Math.max(subject.progress - 10, 20), color: 'bg-indigo-500' },
-                          { name: 'Syllabus Context Analysis', weight: 10, proficiency: 90, color: 'bg-purple-500' }
-                        ].map((tp, idx) => (
-                          <div key={idx}>
-                            <div className="flex justify-between text-xs mb-1 font-medium">
-                              <span className="text-gray-700 dark:text-gray-300 truncate mr-2">{tp.name}</span>
-                              <span className="text-gray-450 text-[10px] whitespace-nowrap">{tp.weight}% weight</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                              <div className={cn("h-full rounded-full transition-all duration-500", tp.color)} style={{ width: `${tp.proficiency}%` }}></div>
-                            </div>
+                    ))}
+                  </dl>
+                  {flashcards.length > 0 && <ProgressBar value={Math.round((mastered / flashcards.length) * 100)} className="mt-5 h-2" />}
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 lg:col-span-2">
+                  <h3 className="text-sm font-extrabold text-gray-900 dark:text-white">What to do next</h3>
+                  {nextSteps.length === 0 ? (
+                    <p className="mt-3 flex items-center gap-2 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4" /> You're on top of this subject. Keep reviewing to stay there.</p>
+                  ) : (
+                    <ul className="mt-3 divide-y divide-gray-100 dark:divide-gray-700">
+                      {nextSteps.map(step => (
+                        <li key={step.label} className="flex items-center justify-between gap-4 py-3">
+                          <div>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{step.label}</p>
+                            <p className="text-xs text-gray-500">{step.detail}</p>
                           </div>
-                        ))}
-                      </div>
-                    </Card>
-                  </div>
-
-                  {/* Weakness spotlight interactive dashboard helper */}
-                  <Card className="bg-primary-50/50 dark:bg-primary-950/20 border-l-4 border-l-primary-500 border-y-primary-200/50 border-r-primary-200/50 dark:border-primary-900/35 p-6 space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 flex items-center justify-center shadow-sm">
-                          <BrainCircuit className="w-5.5 h-5.5" />
-                        </div>
-                        <div className="text-left">
-                          <h3 className="font-extrabold text-sm text-primary-950 dark:text-primary-200">AI Weakness Remedial Spotlights</h3>
-                          <p className="text-xs text-primary-800/80 dark:text-primary-300/80 mt-0.5 font-medium">Targeted subjects with verified study voids needing revision.</p>
-                        </div>
-                      </div>
-                      <Badge className="bg-primary-500 text-white dark:bg-primary-600 dark:text-primary-50 font-extrabold shadow-sm">High priority</Badge>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {weakTopics.length === 0 ? (
-                        <div className="text-xs text-emerald-600 font-bold flex items-center gap-1.5 py-2">
-                          <CheckCircle2 className="w-4 h-4" /> Nothing to fix right now. Nice.
-                        </div>
-                      ) : (
-                        weakTopics.slice(0, 2).map((wt, idx) => (
-                          <div key={wt.id} className="p-3.5 bg-white dark:bg-gray-800/95 rounded-xl border border-primary-200/70 dark:border-primary-900/35 shadow-sm flex justify-between items-center text-xs">
-                            <div className="space-y-1 max-w-[80%] text-left">
-                              <span className="font-extrabold text-gray-800 dark:text-gray-200">{wt.name}</span>
-                              <p className="text-[11px] text-primary-800 dark:text-primary-300 font-medium leading-tight">{wt.reviewIdea}</p>
-                            </div>
-                            <Button size="sm" variant="secondary" className="text-[10px] py-1 px-2.5 font-bold border-primary-200/50 hover:bg-primary-50 dark:hover:bg-primary-950/20 shrink-0" onClick={() => {
-                              setActiveTab('weak-topics');
-                            }}>
-                              Launch Assist
-                            </Button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Vertical actions side: Quick access study launchpad & classmates presence list */}
-                <div className="space-y-8">
-                  
-                  {/* Recent Activity history list */}
-                  <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left">
-                    <h3 className="text-xs font-bold uppercase text-gray-400 mb-4 flex items-center gap-1.5">
-                      <Activity className="w-4 h-4 text-primary-500" /> Recent Accomplishments
-                    </h3>
-
-                    <ul className="space-y-3.5">
-                      <li className="flex gap-2.5 items-center">
-                        <div className="w-7 h-7 rounded-full bg-green-100 text-green-700 flex items-center justify-center">
-                          <CheckCircle2 size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">Syllabus textbook established</p>
-                          <p className="text-[10px] text-gray-400">Processed Today</p>
-                        </div>
-                        <Badge color="bg-emerald-50 text-emerald-800 font-bold">+10 XP</Badge>
-                      </li>
-                      
-                      <li className="flex gap-2.5 items-center">
-                        <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">
-                          <CheckSquare size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-700 dark:text-gray-200 truncate">Practice Flashcards review</p>
-                          <p className="text-[10px] text-gray-400">Yesterday</p>
-                        </div>
-                      </li>
+                          <Button size="sm" variant="secondary" onClick={() => setActiveTab(step.tab)}>Start</Button>
+                        </li>
+                      ))}
                     </ul>
-                  </Card>
+                  )}
+                </Card>
 
+                <div className="space-y-6">
                   {/* Subject Timetable Snapshot */}
                   <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left flex flex-col shadow-sm">
                     <div className="flex justify-between items-center mb-4">
@@ -1161,83 +1088,10 @@ Section 2: Practice applications
                     </div>
                   </Card>
                 </div>
-
               </div>
-
-              {/* 5. Resource Explorer & Quick Tools */}
-              <Card className="bg-slate-50 dark:bg-gray-800 border border-gray-200 text-left p-6 flex flex-col justify-between">
-                <div>
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                        <Compass className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-extrabold text-sm">Resource Explorer</h3>
-                        <p className="text-xs text-gray-400 mt-0.5">Quickly generate summaries, flashcards, and practice quizzes.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                    <button 
-                      onClick={() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        setActiveTab('summary');
-                      }}
-                      className="flex flex-col text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary-400 hover:shadow-sm transition-all"
-                    >
-                      <BookOpen className="w-5 h-5 text-primary-500 mb-2" />
-                      <span className="text-sm font-bold">Generate Summaries</span>
-                      <span className="text-xs text-gray-400">Condense long chapters.</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        setActiveTab('flashcards');
-                      }}
-                      className="flex flex-col text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-orange-400 hover:shadow-sm transition-all"
-                    >
-                      <Layers className="w-5 h-5 text-orange-500 mb-2" />
-                      <span className="text-sm font-bold">Smart Flashcards</span>
-                      <span className="text-xs text-gray-400">Review key terminology.</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        setActiveTab('quiz');
-                      }}
-                      className="flex flex-col text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-emerald-400 hover:shadow-sm transition-all"
-                    >
-                      <PenTool className="w-5 h-5 text-emerald-500 mb-2" />
-                      <span className="text-sm font-bold">Practice Quizzes</span>
-                      <span className="text-xs text-gray-400">Test your knowledge.</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                        setActiveTab('upload');
-                      }}
-                      className="flex flex-col text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-purple-400 hover:shadow-sm transition-all"
-                    >
-                      <FileUp className="w-5 h-5 text-purple-500 mb-2" />
-                      <span className="text-sm font-bold">Upload Documents</span>
-                      <span className="text-xs text-gray-400">Process syllabus & texts.</span>
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="mt-auto bg-blue-50 dark:bg-blue-900/20 p-3 flex rounded-xl border border-blue-100 dark:border-blue-800/30 items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                     <span className="text-xs font-medium text-blue-800 dark:text-blue-300">Next milestone: Mid-term Exam</span>
-                   </div>
-                   <span className="text-[10px] font-bold bg-white dark:bg-gray-800 px-2 py-1 rounded text-blue-600 dark:text-blue-400">4 days</span>
-                </div>
-              </Card>
-
             </div>
-          )}
+            );
+          })()}
 
           {/* TAB 4.2: UPLOAD & DISK FILES INTERACTION (FFileReader) */}
           {activeTab === 'upload' && (
@@ -1245,9 +1099,9 @@ Section 2: Practice applications
               
               <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl bg-white dark:bg-gray-800/20">
                 <Upload className="w-16 h-16 text-primary-500 mx-auto mb-4 opacity-75" />
-                <h3 className="text-xl font-bold mb-1">Upload Study Textbook Materials</h3>
+                <h3 className="text-xl font-bold mb-1">Your notes</h3>
                 <p className="text-xs text-gray-400 max-w-md mx-auto mb-6">
-                  Select standard syllabus documents or paste raw Lecture parameters to initiate AI text evaluations.
+                  Upload lecture PDFs or text notes. Summaries, flashcards, quizzes and predictions are made from them.
                 </p>
 
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-3">
@@ -1312,7 +1166,7 @@ Section 2: Practice applications
                 <Card className="flex flex-col flex-1 min-h-0 bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 text-left p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-base flex items-center gap-2">
-                      <BrainCircuit className="w-4 h-4 text-emerald-500" /> Restructured AI Summary
+                      <BrainCircuit className="w-4 h-4 text-emerald-500" /> Summary
                     </h3>
                     
                     {generatedSummary && (
@@ -1347,7 +1201,7 @@ Section 2: Practice applications
               </div>
 
               <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
-                {/* Right pane: Local History Vault */}
+                {/* Right pane: Earlier summaries */}
                 <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <Layers className="w-4 h-4 text-primary-500"/> Local History Vault
@@ -1381,7 +1235,7 @@ Section 2: Practice applications
                 {/* Left Pane: Flashcard Interaction */}
                 <div className="flex flex-col items-center justify-center flex-1 min-h-0 bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 rounded-xl p-6 relative">
                   <div className="w-full max-w-lg mb-6">
-                    <h2 className="text-xl font-extrabold text-gray-900 dark:text-white text-center">Revision Study Deck</h2>
+                    <h2 className="text-xl font-extrabold text-gray-900 dark:text-white text-center">Flashcards</h2>
                   </div>
 
                   {flashcards.length > 0 ? (
@@ -1412,7 +1266,7 @@ Section 2: Practice applications
                             {/* Front face query block */}
                             <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 p-8 flex flex-col justify-between rounded-2xl">
                               <div className="flex justify-between items-center">
-                                <span className="uppercase text-[10px] font-extrabold text-primary-500 tracking-wider">Concept Question</span>
+                                <span className="uppercase text-[10px] font-extrabold text-primary-500 tracking-wider">Question</span>
                                 <HelpCircle className="w-4 h-4 text-gray-350" />
                               </div>
                               
@@ -1430,7 +1284,7 @@ Section 2: Practice applications
                             {/* Back face explanation block */}
                             <div className="absolute inset-0 backface-hidden rotate-y-180 bg-gradient-to-br from-primary-700 to-primary-950 text-white p-8 flex flex-col justify-between rounded-2xl shadow-inner">
                               <div className="flex justify-between items-center">
-                                <span className="uppercase text-[10px] font-bold text-primary-200 tracking-wider">Tutor Verification</span>
+                                <span className="uppercase text-[10px] font-bold text-primary-200 tracking-wider">Answer</span>
                                 <CheckCircle2 className="w-4 h-4 text-emerald-450" />
                               </div>
 
@@ -1473,6 +1327,7 @@ Section 2: Practice applications
                             onClick={(e) => {
                               e.stopPropagation();
                               const updated = flashcards.map((c, i) => i === activeCardIndex ? { ...c, mastered: !c.mastered } : c);
+                              logStudyDay();
                               setFlashcards(updated);
                               alert(updated[activeCardIndex].mastered ? "Marked as mastered!" : "Marked outstanding.");
                             }}
@@ -1529,7 +1384,7 @@ Section 2: Practice applications
                 {/* Right Pane: Flashcard Deck History */}
                 <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-purple-500"/> Deck History Vault
+                    <Layers className="w-4 h-4 text-purple-500"/> Earlier decks
                   </h3>
                   <div className="flex-1 overflow-y-auto space-y-3">
                     {flashcardDeckHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
@@ -1541,7 +1396,7 @@ Section 2: Practice applications
                             <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Revision Deck ({hist.cardCount} cards)</p>
                             <p className="text-[10px] text-gray-400">{hist.date}</p>
                           </div>
-                          <Button size="sm" variant="secondary" className="h-7 text-[10px] font-bold" onClick={() => alert("Launched past deck!")}>
+                          <Button size="sm" variant="secondary" className="h-7 text-[10px] font-bold" onClick={() => { if (hist.cards?.length) { setFlashcards(hist.cards); setActiveCardIndex(0); setIsFlipped(false); } }} disabled={!hist.cards?.length}>
                             Launch Study Session
                           </Button>
                         </div>
@@ -1566,7 +1421,7 @@ Section 2: Practice applications
                       </div>
                       
                       <div className="space-y-1">
-                        <h2 className="text-2xl font-extrabold mb-1 self-center text-gray-900 dark:text-white">Syllabus Evaluation Quiz</h2>
+                        <h2 className="text-2xl font-extrabold mb-1 self-center text-gray-900 dark:text-white">Practice quiz</h2>
                         <p className="text-xs text-gray-400 max-w-sm mx-auto">
                           Generate a randomized MCQ set review. Wrong items will auto-sync with your Weak Topic tracker review pane.
                         </p>
@@ -1575,13 +1430,15 @@ Section 2: Practice applications
                       {/* Adaptive toggle switch */}
                       <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 p-4 rounded-xl max-w-sm mx-auto flex items-center justify-between">
                         <div className="text-left leading-none">
-                          <span className="font-bold text-xs text-gray-800 dark:text-gray-200 block">AI Adaptive Study Mode</span>
-                          <span className="text-[10px] text-gray-400 mt-1 block">Adjusts curriculum difficulty dynamically.</span>
+                          <span className="font-bold text-xs text-gray-800 dark:text-gray-200 block">Adaptive difficulty<SoonBadge /></span>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Questions get harder or easier as you answer.</span>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
+                        <label className="relative inline-flex items-center cursor-not-allowed opacity-50" title="Coming soon">
                           <input 
                             type="checkbox" 
                             checked={isAdaptiveMode}
+                            disabled
+                            aria-label="Adaptive difficulty (coming soon)"
                             onChange={() => setIsAdaptiveMode(!isAdaptiveMode)} 
                             className="sr-only peer" 
                           />
@@ -1725,7 +1582,7 @@ Section 2: Practice applications
               </div>
 
               <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
-                {/* Right Pane: Quiz History Vault */}
+                {/* Right Pane: Past quizzes */}
                 <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <History className="w-4 h-4 text-pink-500"/> Quiz History Vault
@@ -1742,8 +1599,9 @@ Section 2: Practice applications
                             </p>
                             <p className="text-[10px] text-gray-400">{hist.date}</p>
                           </div>
-                          <Button size="sm" variant="ghost" className="h-6">
-                            Review
+                          <Button size="sm" variant="ghost" className="h-6" disabled={!hist.questions?.length}
+                            onClick={() => { if (hist.questions?.length) { setQuizQuestions(hist.questions); setQuizActive(true); setCurrentQuestion(0); setQuizScore(0); setLastQuestionFeedback(null); setShowQuizResult(false); } }}>
+                            Retake
                           </Button>
                         </div>
                       ))
@@ -1762,9 +1620,9 @@ Section 2: Practice applications
                   <GraduationCap className="w-10 h-10" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">Active High-Stakes Exam Hub</h2>
+                  <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">Timed exam</h2>
                   <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
-                    Execute timed trials that mimic real curriculum exams with exact scoring grids.
+                    Answer every question in 10 minutes, like the real exam. Wrong answers go to your weak topics.
                   </p>
                 </div>
 
@@ -1778,7 +1636,7 @@ Section 2: Practice applications
 
                 <div className="flex justify-center pt-2">
                   <Button size="md" icon={Play} onClick={startExamModeSession}>
-                    Initiate 10-Min Exam Mode Trial
+                    Start 10-minute exam
                   </Button>
                 </div>
               </Card>
@@ -1893,7 +1751,7 @@ Section 2: Practice applications
                 {/* Right Pane: Guess Engine History Vault */}
                 <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
-                    <History className="w-4 h-4 text-emerald-500"/> Predictions History Vault
+                    <History className="w-4 h-4 text-emerald-500"/> Earlier predictions
                   </h3>
                   <div className="flex-1 overflow-y-auto space-y-3">
                     {guessPaperHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
@@ -1903,12 +1761,12 @@ Section 2: Practice applications
                         <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl flex justify-between items-center">
                           <div>
                             <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                              Questions Base: <span className="text-primary-600">{hist.questions}</span>
+                              {hist.questions} sample questions
                             </p>
                             <p className="text-[10px] text-gray-400">{hist.date}</p>
                           </div>
-                          <Button size="sm" variant="ghost" className="h-6">
-                            Review
+                          <Button size="sm" variant="ghost" className="h-6" disabled={!hist.result} onClick={() => hist.result && setGuessResults(hist.result)}>
+                            Open
                           </Button>
                         </div>
                       ))
@@ -1926,13 +1784,13 @@ Section 2: Practice applications
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-                    <BrainCircuit className="w-5 h-5 text-amber-500" /> Weak-Topic tracker Hub
+                    <BrainCircuit className="w-5 h-5 text-amber-500" /> Weak topics
                   </h2>
                   <p className="text-xs text-gray-450 mt-1">
                     Track dynamic syllabus components failed during practice testing or flagged in flashcard sessions.
                   </p>
                 </div>
-                <Badge color="bg-amber-50 text-amber-800 font-bold">{weakTopics.length} Urgencies</Badge>
+                <Badge color="bg-amber-50 text-amber-800 font-bold">{weakTopics.length} to review</Badge>
               </div>
 
               {weakTopics.length === 0 ? (
@@ -1960,13 +1818,12 @@ Section 2: Practice applications
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={async () => {
-                            // Pre-populate Tutor Chat on this query!
-                            setTutorInputValue(`Tutor, can you explain this weak area: "${wt.name}"? Please provide a simple example and study notes.`);
-                            setActiveTab('overview');
-                            alert("Pre-populated weak point topic in your Tutor AI chat pane! Scroll down to prompt.");
+                          <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => {
+                            window.dispatchEvent(new CustomEvent('open-tutor', {
+                              detail: { message: `Can you explain this weak area with a simple example: ${wt.name}` },
+                            }));
                           }}>
-                            Ask Tutor AI
+                            Ask the tutor
                           </Button>
                           
                           <button 
@@ -2001,7 +1858,7 @@ Section 2: Practice applications
             <div className="h-full flex flex-col space-y-4 text-left animate-in fade-in duration-300">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 px-6 rounded-2xl flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="font-extrabold text-sm text-gray-800">Dynamic Planning Kanban</h3>
+                  <h3 className="font-extrabold text-sm text-gray-800">Planner</h3>
                   <p className="text-xs text-gray-400 mt-0.5">Drag and drop items to shift active study workflows.</p>
                   {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
                 </div>
@@ -2026,7 +1883,7 @@ Section 2: Practice applications
             <div className="h-full flex flex-col space-y-4 text-left animate-in fade-in duration-300">
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 px-6 rounded-xl flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="font-extrabold text-sm text-gray-800">Visual Sticky Note Moodboard</h3>
+                  <h3 className="font-extrabold text-sm text-gray-800">Board</h3>
                   <p className="text-xs text-gray-400 mt-0.5">Drag to reposition notes. Click note area to enter study ideas or quotes.</p>
                   {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
                 </div>
@@ -2044,7 +1901,7 @@ Section 2: Practice applications
               
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl flex justify-between items-center">
                 <div>
-                  <h2 className="text-lg font-extrabold text-gray-900">Syllabus Due Dates & Notifications</h2>
+                  <h2 className="text-lg font-extrabold text-gray-900">Reminders</h2>
                   <p className="text-xs text-gray-405 mt-1">Review active reminder configurations below.</p>
                 </div>
                 <Badge color="bg-primary-50 text-primary-800 font-bold">{reminders.length} Active</Badge>
@@ -2065,7 +1922,7 @@ Section 2: Practice applications
                     
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-violet-700 bg-violet-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                        Sent via {rem.platform}
+                        {rem.platform === 'app' ? (rem.fired ? 'Shown' : 'In-app') : <>{rem.platform}<SoonBadge /></>}
                       </span>
                       <button onClick={() => handleRemoveReminder(rem.id)} className="p-1 hover:bg-red-50 text-gray-450 hover:text-red-500 rounded border">
                         <X size={14} />
@@ -2081,21 +1938,22 @@ Section 2: Practice applications
                 
                 <form onSubmit={handleCreateReminder} className="space-y-4 text-xs font-medium">
                   <div>
-                    <label className="block text-gray-400 mb-1 font-bold">Reminder Alert Text</label>
+                    <label className="block text-gray-400 mb-1 font-bold">What to remind you about</label>
                     <Input name="message" required placeholder="e.g. Finish Taylor Series practice test..." className="text-xs" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-gray-400 mb-1 font-bold">Due Date Target</label>
-                      <Input name="dueDate" type="date" defaultValue="2026-06-15" className="text-xs" />
+                      <label className="block text-gray-400 mb-1 font-bold">When</label>
+                      <Input name="dueDate" type="datetime-local" required className="text-xs" />
                     </div>
                     
                     <div>
-                      <label className="block text-gray-400 mb-1 font-bold">Platform Dispatch</label>
+                      <label className="block text-gray-400 mb-1 font-bold">How</label>
                       <select name="platform" className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs outline-none focus:border-primary-500">
-                        <option value="telegram">Telegram Prep Bot Alert</option>
-                        <option value="email">Direct Email Summaries</option>
+                        <option value="app">In the app (pops up while IntelliPrep is open)</option>
+                        <option value="telegram" disabled>Telegram (coming soon)</option>
+                        <option value="email" disabled>Email (coming soon)</option>
                       </select>
                     </div>
                   </div>

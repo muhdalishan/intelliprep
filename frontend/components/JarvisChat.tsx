@@ -59,6 +59,17 @@ export const JarvisChat: React.FC = () => {
     if (isOpen) chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [history, isOpen, isLoading]);
 
+  // Other screens (e.g. Weak topics) can open the tutor with a question ready to send.
+  useEffect(() => {
+    const open = (event: Event) => {
+      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
+      setIsOpen(true);
+      if (message) setInputValue(message);
+    };
+    window.addEventListener('open-tutor', open);
+    return () => window.removeEventListener('open-tutor', open);
+  }, []);
+
   // Dictation only fills the input; the student still checks and sends it.
   const toggleDictation = () => {
     if (isDictating) {
