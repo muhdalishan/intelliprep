@@ -214,7 +214,7 @@ export const JarvisChat: React.FC = () => {
                     IntelliPrep Copilot
                     <span className="text-[10px] bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.5 rounded-full font-bold">AI</span>
                   </h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Ready to boost your study session</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Ask me anything from your notes</p>
                 </div>
               </div>
               <div className="flex gap-1.5 items-center">
@@ -288,7 +288,7 @@ export const JarvisChat: React.FC = () => {
                             <button
                               key={sKey}
                               onClick={() => handleSendChatDirect(sug.text)}
-                              className="p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-850 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/10 hover:border-emerald-200 transition-all text-left flex gap-2 items-start text-[11px] font-medium text-slate-700 dark:text-slate-300 shadow-sm"
+                              className="p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-800 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/10 hover:border-emerald-200 transition-all text-left flex gap-2 items-start text-[11px] font-medium text-slate-700 dark:text-slate-300 shadow-sm"
                             >
                               <IconComp size={15} className={cn("shrink-0 mt-0.5", sug.color)} />
                               <span className="leading-tight">{sug.text}</span>
@@ -344,7 +344,7 @@ export const JarvisChat: React.FC = () => {
                       value={inputValue}
                       onChange={e => setInputValue(e.target.value)}
                       placeholder={isListening ? "Listening silently..." : "Ask Copilot anything..."}
-                      className="w-full bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 text-xs rounded-xl pl-4 pr-10 py-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-slate-800 dark:text-slate-100 transition-all"
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs rounded-xl pl-4 pr-10 py-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-slate-800 dark:text-slate-100 transition-all"
                     />
                     <button 
                       type="button"
@@ -395,14 +395,14 @@ export const JarvisChat: React.FC = () => {
               <div className="z-10 mb-8 max-w-[240px] space-y-3">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/5 backdrop-blur-md rounded-full border border-white/10 text-white text-[10px] font-black tracking-wider uppercase">
                   <div className={cn("w-2 h-2 rounded-full", isListening ? "bg-red-500 animate-ping" : "bg-indigo-400")}></div>
-                  {isListening ? "LINK LIVE ACTIVE" : "VOICE SESSION LINKED"}
+                  {isListening ? "Listening" : "Voice mode"}
                 </div>
                 
                 <h4 className="text-base font-black text-white">Live AI Voice Tutor</h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  {isListening ? "Listening intently... Speak anytime." 
-                   : isLoading ? "Formulating spoken response..." 
-                   : "Tap the custom microphone orb to start a seamless spoken learning dialogue."}
+                  {isListening ? "I'm listening. Go ahead." 
+                   : isLoading ? "Thinking..." 
+                   : "Tap the mic and just talk, like you would with a teacher."}
                 </p>
               </div>
 
@@ -423,7 +423,7 @@ export const JarvisChat: React.FC = () => {
               </button>
 
               <div className="mt-8 z-10">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Natural Hands-Free Mode</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Hands-free</span>
               </div>
             </div>
           )}
@@ -447,7 +447,7 @@ export const JarvisChat: React.FC = () => {
         )}
         {!isOpen && (
           <div className="absolute inset-x-auto right-16 top-1/2 -translate-y-1/2 p-2 px-3 rounded-xl bg-slate-900 text-white text-[10px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-md">
-            Study Copilot is here!
+            Need help? Ask your tutor
           </div>
         )}
       </div>
