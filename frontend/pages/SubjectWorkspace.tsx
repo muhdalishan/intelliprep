@@ -13,6 +13,7 @@ import {
   ChatMessage,
   GuessPaperResult
 } from '../services/aiService';
+import { readStudyFile } from '../services/documentService';
 import { 
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare, 
   Columns, Layout, GraduationCap, Bell, ChevronLeft, ChevronRight, RotateCw, 
@@ -112,6 +113,7 @@ Section 2: Practice applications
   // State Management
   const [summaryText, setSummaryText] = useState(() => getDefaultSyllabusNotes(subject?.name || 'Default'));
   const [generatedSummary, setGeneratedSummary] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadedFiles, setLoadedFiles] = useState<{name: string, content: string, date: string}[]>([
     { name: `Syllabus_${subject?.name?.replace(/\s+/g, '_')}_QuickNotes.txt`, content: getDefaultSyllabusNotes(subject?.name || ''), date: "Today" }
@@ -248,22 +250,28 @@ Section 2: Practice applications
   
   const [previewContent, setPreviewContent] = useState<{title: string, text: string} | null>(null);
 
-  const handleUploadFromChat = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Reads a .txt/.md/.pdf file into the library. PDFs are read by the backend.
+  const addStudyFile = async (file: File): Promise<string | null> => {
+    setIsUploading(true);
+    try {
+      const { content, note } = await readStudyFile(file);
+      setLoadedFiles(prev => [{ name: file.name, content, date: new Date().toLocaleDateString() }, ...prev.filter(f => f.name !== file.name)]);
+      if (note) alert(note);
+      return content;
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "This file couldn't be read.");
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string || '';
-      const newFileObj = {
-        name: file.name,
-        content: content,
-        date: new Date().toLocaleDateString()
-      };
-      setLoadedFiles(prev => [newFileObj, ...prev]);
-      setSelectedDocs(prev => [...prev, file.name]);
-    };
-    reader.readAsText(file);
+  const handleUploadFromChat = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const content = await addStudyFile(file);
+    if (content !== null) setSelectedDocs(prev => prev.includes(file.name) ? prev : [...prev, file.name]);
   };
 
   const renderDualInputHeader = (title: string, subtext: string, onGenerate: () => void, isGenerating: boolean, actionLabel: string = "Generate") => {
@@ -311,9 +319,9 @@ Section 2: Practice applications
               <label>
                 <span className="cursor-pointer inline-flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950 px-4 h-9 shadow-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 font-bold text-xs transition-colors">
                   <Upload className="w-4 h-4 mr-2 text-gray-400" />
-                  Upload
+                  {isUploading ? 'Reading…' : 'Upload'}
                 </span>
-                <input type="file" accept=".txt,.md,.csv" className="hidden" onChange={(e) => {
+                <input type="file" accept=".pdf,.txt,.md,.csv" className="hidden" onChange={(e) => {
                   handleUploadFromChat(e);
                   setShowDocSelector(true); // Open the selector so they see it
                 }} />
@@ -489,26 +497,15 @@ Section 2: Practice applications
   }
 
   // -- Dynamic File Upload Handler (FileReader) --
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string || '';
-      
-      // Update textbook material states
-      const newFileObj = {
-        name: file.name,
-        content: content,
-        date: new Date().toLocaleDateString()
-      };
-      
-      setLoadedFiles([newFileObj, ...loadedFiles]);
-      setSummaryText(content);
-      setActiveTab('summary'); // Direct immediately to study summary!
-    };
-    reader.readAsText(file);
+    const content = await addStudyFile(file);
+    if (content === null) return;
+    setSummaryText(content);
+    setSelectedDocs([file.name]);
+    setActiveTab('summary'); // Direct immediately to study summary!
   };
 
   // Set selected upload as active material
@@ -1376,11 +1373,11 @@ Section 2: Practice applications
                 <div className="flex flex-col sm:flex-row justify-center items-center gap-3">
                   <label className="cursor-pointer">
                     <span className="inline-flex items-center justify-center rounded-xl font-bold bg-primary-600 text-white hover:bg-primary-700 px-5 py-2.5 text-xs shadow-lg shadow-primary-500/25">
-                      Select Text Document (.txt)
+                      {isUploading ? 'Reading file…' : 'Upload PDF or text file'}
                     </span>
                     <input 
                       type="file" 
-                      accept=".txt,.md,.json" 
+                      accept=".pdf,.txt,.md,.json" 
                       className="hidden" 
                       onChange={handleFileUpload} 
                     />
