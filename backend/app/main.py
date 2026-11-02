@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import InterfaceError, OperationalError
 
 from app.core.config import get_settings
 from app.core.llm import AIUnavailable
@@ -58,6 +59,16 @@ def create_app() -> FastAPI:
     @app.exception_handler(AIUnavailable)
     async def ai_unavailable(_request: Request, exc: AIUnavailable) -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+    # No reachable database yet (e.g. before the Supabase project is connected).
+    @app.exception_handler(OSError)
+    @app.exception_handler(OperationalError)
+    @app.exception_handler(InterfaceError)
+    async def database_unavailable(_request: Request, _exc: Exception) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "The database isn't connected yet.", "code": "database_unavailable"},
+        )
 
     @app.get(f"{settings.api_prefix}/health", tags=["health"])
     async def health() -> dict[str, str]:

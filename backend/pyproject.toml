@@ -21,6 +21,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pgserver>=0.1.4",
+    "psycopg[binary]>=3.2",
     "pytest>=8.3",
     "ruff>=0.8",
 ]
@@ -36,3 +38,7 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S", "ASYNC"]
 ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+# SQL and request bodies in tests read better on one line
+"tests/**" = ["E501"]

@@ -89,3 +89,10 @@ bug fixes stay in and the API client part moves to Sprint 2.
   talk, or type), separate from the text Study Tutor. Nova sets reminders (they pop up and are spoken when
   due), saves notes to the moodboard, adds planner tasks and opens sections. Planner, moodboard and
   reminders now persist per subject in the browser. Voice works in Chrome/Edge, not in the in-app browser.
+- 2026-11-03: Branch `feat/IP-90-91-study-groups` (pulled ahead from below the cut line at the team's request):
+  study groups with invite codes, sharing one or many subjects per group, shared planner and moodboard
+  for shared subjects, group chat, lead/member roles. Access rules are enforced by Postgres row-level
+  security and tested against a real embedded Postgres (13 policy tests + 3 API tests with three
+  students). Frontend Study Groups tab replaces the simulated "Study Guild". Goes live once Supabase
+  accounts (IP-10) and account-synced subjects (IP-14) are connected; group Q&A over members' notes
+  (rest of IP-91) waits for retrieval (IP-31).
