@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote, Reminder } from '../types';
 import { MOCK_SUBJECTS, MOCK_FLASHCARDS, MOCK_QUIZ, MOCK_KANBAN, MOCK_NOTES, MOCK_REMINDERS } from '../constants';
 import { Button, Card, cn, Input, ProgressBar, Badge } from '../components/UIComponents';
@@ -13,6 +13,7 @@ import {
   ChatMessage,
   GuessPaperResult
 } from '../services/aiService';
+import { formatDue, GLOBAL_SUBJECT, loadItems, saveItems, STORE_EVENT } from '../services/studyStore';
 import { readStudyFile } from '../services/documentService';
 import { 
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare, 
@@ -42,7 +43,14 @@ export const SubjectWorkspace: React.FC = () => {
     }
   }, [subjects]);
 
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabType>(() => (searchParams.get('tab') as TabType) || 'overview');
+
+  // Nova can open a section by linking to ?tab=...
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabType | null;
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
   
   const userName = localStorage.getItem('userName') || 'Scholar';
@@ -184,8 +192,10 @@ Section 2: Practice applications
   const [isGuessing, setIsGuessing] = useState(false);
 
   // Kanban and Moodboard state
-  const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(MOCK_KANBAN);
-  const [moodNotes, setMoodNotes] = useState<StickyNote[]>(MOCK_NOTES);
+  // Plan, moodboard and reminders persist per subject through the shared store (Nova writes there too)
+  const storeId = id ?? GLOBAL_SUBJECT;
+  const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(() => loadItems('tasks', storeId, MOCK_KANBAN));
+  const [moodNotes, setMoodNotes] = useState<StickyNote[]>(() => loadItems('notes', storeId, MOCK_NOTES));
 
   // Group Study Room states
   const [pomodoroActive, setPomodoroActive] = useState(false);
@@ -224,9 +234,24 @@ Section 2: Practice applications
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Reminders list
-  const [reminders, setReminders] = useState<Reminder[]>(() => {
-    return MOCK_REMINDERS.map(r => ({ ...r, date: "2026-06-15" }));
-  });
+  const [reminders, setReminders] = useState<Reminder[]>(() => loadItems('reminders', storeId, MOCK_REMINDERS));
+
+  useEffect(() => { saveItems('tasks', storeId, kanbanTasks); }, [storeId, kanbanTasks]);
+  useEffect(() => { saveItems('notes', storeId, moodNotes); }, [storeId, moodNotes]);
+  useEffect(() => { saveItems('reminders', storeId, reminders); }, [storeId, reminders]);
+
+  // Pick up changes made elsewhere (e.g. Nova adding a task while this subject is open)
+  useEffect(() => {
+    const reload = (event: Event) => {
+      const { kind, subjectId } = (event as CustomEvent<{ kind: string; subjectId: string }>).detail;
+      if (subjectId !== storeId) return;
+      if (kind === 'tasks') setKanbanTasks(loadItems('tasks', storeId));
+      if (kind === 'notes') setMoodNotes(loadItems('notes', storeId));
+      if (kind === 'reminders') setReminders(loadItems('reminders', storeId));
+    };
+    window.addEventListener(STORE_EVENT, reload);
+    return () => window.removeEventListener(STORE_EVENT, reload);
+  }, [storeId]);
 
   const scrollChatToBottom = () => {
     if (chatBottomRef.current) {
@@ -2695,7 +2720,7 @@ Section 2: Practice applications
                       </div>
                       <div className="leading-none text-left">
                         <h3 className="font-black text-xs text-gray-800">{rem.message}</h3>
-                        <span className="text-[10px] text-gray-400 mt-1 block">Due Milestone: {rem.date}</span>
+                        <span className="text-[10px] text-gray-400 mt-1 block">Due: {formatDue(rem.date)}</span>
                       </div>
                     </div>
                     

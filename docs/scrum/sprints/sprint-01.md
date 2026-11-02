@@ -85,3 +85,7 @@ bug fixes stay in and the API client part moves to Sprint 2.
   is empty).
 - 2026-11-02: Branch `develop` merges every feature branch for running and testing everything together;
   `main` stays the reviewed baseline. Open PRs from each feature branch (or from develop) when pushing.
+- 2026-11-02: Branch `feat/IP-141-142-nova-assistant`: Nova, the voice assistant ("Hey Nova" wake word, tap to
+  talk, or type), separate from the text Study Tutor. Nova sets reminders (they pop up and are spoken when
+  due), saves notes to the moodboard, adds planner tasks and opens sections. Planner, moodboard and
+  reminders now persist per subject in the browser. Voice works in Chrome/Edge, not in the in-app browser.
