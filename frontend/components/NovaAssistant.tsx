@@ -94,7 +94,12 @@ export const NovaAssistant: React.FC = () => {
     setTurns(t => [...t, { role: 'user', text }]);
 
     const result = await sendCommand(text, assistantName, currentSubjectId, turnsRef.current);
-    const destination = runActions(result.actions, currentSubjectId);
+    let destination: string | null = null;
+    try {
+      destination = await runActions(result.actions, currentSubjectId);
+    } catch (error) {
+      result.skipped.push(error instanceof Error ? error.message : "Something couldn't be saved.");
+    }
     setReceipts([
       ...describe(result.actions, currentSubjectId),
       ...result.skipped.map(text => ({ icon: AlertTriangle, text, warning: true })),

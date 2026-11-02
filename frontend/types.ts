@@ -7,6 +7,7 @@ export interface Subject {
   progress: number;
   color: string;
   nextClass?: string;
+  examDate?: string; // ISO date of the next paper
   schedule?: { day: string; time: string; room: string; type: string }[];
 }
 

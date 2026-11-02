@@ -1,6 +1,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
@@ -10,8 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import get_settings
 from app.core.security import CurrentUser, get_current_user
 
-engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
+@lru_cache
+def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
+    """Created on first use, so importing the app never connects anywhere."""
+    url = get_settings().database_url
+    if url == "local":
+        from app.db.local_dev import start_local_database
+
+        url = start_local_database()
+    engine = create_async_engine(url, pool_pre_ping=True)
+    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 @asynccontextmanager
@@ -36,7 +46,7 @@ async def get_user_db(
     Uses the same contract as Supabase RLS policies (`auth.uid()` reads
     `request.jwt.claims`). Request handlers must use this, never a superuser session.
     """
-    async with user_session(SessionLocal, user) as session:
+    async with user_session(get_sessionmaker(), user) as session:
         yield session
 
 

@@ -1,10 +1,15 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import InterfaceError, OperationalError
 
 from app.core.config import get_settings
 from app.core.llm import AIUnavailable
+from app.db.session import get_sessionmaker
 from app.modules.adaptive_exam.router import router as adaptive_exam_router
 from app.modules.assistant.router import router as assistant_router
 from app.modules.auth.router import router as auth_router
@@ -40,20 +45,31 @@ MODULE_ROUTERS = [
 ]
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    if get_settings().database_url == "local":
+        # Start the local Postgres before the first request instead of during it.
+        await run_in_threadpool(get_sessionmaker)
+    yield
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
+    if settings.database_url == "local" and settings.environment != "local":
+        raise RuntimeError("DATABASE_URL=local is only for ENVIRONMENT=local.")
     app = FastAPI(
         title="IntelliPrep AI API",
         version="0.1.0",
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
+        lifespan=lifespan,
     )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type"],
+        allow_headers=["Authorization", "Content-Type", "X-Dev-User"],
     )
 
     @app.exception_handler(AIUnavailable)

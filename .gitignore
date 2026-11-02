@@ -28,3 +28,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Local development database (DATABASE_URL=local)
+.localdb/

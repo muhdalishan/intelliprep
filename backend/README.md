@@ -16,6 +16,17 @@ uv run uvicorn app.main:app --reload --port 8000
 
 API docs: http://localhost:8000/docs
 
+## Local database (before Supabase)
+
+Set `DATABASE_URL=local` in `.env` (with `ENVIRONMENT=local` and `SUPABASE_URL` empty). The backend
+then starts its own Postgres with its data in `backend/.localdb/`, applies every migration that
+hasn't run yet, and creates three test students: Ali Khan, Sara Ahmed and Hamza Raza. Requests
+without a login act as Ali.
+
+To try collaboration on one computer, use the **Testing as** switch (dashboard header or a
+subject's Study Groups tab) to change student. It sends an `X-Dev-User` header that the backend
+only honours in this local mode. Delete `backend/.localdb/` to start over with an empty database.
+
 ## Test and lint
 
 ```bash

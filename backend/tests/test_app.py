@@ -25,11 +25,10 @@ def test_me_rejects_malformed_token() -> None:
 def test_unreachable_database_is_a_clear_503(monkeypatch) -> None:
     from app.db import session
 
-    class NoDatabase:
-        def __call__(self):
-            raise ConnectionRefusedError("connection refused")
+    def no_database():
+        raise ConnectionRefusedError("connection refused")
 
-    monkeypatch.setattr(session, "SessionLocal", NoDatabase())
+    monkeypatch.setattr(session, "get_sessionmaker", lambda: no_database)
     from app.core import security
     from app.core.config import Settings
 

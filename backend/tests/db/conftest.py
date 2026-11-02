@@ -6,7 +6,6 @@ of Supabase the migrations rely on: the auth.users table, auth.uid() and the aut
 
 import json
 from contextlib import contextmanager
-from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -16,26 +15,7 @@ pgserver = pytest.importorskip("pgserver")
 from psycopg.rows import dict_row  # noqa: E402
 from psycopg.types.json import Jsonb  # noqa: E402
 
-MIGRATIONS = Path(__file__).resolve().parents[2] / "supabase" / "migrations"
-
-SUPABASE_STANDIN = """
-create schema if not exists auth;
-create schema if not exists extensions;
-create table if not exists auth.users (
-  id uuid primary key,
-  email text,
-  raw_user_meta_data jsonb not null default '{}'
-);
-create or replace function auth.uid() returns uuid language sql stable as $$
-  select (coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb ->> 'sub')::uuid
-$$;
-do $$ begin create role authenticated nologin noinherit; exception when duplicate_object then null; end $$;
-do $$ begin create role anon nologin noinherit; exception when duplicate_object then null; end $$;
-grant usage on schema public, auth, extensions to authenticated, anon;
-grant execute on function auth.uid() to authenticated;
-alter default privileges in schema public grant select, insert, update, delete on tables to authenticated;
-alter default privileges in schema public grant usage, select on sequences to authenticated;
-"""
+from app.db.local_dev import apply_schema  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -46,10 +26,7 @@ def pg_uri(tmp_path_factory) -> str:
     with psycopg.connect(base, autocommit=True) as conn:
         conn.execute(f"create database {name}")
     uri = f"{base.rsplit('/', 1)[0]}/{name}"
-    with psycopg.connect(uri, autocommit=True) as conn:
-        conn.execute(SUPABASE_STANDIN)
-        for migration in sorted(MIGRATIONS.glob("*.sql")):
-            conn.execute(migration.read_text(encoding="utf-8"))
+    apply_schema(uri)
     return uri
 
 
