@@ -6,6 +6,7 @@ import {
 import { chatWithAssistant, ChatMessage } from '../services/aiService';
 import { loadSubjects } from '../services/assistantService';
 import { cn } from '../components/UIComponents';
+import { notify } from './Feedback';
 
 // The text tutor. Voice conversation and actions live in Nova (NovaAssistant.tsx).
 
@@ -78,7 +79,7 @@ export const JarvisChat: React.FC = () => {
     }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Dictation needs Chrome or Edge.');
+      notify('Dictation needs Chrome or Edge. You can still type.', 'error');
       return;
     }
     const rec = new SpeechRecognition();
@@ -106,7 +107,7 @@ export const JarvisChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-20 right-6 z-50 flex flex-col items-end md:bottom-6">
       {isOpen && (
         <div className="mb-4 flex h-[580px] w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-2xl animate-in dark:border-slate-800/80 dark:bg-slate-900 md:w-[400px]">
 
@@ -222,6 +223,7 @@ export const JarvisChat: React.FC = () => {
               </button>
               <button
                 type="submit"
+                aria-label="Send"
                 disabled={isLoading || !inputValue.trim()}
                 className="shrink-0 rounded-xl bg-emerald-600 p-2.5 text-white shadow-md transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:shadow-none"
               >

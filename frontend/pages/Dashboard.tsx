@@ -139,13 +139,13 @@ export const Dashboard: React.FC = () => {
 
       {/* SaaS Style Header */}
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/60 dark:border-slate-900/60 shadow-sm backdrop-blur-md transition-all">
-        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex items-center justify-between">
+        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/25 shrink-0 transition-transform hover:scale-105 duration-300">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <div className="text-left">
-              <span className="font-bold text-[1.35rem] text-slate-900 dark:text-white leading-none whitespace-nowrap block tracking-tight">IntelliPrep AI</span>
+            <div className="hidden min-[400px]:block text-left">
+              <span className="font-bold text-lg sm:text-[1.35rem] text-slate-900 dark:text-white leading-none whitespace-nowrap block tracking-tight">IntelliPrep AI</span>
               <span className="hidden sm:block text-[11px] text-slate-500 font-medium tracking-wide">Integrated Academic Workspace</span>
             </div>
           </div>
@@ -154,24 +154,31 @@ export const Dashboard: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-900"
+              className="hidden sm:inline-flex p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-900"
               onClick={() => setIsDark(!isDark)}
+              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDark ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-500" />}
             </Button>
 
+            <Button variant="secondary" size="sm" onClick={() => navigate('/groups')} className="flex items-center gap-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-full px-3 sm:px-4 py-2" aria-label="Study groups">
+              <Users className="w-4 h-4 text-slate-400" /> <span className="hidden sm:inline">Groups</span>
+            </Button>
+
             <Button
               variant="secondary"
+              aria-label="Settings"
               onClick={() => navigate('/settings')}
-              className="hidden md:flex items-center gap-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-full px-4 py-2"
+              className="flex items-center gap-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-full px-3 sm:px-4 py-2"
               size="sm"
             >
-              <Settings className="w-4 h-4 text-slate-400" /> Settings
+              <Settings className="w-4 h-4 text-slate-400" /> <span className="hidden sm:inline">Settings</span>
             </Button>
+
 
             <DevStudentSwitcher className="hidden lg:inline-flex" />
 
-            <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-slate-200/80 dark:border-slate-800">
+            <div className="flex items-center gap-1 sm:gap-3 pl-2 sm:pl-4 border-l border-slate-200/80 dark:border-slate-800">
               <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0 overflow-hidden hover:scale-105 transition-transform">
                 {profilePic ? (
                   <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
@@ -183,7 +190,7 @@ export const Dashboard: React.FC = () => {
                 <p className="text-[13px] font-extrabold leading-tight truncate text-slate-900 dark:text-white uppercase">{userName}</p>
                 <p className="text-[10px] text-slate-400 font-medium tracking-wide truncate">{userEmail || 'Student'}</p>
               </div>
-              <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 p-1.5 transition-colors shrink-0" title="Sign Out">
+              <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 p-1.5 transition-colors shrink-0" title="Sign out" aria-label="Sign out">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
               </button>
             </div>

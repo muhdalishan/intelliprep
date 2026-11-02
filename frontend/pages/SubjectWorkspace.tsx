@@ -8,21 +8,22 @@ import { StudyGroups } from '../components/StudyGroups';
 import { useSharedBoard } from '../hooks/useSharedBoard';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { isAccountSubjectId, listAccountSubjects, toSubject } from '../services/workspaceService';
-import { 
-  generateSummary, 
-  generateFlashcards, 
-  generateQuiz, 
-  generateGuessPaper, 
+import {
+  generateSummary,
+  generateFlashcards,
+  generateQuiz,
+  generateGuessPaper,
   chatWithAssistant,
   ChatMessage,
   GuessPaperResult
 } from '../services/aiService';
 import { daysUntil, formatDue, GLOBAL_SUBJECT, loadItems, logStudyDay, saveItems, STORE_EVENT, studyDaysThisWeek, studyStreak } from '../services/studyStore';
 import { readStudyFile } from '../services/documentService';
-import { 
-  ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare, 
-  Columns, Layout, GraduationCap, Bell, ChevronLeft, ChevronRight, RotateCw, 
-  Play, Send, Image as ImageIcon, Flame, MessageSquare, AlertTriangle, 
+import { confirmAction, notify } from '../components/Feedback';
+import {
+  ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare,
+  Columns, Layout, GraduationCap, Bell, ChevronLeft, ChevronRight, RotateCw,
+  Play, Send, Image as ImageIcon, Flame, MessageSquare, AlertTriangle,
   CheckCircle2, Plus, Clock, HelpCircle, X, BrainCircuit, Activity, Trash2, Volume2,
   Users, Compass, BookOpen, PenTool, FileUp, Calendar, Hash, Shield, Share2, LogOut, PlusCircle,
   Eye, History, Paperclip
@@ -74,10 +75,10 @@ export const SubjectWorkspace: React.FC = () => {
     if (tab) setActiveTab(tab);
   }, [searchParams]);
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
-  
+
   const userName = localStorage.getItem('userName') || 'Scholar';
   const profilePic = localStorage.getItem('profilePic') || '';
-  
+
   // High fidelity default study notes based on course topic
   const getDefaultSyllabusNotes = (subjectName: string) => {
     if (subjectName.includes("Math")) {
@@ -266,12 +267,12 @@ Section 2: Practice applications
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
   const [customTopic, setCustomTopic] = useState('');
   const [showDocSelector, setShowDocSelector] = useState(false);
-  
+
   const [summaryHistory, setSummaryHistory] = usePersistentState<{id: string, doc: string[], content: string, date: string}[]>(`ip_summaries_${id}`, () => []);
   const [quizHistory, setQuizHistory] = usePersistentState<{id: string, doc: string[], score: number, total: number, date: string, questions?: QuizQuestion[]}[]>(`ip_quizzes_${id}`, () => []);
   const [flashcardDeckHistory, setFlashcardDeckHistory] = usePersistentState<{id: string, doc: string[], cardCount: number, date: string, cards?: Flashcard[]}[]>(`ip_decks_${id}`, () => []);
   const [guessPaperHistory, setGuessPaperHistory] = usePersistentState<{id: string, doc: string[], date: string, questions: number, result?: GuessPaperResult}[]>(`ip_guesses_${id}`, () => []);
-  
+
   const [previewContent, setPreviewContent] = useState<{title: string, text: string} | null>(null);
 
   // Reads a .txt/.md/.pdf file into the library. PDFs are read by the backend.
@@ -280,10 +281,10 @@ Section 2: Practice applications
     try {
       const { content, note } = await readStudyFile(file);
       setLoadedFiles(prev => [{ name: file.name, content, date: new Date().toLocaleDateString() }, ...prev.filter(f => f.name !== file.name)]);
-      if (note) alert(note);
+      notify(note || `${file.name} added`, note ? 'info' : 'success');
       return content;
     } catch (error) {
-      alert(error instanceof Error ? error.message : "This file couldn't be read.");
+      notify(error instanceof Error ? error.message : "This file couldn't be read.", 'error');
       return null;
     } finally {
       setIsUploading(false);
@@ -300,11 +301,11 @@ Section 2: Practice applications
 
   const renderDualInputHeader = (title: string, subtext: string, onGenerate: () => void, isGenerating: boolean, actionLabel: string = "Generate") => {
     const isReady = customTopic.trim() !== '' || selectedDocs.length > 0;
-    
+
     return (
     <div className="w-full mt-auto animate-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white/90 dark:bg-gray-900/90 border border-gray-200 dark:border-gray-700 shadow-sm rounded-2xl p-1 relative">
-        
+
         {/* Header Title (Subtle) */}
         <div className="px-4 pt-3 pb-1 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -316,14 +317,14 @@ Section 2: Practice applications
           <div className="flex flex-wrap gap-1">
              {selectedDocs.map(doc => (
                 <span key={doc} className="bg-primary-50/80 dark:bg-primary-900/30 text-primary-600 dark:text-primary-300 border border-primary-200 dark:border-primary-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <FileText className="w-2.5 h-2.5" /> 
+                  <FileText className="w-2.5 h-2.5" />
                   <span className="max-w-[100px] truncate">{doc}</span>
                   <button onClick={() => setSelectedDocs(docs => docs.filter(d => d !== doc))} className="hover:text-red-500 transition-colors"><X className="w-2.5 h-2.5"/></button>
                 </span>
              ))}
           </div>
         </div>
-        
+
         {/* Chat Input Area */}
         <div className="relative">
           <textarea
@@ -332,14 +333,14 @@ Section 2: Practice applications
             placeholder="Type a custom topic or leave blank to only use attached documents..."
             className="w-full bg-transparent border-0 resize-none outline-none text-sm p-4 min-h-[60px] text-gray-800 dark:text-gray-100 placeholder-gray-400"
           />
-          
+
           <div className="flex justify-between items-center px-3 pb-3">
             <div className="relative flex items-center gap-2">
               <Button variant="ghost" size="sm" className="rounded-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950 px-4 h-9 shadow-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700" onClick={() => setShowDocSelector(!showDocSelector)}>
-                <Paperclip className="w-4 h-4 mr-2" /> 
+                <Paperclip className="w-4 h-4 mr-2" />
                 <span className="font-bold text-xs">{selectedDocs.length > 0 ? `${selectedDocs.length} Attached` : 'Attach'}</span>
               </Button>
-              
+
               <label>
                 <span className="cursor-pointer inline-flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950 px-4 h-9 shadow-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 font-bold text-xs transition-colors">
                   <Upload className="w-4 h-4 mr-2 text-gray-400" />
@@ -350,21 +351,21 @@ Section 2: Practice applications
                   setShowDocSelector(true); // Open the selector so they see it
                 }} />
               </label>
-              
+
               {showDocSelector && (
                 <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-4 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
                   <div className="flex justify-between items-center mb-3">
                      <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Library Documents</h4>
                      <button onClick={() => setShowDocSelector(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"><X className="w-4 h-4"/></button>
                   </div>
-                  
+
                   <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-hide">
                     {loadedFiles.length === 0 ? <p className="text-[10px] text-gray-400 text-center py-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">No documents in library.</p> : null}
                     {loadedFiles.map(file => {
                       const isSelected = selectedDocs.includes(file.name);
                       return (
-                        <div 
-                          key={file.name} 
+                        <div
+                          key={file.name}
                           onClick={() => setSelectedDocs(prev => isSelected ? prev.filter(d => d !== file.name) : [...prev, file.name])}
                           className={cn("text-xs p-2.5 rounded-xl cursor-pointer flex items-center justify-between transition-all font-medium", isSelected ? "bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300" : "hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300")}
                         >
@@ -380,13 +381,13 @@ Section 2: Practice applications
                 </div>
               )}
             </div>
-            
+
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-medium text-gray-400 hidden sm:inline-block tracking-wider uppercase">
                 {isReady ? 'Ready for AI' : 'Provide Input'}
               </span>
-              <Button 
-                size="sm" 
+              <Button
+                size="sm"
                 className={cn("rounded-full px-6 font-bold shadow-sm", !isReady && "opacity-50 cursor-not-allowed")}
                 onClick={isReady ? onGenerate : undefined}
                 isLoading={isGenerating}
@@ -401,21 +402,21 @@ Section 2: Practice applications
     </div>
   )};
 
-  // Tab configurations
-  const tabs: { id: TabType; label: string; icon: any; color: string }[] = [
-    { id: 'overview', label: 'Dashboard Overview', icon: LayoutDashboard, color: 'text-blue-500' },
-    { id: 'upload', label: 'Study Text & Files', icon: Upload, color: 'text-indigo-500' },
-    { id: 'summary', label: 'AI Summaries', icon: FileText, color: 'text-green-500' },
-    { id: 'flashcards', label: 'Flashcards Room', icon: Layers, color: 'text-purple-500' },
-    { id: 'quiz', label: 'Practice Quiz', icon: CheckSquare, color: 'text-pink-500' },
-    { id: 'exam', label: 'Timed Exam Mode', icon: GraduationCap, color: 'text-red-500' },
-    { id: 'weak-topics', label: 'Weak Topics', icon: AlertTriangle, color: 'text-orange-500' },
-    { id: 'guess-engine', label: 'Exam Guess Engine', icon: BrainCircuit, color: 'text-emerald-500' },
-    { id: 'studyroom', label: 'Study Groups', icon: Users, color: 'text-emerald-500' },
-    { id: 'kanban', label: 'Planner Kanban', icon: Columns, color: 'text-teal-500' },
-    { id: 'moodboard', label: 'Visual Moodboard', icon: Layout, color: 'text-cyan-500' },
-    { id: 'reminders', label: 'Reminders & Alerts', icon: Bell, color: 'text-violet-500' }
+  // Seven sections. Sections with several screens show them as sub-tabs.
+  const sections: { id: string; label: string; icon: any; tabs: { id: TabType; label: string }[] }[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard, tabs: [{ id: 'overview', label: 'Overview' }] },
+    { id: 'notes', label: 'Notes', icon: FileText, tabs: [{ id: 'upload', label: 'Documents' }, { id: 'summary', label: 'Summaries' }] },
+    { id: 'flashcards', label: 'Flashcards', icon: Layers, tabs: [{ id: 'flashcards', label: 'Flashcards' }] },
+    { id: 'practice', label: 'Practice', icon: CheckSquare, tabs: [{ id: 'quiz', label: 'Quiz' }, { id: 'exam', label: 'Timed exam' }, { id: 'weak-topics', label: 'Weak topics' }] },
+    { id: 'predictions', label: 'Exam predictions', icon: BrainCircuit, tabs: [{ id: 'guess-engine', label: 'Predictions' }] },
+    { id: 'plan', label: 'Plan', icon: Columns, tabs: [{ id: 'kanban', label: 'Tasks' }, { id: 'reminders', label: 'Reminders' }, { id: 'moodboard', label: 'Board' }] },
+    { id: 'group', label: 'Group', icon: Users, tabs: [{ id: 'studyroom', label: 'Study groups' }] },
   ];
+  const activeSection = sections.find(section => section.tabs.some(tab => tab.id === activeTab)) ?? sections[0];
+  const openSection = (section: typeof sections[number]) => {
+    setActiveTab(section.tabs[0].id);
+    setLastQuestionFeedback(null);
+  };
 
   const handleAddSchedule = (e: React.FormEvent) => {
     e.preventDefault();
@@ -423,16 +424,16 @@ Section 2: Practice applications
     const day = (form.elements.namedItem('schedule_day') as HTMLSelectElement).value;
     const time = (form.elements.namedItem('schedule_time') as HTMLInputElement).value;
     const room = (form.elements.namedItem('schedule_room') as HTMLInputElement).value;
-    
+
     if (subject) {
       const updatedSubject = {
         ...subject,
         schedule: [...(subject.schedule || []), { day, time, room, type: 'Lecture' }]
       };
-      
+
       setSubjects(subjects.map(s => s.id === subject.id ? updatedSubject : s));
     }
-    
+
     setShowAddScheduleModal(false);
   };
 
@@ -489,7 +490,6 @@ Section 2: Practice applications
   // Set selected upload as active material
   const handleSelectMaterial = (content: string) => {
     setSummaryText(content);
-    alert("Got it. Opening Summaries for this file.");
     setActiveTab('summary');
   };
 
@@ -524,7 +524,7 @@ Section 2: Practice applications
     } else {
       textToSummarize += summaryText;
     }
-      
+
     setIsGenerating(true);
     const result = await generateFlashcards(textToSummarize);
     if (result && result.length > 0) {
@@ -557,14 +557,14 @@ Section 2: Practice applications
       reviewIdea: `Check answer explanation: "${card.back}". Consider reviewing related lecture notes.`
     };
     setWeakTopics([newWeak, ...weakTopics]);
-    alert("Flagged item as weak. It has been synchronized to your Weak-Topic Tracker tab for custom remedial action!");
+    notify('Added to your weak topics in Practice.', 'success');
   };
 
   // Quiz submission & explanation block
   const handleQuizAnswer = (chosenIndex: number) => {
     const q = quizQuestions[currentQuestion];
     const isCorrect = chosenIndex === q.correctIndex;
-    
+
     setLastQuestionFeedback({
       correct: isCorrect,
       chosen: chosenIndex,
@@ -627,7 +627,7 @@ Section 2: Practice applications
     } else {
       textToSummarize += summaryText;
     }
-      
+
     setIsGenerating(true);
     try {
       const gQuestions = await generateQuiz(textToSummarize);
@@ -638,17 +638,10 @@ Section 2: Practice applications
         setQuizScore(0);
         setLastQuestionFeedback(null);
         setShowQuizResult(false);
-      } else {
-        alert("Using offline-ready mock question set for evaluation practice!");
-        setQuizActive(true);
-        setCurrentQuestion(0);
-        setQuizScore(0);
-        setLastQuestionFeedback(null);
-        setShowQuizResult(false);
       }
     } catch (err) {
       console.error(err);
-      alert("Error generating quiz. Please verify configuration parameters.");
+      notify("Couldn't make a quiz. Try again in a moment.", 'error');
     } finally {
       setIsGenerating(false);
     }
@@ -721,10 +714,10 @@ Section 2: Practice applications
     });
 
     const scorePct = Math.round((correctCount / quizQuestions.length) * 100);
-    const mockFeedbacks = scorePct >= 80 
+    const mockFeedbacks = scorePct >= 80
       ? `Amazing final grade: ${scorePct}%! Your syllabus knowledge base is highly advanced. Keep this steady study momentum!`
       : `Final grade achieved: ${scorePct}%. Several gaps of core theory were flagged. Recommended action: Review your synchronized terms inside the Weak Topics Tracker panel immediately.`;
-    
+
     // Auto register wrong questions to Weak Topics tracker
     quizQuestions.forEach(q => {
       if (selectedExamAnswers[q.id] !== q.correctIndex) {
@@ -778,14 +771,15 @@ Section 2: Practice applications
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden font-sans">
-      
+
       {/* 1. Left Vertical Action Sidebar */}
-      <aside className="w-18 lg:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col z-20">
-        
+      <aside className="hidden md:flex w-18 lg:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col z-20">
+
         {/* Course Return banner */}
-        <div 
-          className="p-4 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 h-16 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" 
+        <button
+          className="p-4 flex w-full items-center gap-3 border-b border-gray-200 dark:border-gray-700 h-16 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
           onClick={() => navigate('/dashboard')}
+          aria-label="Back to dashboard"
         >
           <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500">
             <ArrowLeft className="w-5 h-5" />
@@ -794,30 +788,29 @@ Section 2: Practice applications
             <span className="block text-[10px] text-gray-400 font-extrabold uppercase leading-none">Back</span>
             <span className="font-extrabold text-base text-primary-900 dark:text-white leading-tight truncate block">{subject.name}</span>
           </div>
-        </div>
+        </button>
 
         {/* Tab List */}
         <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2.5 no-scrollbar">
-          {tabs.map(tab => (
+          {sections.map(section => (
             <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                // Clear state when switching tabs to avoid floating artifacts
-                setLastQuestionFeedback(null);
-              }}
+              key={section.id}
+              onClick={() => openSection(section)}
+              title={section.label}
+              aria-label={section.label}
+              aria-current={activeSection.id === section.id ? 'page' : undefined}
               className={cn(
                 "w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group relative",
-                activeTab === tab.id 
-                  ? "bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300 font-bold shadow-sm" 
+                activeSection.id === section.id
+                  ? "bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300 font-bold shadow-sm"
                   : "text-gray-500 dark:text-gray-400 hover:bg-gray-50/50 dark:hover:bg-gray-700/60"
               )}
             >
-              <tab.icon className={cn("w-5 h-5 transition-colors", activeTab === tab.id ? "text-primary-600 dark:text-primary-400" : "text-gray-400 group-hover:text-primary-500")} />
-              <span className="font-medium text-xs lg:text-sm hidden lg:block leading-none">{tab.label}</span>
-              
-              {/* Special Badge Indicators */}
-              {tab.id === 'weak-topics' && weakTopics.length > 0 && (
+              <section.icon className={cn("w-5 h-5 transition-colors", activeSection.id === section.id ? "text-primary-600 dark:text-primary-400" : "text-gray-400 group-hover:text-primary-500")} />
+              <span className="font-medium text-xs lg:text-sm hidden lg:block leading-none">{section.label}</span>
+
+              {/* Weak topics waiting, shown on Practice */}
+              {section.id === 'practice' && weakTopics.length > 0 && (
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 w-4.5 h-4.5 rounded-full bg-orange-500 text-white font-extrabold flex items-center justify-center text-[10px] animate-pulse">
                   {weakTopics.length}
                 </span>
@@ -829,13 +822,13 @@ Section 2: Practice applications
         {/* Study days in the last week, from real activity */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 hidden lg:block bg-gray-50/50 dark:bg-gray-800/40">
           <div className="bg-primary-900 rounded-xl p-3.5 text-white shadow-inner relative overflow-hidden">
-            <p className="text-[10px] uppercase font-bold text-primary-200 leading-none">This week</p>
+            <p className="text-[10px] uppercase font-bold text-primary-200 leading-none">Study goal this week</p>
             <div className="flex justify-between items-baseline mt-1.5 mb-1 text-xs">
-              <span className="font-black text-sm">{studyDaysThisWeek()} of 7 days</span>
+              <span className="font-black text-sm">{studyDaysThisWeek()} of {Number(localStorage.getItem('goal_days') || 5)} days</span>
               <span className="opacity-80">studied</span>
             </div>
             <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-white h-full" style={{ width: `${Math.round((studyDaysThisWeek() / 7) * 100)}%` }}></div>
+              <div className="bg-white h-full" style={{ width: `${Math.min(100, Math.round((studyDaysThisWeek() / Number(localStorage.getItem('goal_days') || 5)) * 100))}%` }}></div>
             </div>
           </div>
         </div>
@@ -843,11 +836,14 @@ Section 2: Practice applications
 
       {/* 2. Main Module Viewer Space / Header */}
       <main className="flex-1 min-w-0 min-h-0 flex flex-col h-full overflow-hidden relative">
-        
+
         {/* Wide Header Info */}
         <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 px-4 md:px-8 z-10">
           <div className="flex min-w-0 items-center gap-3">
-            <div className={cn("w-3 h-3 rounded-full", subject.color)}></div>
+            <button onClick={() => navigate('/dashboard')} className="-ml-1 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden" aria-label="Back to dashboard">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className={cn("w-3 h-3 shrink-0 rounded-full", subject.color)}></div>
             <div className="min-w-0">
               <h1 className="truncate text-base font-extrabold text-gray-900 dark:text-white leading-tight">
                 {subject.name} <span className="hidden text-xs text-gray-400 font-normal sm:inline">· {subject.credits} credit hours</span>
@@ -860,7 +856,7 @@ Section 2: Practice applications
             <div className="hidden items-center gap-2 bg-[#ccfbf1] text-[#0f172a] dark:bg-primary-900/50 dark:text-primary-100 px-3 py-1 rounded-full text-xs font-bold border border-transparent sm:flex" title="Days in a row you've studied">
               <Flame className="w-4 h-4 text-[#0b957f]" /> {studyStreak()}-day streak
             </div>
-            
+
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xs overflow-hidden">
               {profilePic ? (
                 <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
@@ -874,7 +870,7 @@ Section 2: Practice applications
         {/* 3. Deep Focus High-Stakes Exam Mode Screen Overlay (Takes full height/width) */}
         {activeTab === 'exam' && examActive && (
           <div className="absolute inset-0 z-[100] bg-gray-950 text-white flex flex-col animate-in fade-in duration-300">
-            
+
             {/* Header focused timer */}
             <header className="h-16 flex items-center justify-between px-8 border-b border-gray-800 bg-gray-900">
               <div className="flex items-center gap-3">
@@ -891,14 +887,14 @@ Section 2: Practice applications
                 <div className="flex items-center gap-2 bg-red-950/50 border border-red-800 px-4 py-1.5 rounded-xl font-mono text-base font-black text-red-400 animate-pulse">
                   <Clock className="w-4 h-4" /> {Math.floor(examTimeLeft / 60)}:{String(examTimeLeft % 60).padStart(2, '0')}
                 </div>
-                
-                <Button variant="ghost" className="text-gray-400 hover:text-white" size="sm" onClick={() => {
-                  if (confirm("Cancel current exam session? Any answers won't be calculated.")) {
+
+                <Button variant="ghost" className="text-gray-400 hover:text-white" size="sm" onClick={async () => {
+                  if (await confirmAction({ title: 'Leave this exam?', message: "Your answers so far won't be marked.", confirmLabel: 'Leave exam', danger: true })) {
                     setExamActive(false);
                     setActiveTab('overview');
                   }
                 }}>
-                  Force Exit
+                  Leave exam
                 </Button>
               </div>
             </header>
@@ -922,26 +918,26 @@ Section 2: Practice applications
                     Question {qIndex + 1} of {quizQuestions.length}
                   </span>
                   <h3 className="text-base font-bold text-gray-100">{q.question}</h3>
-                  
+
                   <div className="space-y-2 pt-2">
                     {q.options.map((opt, optIndex) => {
                       const isSelected = selectedExamAnswers[q.id] === optIndex;
                       return (
-                        <label 
-                          key={optIndex} 
+                        <label
+                          key={optIndex}
                           className={cn(
                             "flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all text-xs touch-manipulation",
-                            isSelected 
-                              ? "border-primary-500 bg-primary-950/20 text-white" 
+                            isSelected
+                              ? "border-primary-500 bg-primary-950/20 text-white"
                               : "border-gray-800 bg-gray-950 text-gray-400 hover:border-gray-700 hover:text-white"
                           )}
                         >
-                          <input 
-                            type="radio" 
-                            name={q.id} 
+                          <input
+                            type="radio"
+                            name={q.id}
                             checked={isSelected}
                             onChange={() => setSelectedExamAnswers({ ...selectedExamAnswers, [q.id]: optIndex })}
-                            className="w-4 h-4 text-primary-600 border-gray-700 bg-gray-800 focus:ring-primary-500" 
+                            className="w-4 h-4 text-primary-600 border-gray-700 bg-gray-800 focus:ring-primary-500"
                           />
                           <span>{opt}</span>
                         </label>
@@ -960,13 +956,35 @@ Section 2: Practice applications
           </div>
         )}
 
-        {/* 4. Standard Tabs Content Display Area */}
+        {activeSection.tabs.length > 1 && (
+          <div className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800 md:px-8 no-scrollbar" role="tablist" aria-label={activeSection.label}>
+            {activeSection.tabs.map(tab => (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                onClick={() => { setActiveTab(tab.id); setLastQuestionFeedback(null); }}
+                className={cn(
+                  "whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-colors",
+                  activeTab === tab.id
+                    ? "bg-primary-600 text-white"
+                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                )}
+              >
+                {tab.label}
+                {tab.id === 'weak-topics' && weakTopics.length > 0 && <span className="ml-1.5 rounded-full bg-orange-500 px-1.5 text-[10px] text-white">{weakTopics.length}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 4. Content area. Phones scroll every screen and leave room for the bottom bar. */}
         <div className={cn(
-          "flex-1 min-h-0 relative w-full flex flex-col",
-          ['overview', 'upload', 'kanban', 'reminders'].includes(activeTab) ? "overflow-y-auto p-6 md:p-8" : "overflow-hidden",
-          !['moodboard', 'studyroom'].includes(activeTab) && !['overview', 'upload', 'kanban', 'reminders'].includes(activeTab) ? "p-6 md:p-8" : ""
+          "flex-1 min-h-0 relative w-full flex flex-col max-md:pb-32",
+          ['overview', 'upload', 'kanban', 'reminders', 'weak-topics', 'exam'].includes(activeTab) ? "overflow-y-auto p-4 md:p-8" : "overflow-y-auto md:overflow-hidden",
+          !['moodboard', 'studyroom'].includes(activeTab) && !['overview', 'upload', 'kanban', 'reminders', 'weak-topics', 'exam'].includes(activeTab) ? "p-4 md:p-8" : ""
         )}>
-          
+
           {/* TAB 4.1: OVERVIEW: real numbers for this subject and what to do next */}
           {activeTab === 'overview' && (() => {
             const daysLeft = daysUntil(subject.examDate);
@@ -1049,8 +1067,8 @@ Section 2: Practice applications
                       <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1.5">
                         <Calendar className="w-4 h-4 text-primary-500" /> Subject Timetable
                       </h3>
-                      <button 
-                        onClick={() => setShowAddScheduleModal(true)} 
+                      <button
+                        onClick={() => setShowAddScheduleModal(true)}
                         className="p-1 px-2 rounded bg-primary-50 dark:bg-primary-950/40 text-primary-600 hover:bg-primary-100 hover:text-primary-700 transition-colors text-xs font-semibold flex items-center gap-1"
                         title="Add Scheduled Time"
                       >
@@ -1061,8 +1079,8 @@ Section 2: Practice applications
                     <div className="space-y-3.5 flex-1">
                       {subject?.schedule && subject.schedule.length > 0 ? (
                         subject.schedule.map((item, idx) => (
-                          <div 
-                            key={idx} 
+                          <div
+                            key={idx}
                             className="group/item flex items-center justify-between p-2.5 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 hover:bg-gray-50 dark:hover:bg-gray-900/60 transition-colors"
                           >
                             <div className="relative pl-3 border-l-2 border-primary-500 py-0.5">
@@ -1096,7 +1114,7 @@ Section 2: Practice applications
           {/* TAB 4.2: UPLOAD & DISK FILES INTERACTION (FFileReader) */}
           {activeTab === 'upload' && (
             <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-300">
-              
+
               <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl bg-white dark:bg-gray-800/20">
                 <Upload className="w-16 h-16 text-primary-500 mx-auto mb-4 opacity-75" />
                 <h3 className="text-xl font-bold mb-1">Your notes</h3>
@@ -1109,14 +1127,14 @@ Section 2: Practice applications
                     <span className="inline-flex items-center justify-center rounded-xl font-bold bg-primary-600 text-white hover:bg-primary-700 px-5 py-2.5 text-xs shadow-lg shadow-primary-500/25">
                       {isUploading ? 'Reading file…' : 'Upload PDF or text file'}
                     </span>
-                    <input 
-                      type="file" 
-                      accept=".pdf,.txt,.md,.json" 
-                      className="hidden" 
-                      onChange={handleFileUpload} 
+                    <input
+                      type="file"
+                      accept=".pdf,.txt,.md,.json"
+                      className="hidden"
+                      onChange={handleFileUpload}
                     />
                   </label>
-                  
+
                   <span className="text-xs text-gray-400 font-mono">or paste raw study notes directly below</span>
                 </div>
               </div>
@@ -1141,7 +1159,7 @@ Section 2: Practice applications
                           <span className="text-[10px] text-gray-400 mt-1 block">Uploaded: {f.date} • {f.content.length} chars</span>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-1.5">
                         <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => handleSelectMaterial(f.content)}>
                           Process AI
@@ -1168,11 +1186,11 @@ Section 2: Practice applications
                     <h3 className="font-bold text-base flex items-center gap-2">
                       <BrainCircuit className="w-4 h-4 text-emerald-500" /> Summary
                     </h3>
-                    
+
                     {generatedSummary && (
                       <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => {
                         navigator.clipboard.writeText(generatedSummary);
-                        alert("Summary copied to Clipboard!");
+                        notify('Summary copied', 'success');
                       }}>
                         Copy Summary
                       </Button>
@@ -1240,13 +1258,14 @@ Section 2: Practice applications
 
                   {flashcards.length > 0 ? (
                     <div className="w-full max-w-3xl space-y-6 relative flex items-center justify-center">
-                      
+
                       {/* Left Navigation Arrow */}
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full hidden sm:flex bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm -translate-x-4 lg:-translate-x-8"
-                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }} 
+                        aria-label="Previous card"
+                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }}
                         disabled={activeCardIndex === 0}
                       >
                         <ChevronLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
@@ -1255,8 +1274,8 @@ Section 2: Practice applications
                       {/* Card Container */}
                       <div className="w-full max-w-lg space-y-6">
                         {/* Rotating Card */}
-                        <div 
-                          className="perspective-1000 w-full h-80 relative cursor-pointer active:scale-[0.99] transition-transform" 
+                        <div
+                          className="perspective-1000 w-full h-80 relative cursor-pointer active:scale-[0.99] transition-transform"
                           onClick={() => setIsFlipped(!isFlipped)}
                         >
                           <div className={cn(
@@ -1269,7 +1288,7 @@ Section 2: Practice applications
                                 <span className="uppercase text-[10px] font-extrabold text-primary-500 tracking-wider">Question</span>
                                 <HelpCircle className="w-4 h-4 text-gray-350" />
                               </div>
-                              
+
                               <div className="text-center py-6">
                                 <p className="text-xl md:text-2xl font-black text-gray-850 dark:text-white leading-snug">
                                   {flashcards[activeCardIndex].front}
@@ -1303,8 +1322,8 @@ Section 2: Practice applications
 
                         {/* Feedback Action Row: Mastered vs Flag Weak */}
                         <div className="flex justify-center flex-wrap items-center gap-3">
-                          <Button 
-                            variant="secondary" 
+                          <Button
+                            variant="secondary"
                             className="text-xs font-bold border-red-200/50 hover:bg-red-50 text-red-600 flex items-center gap-1.5"
                             size="sm"
                             onClick={(e) => {
@@ -1315,12 +1334,12 @@ Section 2: Practice applications
                             <AlertTriangle className="w-3.5 h-3.5" /> Flag as Weak
                           </Button>
 
-                          <Button 
-                            variant="secondary" 
+                          <Button
+                            variant="secondary"
                             className={cn(
                               "text-xs font-bold flex items-center gap-1.5",
-                              flashcards[activeCardIndex].mastered 
-                                ? "bg-green-150 border-green-300 text-green-700" 
+                              flashcards[activeCardIndex].mastered
+                                ? "bg-green-150 border-green-300 text-green-700"
                                 : "hover:bg-green-50 text-emerald-600"
                             )}
                             size="sm"
@@ -1329,19 +1348,18 @@ Section 2: Practice applications
                               const updated = flashcards.map((c, i) => i === activeCardIndex ? { ...c, mastered: !c.mastered } : c);
                               logStudyDay();
                               setFlashcards(updated);
-                              alert(updated[activeCardIndex].mastered ? "Marked as mastered!" : "Marked outstanding.");
                             }}
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" /> {flashcards[activeCardIndex].mastered ? "Mastered ✓" : "Mark Mastered"}
                           </Button>
                         </div>
-                        
+
                         {/* Mobile Navigation (only visible on small screens) */}
                         <div className="flex sm:hidden items-center justify-between mt-4">
-                          <Button 
-                            variant="secondary" 
+                          <Button
+                            variant="secondary"
                             size="sm"
-                            onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }} 
+                            onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }}
                             disabled={activeCardIndex === 0}
                           >
                             <ChevronLeft className="w-4 h-4" /> Prev
@@ -1349,10 +1367,11 @@ Section 2: Practice applications
                           <span className="text-[10px] font-mono font-bold text-gray-400">
                             {activeCardIndex + 1} / {flashcards.length}
                           </span>
-                          <Button 
-                            variant="secondary" 
+                          <Button
+                            variant="secondary"
                             size="sm"
-                            onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }} 
+                            aria-label="Next card"
+                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }}
                             disabled={activeCardIndex === flashcards.length-1}
                           >
                             Next <ChevronRight className="w-4 h-4" />
@@ -1361,11 +1380,11 @@ Section 2: Practice applications
                       </div>
 
                       {/* Right Navigation Arrow */}
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full hidden sm:flex bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm translate-x-4 lg:translate-x-8"
-                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }} 
+                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }}
                         disabled={activeCardIndex === flashcards.length-1}
                       >
                         <ChevronRight className="w-6 h-6 text-gray-600 dark:text-gray-300" />
@@ -1413,13 +1432,13 @@ Section 2: Practice applications
             <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 h-full min-h-0 animate-in fade-in duration-300">
               <div className="lg:col-span-7 flex flex-col h-full min-h-0 gap-6 text-left">
                 <div className="flex-1 flex flex-col overflow-y-auto min-h-0 space-y-6">
-                  
+
                   {!quizActive ? (
                     <Card className="flex-1 flex flex-col items-center justify-center text-center py-12 p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6 min-h-[300px]">
                       <div className="w-14 h-14 rounded-full bg-primary-100 dark:bg-primary-950/40 text-primary-600 flex items-center justify-center mx-auto shadow-md">
                         <CheckSquare className="w-8 h-8" />
                       </div>
-                      
+
                       <div className="space-y-1">
                         <h2 className="text-2xl font-extrabold mb-1 self-center text-gray-900 dark:text-white">Practice quiz</h2>
                         <p className="text-xs text-gray-400 max-w-sm mx-auto">
@@ -1434,13 +1453,13 @@ Section 2: Practice applications
                           <span className="text-[10px] text-gray-400 mt-1 block">Questions get harder or easier as you answer.</span>
                         </div>
                         <label className="relative inline-flex items-center cursor-not-allowed opacity-50" title="Coming soon">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={isAdaptiveMode}
                             disabled
                             aria-label="Adaptive difficulty (coming soon)"
-                            onChange={() => setIsAdaptiveMode(!isAdaptiveMode)} 
-                            className="sr-only peer" 
+                            onChange={() => setIsAdaptiveMode(!isAdaptiveMode)}
+                            className="sr-only peer"
                           />
                           <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                         </label>
@@ -1489,11 +1508,11 @@ Section 2: Practice applications
                     </Card>
                   ) : (
                 <Card className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                  
+
                   {/* Top slide tracker progress */}
                   <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
-                    <div 
-                      className="h-full bg-primary-500 transition-all duration-350" 
+                    <div
+                      className="h-full bg-primary-500 transition-all duration-350"
                       style={{ width: `${((currentQuestion + 1) / quizQuestions.length) * 100}%` }}
                     />
                   </div>
@@ -1516,7 +1535,7 @@ Section 2: Practice applications
                         const isChosenAnswer = lastQuestionFeedback?.chosen === idx;
 
                         return (
-                          <button 
+                          <button
                             key={idx}
                             disabled={feedbackGiven}
                             onClick={() => handleQuizAnswer(idx)}
@@ -1554,8 +1573,8 @@ Section 2: Practice applications
                     {lastQuestionFeedback && (
                       <div className={cn(
                         "p-4 rounded-xl border text-xs leading-relaxed transition-all animate-in fade-in",
-                        lastQuestionFeedback.correct 
-                          ? "bg-green-50 border-green-200 text-green-800" 
+                        lastQuestionFeedback.correct
+                          ? "bg-green-50 border-green-200 text-green-800"
                           : "bg-orange-50 border-orange-200/50 text-orange-850"
                       )}>
                         <p className="font-bold flex items-center gap-1.5">
@@ -1563,7 +1582,7 @@ Section 2: Practice applications
                           AI Explanation Review:
                         </p>
                         <p className="mt-1">{lastQuestionFeedback.explanation}</p>
-                        
+
                         <div className="mt-4 flex justify-end">
                           <Button size="sm" onClick={handleNextQuizQuestion}>
                             {currentQuestion === quizQuestions.length - 1 ? "Finish Quiz" : "Proceed Next Question"}
@@ -1670,7 +1689,7 @@ Section 2: Practice applications
                     </Card>
                   ) : (
                     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
-                      
+
                       {/* Predicted Topics Grid */}
                       <div>
                         <h3 className="text-xs uppercase font-extrabold text-gray-400 tracking-wider mb-4">Predicted Exam-Topic Probability Models</h3>
@@ -1678,24 +1697,24 @@ Section 2: Practice applications
                           {guessResults.predictions.map((p, idx) => {
                             const isHigh = p.probability === 'High';
                             const isMed = p.probability === 'Medium';
-                            
+
                             return (
                               <Card key={idx} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3 flex flex-col justify-between">
                                 <div className="flex justify-between items-start">
                                   <span className="font-extrabold text-xs text-gray-800 dark:text-gray-200 leading-tight">{p.topic}</span>
                                   <Badge color={
-                                    isHigh 
-                                      ? "bg-red-50 text-red-700 font-bold" 
-                                      : isMed 
-                                        ? "bg-amber-50 text-amber-700" 
+                                    isHigh
+                                      ? "bg-red-50 text-red-700 font-bold"
+                                      : isMed
+                                        ? "bg-amber-50 text-amber-700"
                                         : "bg-gray-50 text-gray-600"
                                   }>
                                     {p.probability} Prob
                                   </Badge>
                                 </div>
-                                
+
                                 <p className="text-[11px] text-gray-500 leading-relaxed text-left">{p.reason}</p>
-                                
+
                                 <div className="pt-2 border-t text-[10px] text-gray-400 flex justify-between">
                                   <span>Estimated weight of overall test:</span>
                                   <span className="font-bold text-gray-700">{p.estimatedWeight}</span>
@@ -1780,7 +1799,7 @@ Section 2: Practice applications
           {/* TAB 4.8: WEAK-TOPIC TRACKER */}
           {activeTab === 'weak-topics' && (
             <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-300 text-left">
-              
+
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1825,8 +1844,8 @@ Section 2: Practice applications
                           }}>
                             Ask the tutor
                           </Button>
-                          
-                          <button 
+
+                          <button
                             onClick={() => handleClearWeakTopic(wt.id)}
                             className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded border border-gray-200 transition-colors bg-white shadow-sm"
                             title="Mark Cleared / Mastered"
@@ -1888,7 +1907,7 @@ Section 2: Practice applications
                   {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
                 </div>
               </div>
-              
+
               <div className="flex-1 min-h-0">
                 <MoodBoard notes={boardNotes} onUpdateNotes={setBoardNotes} />
               </div>
@@ -1898,7 +1917,7 @@ Section 2: Practice applications
           {/* TAB 4.12: REMINDERS */}
           {activeTab === 'reminders' && (
             <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-300 text-left">
-              
+
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl flex justify-between items-center">
                 <div>
                   <h2 className="text-lg font-extrabold text-gray-900">Reminders</h2>
@@ -1919,7 +1938,7 @@ Section 2: Practice applications
                         <span className="text-[10px] text-gray-400 mt-1 block">Due: {formatDue(rem.date)}</span>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-violet-700 bg-violet-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
                         {rem.platform === 'app' ? (rem.fired ? 'Shown' : 'In-app') : <>{rem.platform}<SoonBadge /></>}
@@ -1935,7 +1954,7 @@ Section 2: Practice applications
               {/* Form creation card */}
               <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left space-y-4">
                 <h4 className="font-extrabold text-sm text-gray-800">New reminder</h4>
-                
+
                 <form onSubmit={handleCreateReminder} className="space-y-4 text-xs font-medium">
                   <div>
                     <label className="block text-gray-400 mb-1 font-bold">What to remind you about</label>
@@ -1947,7 +1966,7 @@ Section 2: Practice applications
                       <label className="block text-gray-400 mb-1 font-bold">When</label>
                       <Input name="dueDate" type="datetime-local" required className="text-xs" />
                     </div>
-                    
+
                     <div>
                       <label className="block text-gray-400 mb-1 font-bold">How</label>
                       <select name="platform" className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs outline-none focus:border-primary-500">
@@ -1970,6 +1989,24 @@ Section 2: Practice applications
         </div>
 
       </main>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 md:hidden" aria-label="Subject sections">
+        {sections.map(section => (
+          <button
+            key={section.id}
+            onClick={() => openSection(section)}
+            aria-current={activeSection.id === section.id ? 'page' : undefined}
+            className={cn(
+              "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[9px] font-semibold",
+              activeSection.id === section.id ? "text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"
+            )}
+          >
+            <section.icon className="h-5 w-5" />
+            <span className="max-w-full truncate px-0.5">{section.id === 'predictions' ? 'Predict' : section.label}</span>
+            {section.id === 'practice' && weakTopics.length > 0 && <span className="absolute right-2 top-1 h-2 w-2 rounded-full bg-orange-500" />}
+          </button>
+        ))}
+      </nav>
 
       {/* Add Schedule Modal */}
       {showAddScheduleModal && (
@@ -2027,11 +2064,11 @@ Section 2: Practice applications
                 <X size={18} />
               </button>
             </div>
-            
+
             <div className="max-h-[60vh] overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-xl p-6 text-sm text-gray-700 dark:text-gray-200 font-serif whitespace-pre-wrap">
               {previewContent.text}
             </div>
-            
+
             <div className="mt-6 flex justify-end">
               <Button onClick={() => setPreviewContent(null)}>Close Preview</Button>
             </div>

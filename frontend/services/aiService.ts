@@ -1,5 +1,6 @@
 import { Flashcard, QuizQuestion } from "../types";
 import { apiFetch, ApiError } from "./apiClient";
+import { notify } from '../components/Feedback';
 
 // AI features call the IntelliPrep backend; no AI provider keys ever reach the browser.
 
@@ -39,7 +40,7 @@ export const generateFlashcards = async (text: string): Promise<Flashcard[]> => 
     }));
   } catch (error) {
     console.error("Flashcards failed:", error);
-    alert(`Couldn't make flashcards. ${errorMessage(error)}`);
+    notify(`Couldn't make flashcards. ${errorMessage(error)}`, 'error');
     return [];
   }
 };
@@ -62,7 +63,7 @@ export const generateQuiz = async (text: string): Promise<QuizQuestion[]> => {
     }));
   } catch (error) {
     console.error("Quiz failed:", error);
-    alert(`Couldn't make a quiz. ${errorMessage(error)}`);
+    notify(`Couldn't make a quiz. ${errorMessage(error)}`, 'error');
     return [];
   }
 };
