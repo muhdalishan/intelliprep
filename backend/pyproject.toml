@@ -14,6 +14,7 @@ dependencies = [
     "pyjwt[crypto]>=2.10",
     "httpx>=0.28",
     "anthropic>=0.60",
+    "pypdf>=5.1",
 ]
 
 [dependency-groups]
