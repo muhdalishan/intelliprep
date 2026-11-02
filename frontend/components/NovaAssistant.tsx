@@ -63,6 +63,16 @@ export const NovaAssistant: React.FC = () => {
   const currentSubjectId = location.pathname.match(/^\/subject\/([^/?]+)/)?.[1] ?? null;
 
   const [isOpen, setIsOpen] = useState(false);
+
+  // Only one assistant panel is open at a time.
+  useEffect(() => {
+    if (isOpen) window.dispatchEvent(new CustomEvent('assistant-opened', { detail: 'nova' }));
+  }, [isOpen]);
+  useEffect(() => {
+    const onOther = (e: Event) => { if ((e as CustomEvent).detail !== 'nova') setIsOpen(false); };
+    window.addEventListener('assistant-opened', onOther);
+    return () => window.removeEventListener('assistant-opened', onOther);
+  }, []);
   const [name, setName] = useState(() => localStorage.getItem('nova_name') || 'Nova');
   const [wakeEnabled, setWakeEnabled] = useState(() => localStorage.getItem('nova_wake') === 'true' && speechSupported);
   const [muted, setMuted] = useState(() => localStorage.getItem('nova_muted') === 'true');
@@ -192,9 +202,9 @@ export const NovaAssistant: React.FC = () => {
   const lastTurns = turns.slice(-4);
 
   return (
-    <div className="fixed bottom-20 right-24 z-50 flex flex-col items-end md:bottom-6">
+    <div className="fixed bottom-20 right-[4.75rem] z-50 flex flex-col items-end sm:right-24 md:bottom-6">
       {isOpen && (
-        <div className="mb-4 flex h-[560px] w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-white shadow-2xl md:w-[380px] animate-in" role="dialog" aria-label={`${name} assistant`}>
+        <div className="mb-4 flex max-md:fixed max-md:inset-x-3 max-md:bottom-[9.5rem] max-md:w-auto h-[min(580px,calc(100dvh-12rem))] md:h-[min(580px,calc(100dvh-8rem))] md:w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-white shadow-2xl animate-in" role="dialog" aria-label={`${name} assistant`}>
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
             <div className="flex items-center gap-2.5">
@@ -348,7 +358,7 @@ export const NovaAssistant: React.FC = () => {
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            "relative z-10 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-xl transition-all duration-300 hover:scale-110 active:scale-95",
+            "relative z-10 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full text-white shadow-xl transition-all duration-300 hover:scale-110 active:scale-95",
             listening ? "bg-gradient-to-tr from-red-500 to-rose-600" : "bg-gradient-to-tr from-slate-800 to-slate-950 ring-1 ring-emerald-500/40"
           )}
           title={`Talk to ${name}`}

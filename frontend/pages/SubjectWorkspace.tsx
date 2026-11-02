@@ -334,7 +334,7 @@ Section 2: Practice applications
             className="w-full bg-transparent border-0 resize-none outline-none text-sm p-4 min-h-[60px] text-gray-800 dark:text-gray-100 placeholder-gray-400"
           />
 
-          <div className="flex justify-between items-center px-3 pb-3">
+          <div className="flex flex-wrap justify-between items-center gap-2 px-3 pb-3">
             <div className="relative flex items-center gap-2">
               <Button variant="ghost" size="sm" className="rounded-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950 px-4 h-9 shadow-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700" onClick={() => setShowDocSelector(!showDocSelector)}>
                 <Paperclip className="w-4 h-4 mr-2" />
@@ -353,7 +353,7 @@ Section 2: Practice applications
               </label>
 
               {showDocSelector && (
-                <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-4 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
+                <div className="absolute bottom-full left-0 mb-2 w-[min(18rem,calc(100vw-3rem))] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-4 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
                   <div className="flex justify-between items-center mb-3">
                      <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Library Documents</h4>
                      <button onClick={() => setShowDocSelector(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"><X className="w-4 h-4"/></button>
@@ -382,13 +382,13 @@ Section 2: Practice applications
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 max-sm:w-full">
               <span className="text-[10px] font-medium text-gray-400 hidden sm:inline-block tracking-wider uppercase">
                 {isReady ? 'Ready for AI' : 'Provide Input'}
               </span>
               <Button
                 size="sm"
-                className={cn("rounded-full px-6 font-bold shadow-sm", !isReady && "opacity-50 cursor-not-allowed")}
+                className={cn("rounded-full px-6 font-bold shadow-sm max-sm:w-full", !isReady && "opacity-50 cursor-not-allowed")}
                 onClick={isReady ? onGenerate : undefined}
                 isLoading={isGenerating}
                 disabled={!isReady}
@@ -872,7 +872,7 @@ Section 2: Practice applications
           <div className="absolute inset-0 z-[100] bg-gray-950 text-white flex flex-col animate-in fade-in duration-300">
 
             {/* Header focused timer */}
-            <header className="h-16 flex items-center justify-between px-8 border-b border-gray-800 bg-gray-900">
+            <header className="h-16 flex items-center justify-between gap-3 px-4 sm:px-8 border-b border-gray-800 bg-gray-900">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-red-650 flex items-center justify-center text-white text-sm font-bold">
                   EX
@@ -980,9 +980,9 @@ Section 2: Practice applications
 
         {/* 4. Content area. Phones scroll every screen and leave room for the bottom bar. */}
         <div className={cn(
-          "flex-1 min-h-0 relative w-full flex flex-col max-md:pb-32",
-          ['overview', 'upload', 'kanban', 'reminders', 'weak-topics', 'exam'].includes(activeTab) ? "overflow-y-auto p-4 md:p-8" : "overflow-y-auto md:overflow-hidden",
-          !['moodboard', 'studyroom'].includes(activeTab) && !['overview', 'upload', 'kanban', 'reminders', 'weak-topics', 'exam'].includes(activeTab) ? "p-4 md:p-8" : ""
+          "flex-1 min-h-0 relative w-full flex flex-col overflow-y-auto",
+          activeTab === 'studyroom' ? "" : "p-4 md:p-8",
+          "pb-40 md:pb-28"
         )}>
 
           {/* TAB 4.1: OVERVIEW: real numbers for this subject and what to do next */}
@@ -1178,10 +1178,10 @@ Section 2: Practice applications
 
           {/* TAB 4.3: AI SUMMARIES */}
           {activeTab === 'summary' && (
-            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 h-full min-h-0 animate-in fade-in duration-300">
-              <div className="lg:col-span-7 flex flex-col h-full min-h-0 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6">
                 {/* Left pane: structured parsed output */}
-                <Card className="flex flex-col flex-1 min-h-0 bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 text-left p-6">
+                <Card className="flex flex-col bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 dark:border-gray-700 text-left p-4 sm:p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-base flex items-center gap-2">
                       <BrainCircuit className="w-4 h-4 text-emerald-500" /> Summary
@@ -1197,7 +1197,7 @@ Section 2: Practice applications
                     )}
                   </div>
 
-                  <div className="flex-1 overflow-auto min-h-0 bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="min-h-[280px] max-h-[65vh] overflow-auto bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-gray-700">
                     {generatedSummary ? (
                       <div className="whitespace-pre-wrap text-xs text-gray-750 dark:text-gray-200 leading-relaxed space-y-4 font-sans prose dark:prose-invert">
                         {generatedSummary}
@@ -1218,13 +1218,13 @@ Section 2: Practice applications
                 </div>
               </div>
 
-              <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
                 {/* Right pane: Earlier summaries */}
-                <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <Layers className="w-4 h-4 text-primary-500"/> Local History Vault
                   </h3>
-                  <div className="flex-1 overflow-y-auto space-y-3">
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
                     {summaryHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
                       <div className="text-xs text-gray-400 text-center py-8">No summaries generated for this source yet.</div>
                     ) : (
@@ -1248,22 +1248,22 @@ Section 2: Practice applications
 
           {/* TAB 4.4: FLASHCARDS */}
           {activeTab === 'flashcards' && (
-            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 h-full min-h-0 animate-in fade-in duration-300">
-              <div className="lg:col-span-7 flex flex-col h-full min-h-0 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6">
                 {/* Left Pane: Flashcard Interaction */}
-                <div className="flex flex-col items-center justify-center flex-1 min-h-0 bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 rounded-xl p-6 relative">
-                  <div className="w-full max-w-lg mb-6">
+                <div className="flex flex-col items-center bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6">
+                  <div className="w-full max-w-lg mb-4 sm:mb-6">
                     <h2 className="text-xl font-extrabold text-gray-900 dark:text-white text-center">Flashcards</h2>
                   </div>
 
                   {flashcards.length > 0 ? (
-                    <div className="w-full max-w-3xl space-y-6 relative flex items-center justify-center">
+                    <div className="w-full max-w-3xl flex items-start justify-center gap-4">
 
                       {/* Left Navigation Arrow */}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full hidden sm:flex bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm -translate-x-4 lg:-translate-x-8"
+                        className="mt-[136px] shrink-0 w-12 h-12 rounded-full hidden sm:flex bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700"
                         aria-label="Previous card"
                         onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }}
                         disabled={activeCardIndex === 0}
@@ -1272,10 +1272,10 @@ Section 2: Practice applications
                       </Button>
 
                       {/* Card Container */}
-                      <div className="w-full max-w-lg space-y-6">
+                      <div className="w-full min-w-0 max-w-lg space-y-5">
                         {/* Rotating Card */}
                         <div
-                          className="perspective-1000 w-full h-80 relative cursor-pointer active:scale-[0.99] transition-transform"
+                          className="perspective-1000 w-full h-72 sm:h-80 relative cursor-pointer active:scale-[0.99] transition-transform"
                           onClick={() => setIsFlipped(!isFlipped)}
                         >
                           <div className={cn(
@@ -1283,38 +1283,38 @@ Section 2: Practice applications
                             isFlipped ? "rotate-y-180" : ""
                           )}>
                             {/* Front face query block */}
-                            <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 p-8 flex flex-col justify-between rounded-2xl">
+                            <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 p-5 sm:p-8 flex flex-col justify-between rounded-2xl">
                               <div className="flex justify-between items-center">
                                 <span className="uppercase text-[10px] font-extrabold text-primary-500 tracking-wider">Question</span>
                                 <HelpCircle className="w-4 h-4 text-gray-350" />
                               </div>
 
-                              <div className="text-center py-6">
-                                <p className="text-xl md:text-2xl font-black text-gray-850 dark:text-white leading-snug">
+                              <div className="min-h-0 flex-1 overflow-y-auto flex items-center justify-center text-center py-3">
+                                <p className="text-lg sm:text-xl md:text-2xl font-black text-gray-850 dark:text-white leading-snug">
                                   {flashcards[activeCardIndex].front}
                                 </p>
                               </div>
 
                               <div className="text-center text-[11px] text-gray-400 font-medium tracking-wide">
-                                <span className="font-mono text-gray-300">[{activeCardIndex + 1}/{flashcards.length}]</span> Click card to reveal answer
+                                <span className="font-mono text-gray-300">[{activeCardIndex + 1}/{flashcards.length}]</span> Tap the card to see the answer
                               </div>
                             </div>
 
                             {/* Back face explanation block */}
-                            <div className="absolute inset-0 backface-hidden rotate-y-180 bg-gradient-to-br from-primary-700 to-primary-950 text-white p-8 flex flex-col justify-between rounded-2xl shadow-inner">
+                            <div className="absolute inset-0 backface-hidden rotate-y-180 bg-gradient-to-br from-primary-700 to-primary-950 text-white p-5 sm:p-8 flex flex-col justify-between rounded-2xl shadow-inner">
                               <div className="flex justify-between items-center">
                                 <span className="uppercase text-[10px] font-bold text-primary-200 tracking-wider">Answer</span>
                                 <CheckCircle2 className="w-4 h-4 text-emerald-450" />
                               </div>
 
-                              <div className="text-center py-6">
-                                <p className="text-lg md:text-xl font-bold leading-relaxed text-blue-50">
+                              <div className="min-h-0 flex-1 overflow-y-auto flex items-center justify-center text-center py-3">
+                                <p className="text-base sm:text-lg md:text-xl font-bold leading-relaxed text-blue-50">
                                   {flashcards[activeCardIndex].back}
                                 </p>
                               </div>
 
                               <div className="text-center text-[10px] text-primary-200 font-medium">
-                                <span className="font-mono text-primary-300/50">[{activeCardIndex + 1}/{flashcards.length}]</span> Click card to return to question
+                                <span className="font-mono text-primary-300/50">[{activeCardIndex + 1}/{flashcards.length}]</span> Tap again for the question
                               </div>
                             </div>
                           </div>
@@ -1355,7 +1355,7 @@ Section 2: Practice applications
                         </div>
 
                         {/* Mobile Navigation (only visible on small screens) */}
-                        <div className="flex sm:hidden items-center justify-between mt-4">
+                        <div className="flex sm:hidden items-center justify-between">
                           <Button
                             variant="secondary"
                             size="sm"
@@ -1383,7 +1383,8 @@ Section 2: Practice applications
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full hidden sm:flex bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 backdrop-blur-sm translate-x-4 lg:translate-x-8"
+                        className="mt-[136px] shrink-0 w-12 h-12 rounded-full hidden sm:flex bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700"
+                        aria-label="Next card"
                         onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }}
                         disabled={activeCardIndex === flashcards.length-1}
                       >
@@ -1391,7 +1392,7 @@ Section 2: Practice applications
                       </Button>
                     </div>
                   ) : (
-                    <div className="text-center text-gray-500">No cards registered. Click regenerate AI Deck to generate textbook items!</div>
+                    <div className="py-10 text-center text-sm text-gray-500">No flashcards yet. Attach your notes or type a topic below, then press Generate Deck.</div>
                   )}
                 </div>
                 <div className="shrink-0">
@@ -1399,13 +1400,13 @@ Section 2: Practice applications
                 </div>
               </div>
 
-              <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
                 {/* Right Pane: Flashcard Deck History */}
-                <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <Layers className="w-4 h-4 text-purple-500"/> Earlier decks
                   </h3>
-                  <div className="flex-1 overflow-y-auto space-y-3">
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
                     {flashcardDeckHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
                       <div className="text-xs text-gray-400 text-center py-8">No flashcard decks generated for this source yet.</div>
                     ) : (
@@ -1429,9 +1430,9 @@ Section 2: Practice applications
 
           {/* TAB 4.5: PRACTICE QUIZ */}
           {activeTab === 'quiz' && (
-            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 h-full min-h-0 animate-in fade-in duration-300">
-              <div className="lg:col-span-7 flex flex-col h-full min-h-0 gap-6 text-left">
-                <div className="flex-1 flex flex-col overflow-y-auto min-h-0 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6 text-left">
+                <div className="flex flex-col space-y-6">
 
                   {!quizActive ? (
                     <Card className="flex-1 flex flex-col items-center justify-center text-center py-12 p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6 min-h-[300px]">
@@ -1600,13 +1601,13 @@ Section 2: Practice applications
                 </div>
               </div>
 
-              <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
                 {/* Right Pane: Past quizzes */}
-                <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <History className="w-4 h-4 text-pink-500"/> Quiz History Vault
                   </h3>
-                  <div className="flex-1 overflow-y-auto space-y-3">
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
                     {quizHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
                       <div className="text-xs text-gray-400 text-center py-8">No past quiz evaluations for this source.</div>
                     ) : (
@@ -1664,9 +1665,9 @@ Section 2: Practice applications
 
           {/* TAB 4.7: EXAM GUESS ENGINE (Predicted final questions) */}
           {activeTab === 'guess-engine' && (
-            <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 h-full min-h-0 animate-in fade-in duration-300">
-              <div className="lg:col-span-7 flex flex-col h-full min-h-0 gap-6 text-left">
-                <div className="flex-1 overflow-y-auto min-h-0 flex flex-col space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6 text-left">
+                <div className="flex flex-col space-y-6 sm:space-y-8">
                   {/* Trigger header */}
                   <div className="shrink-0 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700">
                     <div className="flex-1">
@@ -1766,13 +1767,13 @@ Section 2: Practice applications
                 </div>
               </div>
 
-              <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
                 {/* Right Pane: Guess Engine History Vault */}
-                <Card className="flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-6">
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <History className="w-4 h-4 text-emerald-500"/> Earlier predictions
                   </h3>
-                  <div className="flex-1 overflow-y-auto space-y-3">
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
                     {guessPaperHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
                       <div className="text-xs text-gray-400 text-center py-8">No predicted exams for this source.</div>
                     ) : (
@@ -1874,11 +1875,11 @@ Section 2: Practice applications
 
           {/* TAB 4.10: KANBAN BOARD */}
           {activeTab === 'kanban' && (
-            <div className="h-full flex flex-col space-y-4 text-left animate-in fade-in duration-300">
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 px-6 rounded-2xl flex justify-between items-center shrink-0">
+            <div className="flex min-h-full flex-col space-y-4 text-left animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:px-6 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shrink-0">
                 <div>
-                  <h3 className="font-extrabold text-sm text-gray-800">Planner</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Drag and drop items to shift active study workflows.</p>
+                  <h3 className="font-extrabold text-sm text-gray-800 dark:text-white">Planner</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Drag tasks between columns, or use the arrows on a task.</p>
                   {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
                 </div>
                 <Button size="sm" icon={Plus} onClick={() => {
@@ -1887,11 +1888,11 @@ Section 2: Practice applications
                     setPlanTasks([...planTasks, { id: Date.now().toString(), title: title.trim(), status: 'todo' }]);
                   }
                 }}>
-                  Add Kanban Task
+                  Add task
                 </Button>
               </div>
 
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-[420px]">
                 <KanbanBoard tasks={planTasks} onUpdateTasks={setPlanTasks} />
               </div>
             </div>
@@ -1899,16 +1900,16 @@ Section 2: Practice applications
 
           {/* TAB 4.11: MOODBOARD */}
           {activeTab === 'moodboard' && (
-            <div className="h-full flex flex-col space-y-4 text-left animate-in fade-in duration-300">
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 px-6 rounded-xl flex justify-between items-center shrink-0">
+            <div className="flex min-h-full flex-col space-y-4 text-left animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:px-6 rounded-xl flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="font-extrabold text-sm text-gray-800">Board</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Drag to reposition notes. Click note area to enter study ideas or quotes.</p>
+                  <h3 className="font-extrabold text-sm text-gray-800 dark:text-white">Board</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Drag a note by its top edge to move it. Tap inside a note to write.</p>
                   {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-[520px]">
                 <MoodBoard notes={boardNotes} onUpdateNotes={setBoardNotes} />
               </div>
             </div>
@@ -1920,7 +1921,7 @@ Section 2: Practice applications
 
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl flex justify-between items-center">
                 <div>
-                  <h2 className="text-lg font-extrabold text-gray-900">Reminders</h2>
+                  <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Reminders</h2>
                   <p className="text-xs text-gray-405 mt-1">Review active reminder configurations below.</p>
                 </div>
                 <Badge color="bg-primary-50 text-primary-800 font-bold">{reminders.length} Active</Badge>

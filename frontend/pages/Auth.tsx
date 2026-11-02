@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, Button, Input, SoonBadge } from '../components/UIComponents';
-import { 
-  BookOpen, BrainCircuit, Users, CheckSquare, Layers, FileText, 
+import {
+  BookOpen, BrainCircuit, Users, CheckSquare, Layers, FileText,
   ArrowRight, Shield, Clock, Flame, CheckCircle, GraduationCap,
   ArrowLeft, Columns, Layout, Plus, Search, HelpCircle, Laptop,
   Lightbulb, ChevronRight, Play, CheckCircle2, Sparkles, Medal, Star, Bolt
@@ -16,7 +16,7 @@ export const Auth: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [soonNotice, setSoonNotice] = useState<string | null>(null);
-  
+
   // Interactive preview state in Hero Section
   const [activeScreen, setActiveScreen] = useState<'screen1' | 'screen2' | 'screen3'>('screen1');
   const [isFlipped, setIsFlipped] = useState(false); // For 3D card preview
@@ -46,7 +46,7 @@ export const Auth: React.FC = () => {
       illustration: (
         <div className="h-32 w-full border-b border-slate-100 dark:border-slate-800/80 bg-blue-50/40 dark:bg-blue-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-blue-100/60 dark:group-hover:bg-blue-900/30 transition-colors">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          
+
           <div className="relative w-36 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-3 transform transition-transform duration-500 group-hover:-translate-y-1">
             <div className="animate-pulse flex space-x-2 items-center mb-3">
               <div className="w-4 h-4 bg-blue-100 dark:bg-blue-900/50 rounded flex items-center justify-center">
@@ -61,7 +61,7 @@ export const Auth: React.FC = () => {
               <div className="h-1.5 w-full bg-blue-50 dark:bg-blue-900/20 rounded mt-2"></div>
               <div className="h-1.5 w-2/3 bg-blue-50 dark:bg-blue-900/20 rounded"></div>
             </div>
-            
+
             <div className="absolute -right-3 -bottom-3 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-800 transform rotate-12 group-hover:rotate-0 transition-transform duration-300">
               <CheckCircle2 className="w-4 h-4" />
             </div>
@@ -210,7 +210,7 @@ export const Auth: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 selection:bg-primary-500/30 overflow-x-hidden relative">
-      
+
       {/* Background Gradients matching image */}
       <div className="absolute top-0 inset-x-0 h-[800px] pointer-events-none -z-10 bg-gradient-to-br from-teal-50/50 via-white to-primary-50 dark:from-slate-950 dark:via-slate-950 dark:to-primary-950/20" />
       <div className="absolute top-1/4 -right-60 w-[600px] h-[600px] rounded-full bg-primary-100/50 dark:bg-primary-950/20 blur-[130px] pointer-events-none -z-10" />
@@ -218,26 +218,26 @@ export const Auth: React.FC = () => {
 
       {/* 1. Header component */}
       <header className="bg-transparent sticky top-0 z-40 transition-colors">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
               <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary-500/20">
                 <GraduationCap className="w-5 h-5" />
               </div>
-              <span className="font-extrabold text-[1.35rem] tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 text-transparent bg-clip-text">IntelliPrep AI</span>
+              <span className="whitespace-nowrap font-extrabold text-lg sm:text-[1.35rem] tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 text-transparent bg-clip-text">IntelliPrep AI</span>
             </div>
           </div>
-          
-          <div className="flex items-center gap-5">
-            <button 
+
+          <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+            <button
               onClick={() => triggerAuth(true)}
-              className="text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+              className="whitespace-nowrap text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
             >
               Log in
             </button>
-            <button 
+            <button
               onClick={() => triggerAuth(false)}
-              className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold tracking-tight rounded-xl py-2.5 px-5 shadow-lg shadow-primary-500/25 active:scale-95 transition-all"
+              className="whitespace-nowrap bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold tracking-tight rounded-xl py-2 px-4 sm:py-2.5 sm:px-5 shadow-lg shadow-primary-500/25 active:scale-95 transition-all"
             >
               Sign up
             </button>
@@ -248,7 +248,7 @@ export const Auth: React.FC = () => {
       {/* 2. Hero Segment */}
       <section className="relative pt-12 pb-24 lg:pt-20 lg:pb-32">
         <div className="max-w-[1400px] mx-auto px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-10 items-center">
-          
+
           {/* Hero text side */}
           <div className="lg:col-span-5 space-y-7 text-left xl:pr-10">
             {/* Tag */}
@@ -256,26 +256,26 @@ export const Auth: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5" />
               AI exam prep from your own notes
             </div>
-            
+
             {/* Display Headline */}
             <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.05]">
               Study smarter.<br />
               <span className="text-primary-600 dark:text-primary-400">Score higher.</span>
             </h1>
-            
+
             <p className="text-base sm:text-[1.05rem] text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
               Upload your lecture notes and IntelliPrep turns them into summaries, flashcards, quizzes and likely exam topics. Every answer comes from your own material.
             </p>
-            
+
             {/* CTA Trigger Row */}
             <div className="flex flex-wrap items-center gap-4 pt-1">
-              <button 
+              <button
                 onClick={() => triggerAuth(false)}
                 className="bg-primary-600 hover:bg-primary-700 text-white text-sm font-extrabold rounded-xl h-12 px-7 shadow-lg shadow-primary-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 Start for free <ArrowRight className="w-4 h-4 ml-0.5" />
               </button>
-              <button 
+              <button
                 onClick={() => {
                   const el = document.getElementById('how-it-works');
                   el?.scrollIntoView({ behavior: 'smooth' });
@@ -285,15 +285,15 @@ export const Auth: React.FC = () => {
                 See how it works
               </button>
             </div>
-            
+
           </div>
 
           {/* Hero interactive screen preview side */}
           <div className="lg:col-span-7 relative rotate-1 hover:rotate-0 transition-transform duration-500 w-full xl:w-[110%] xl:-mr-[10%]">
-            
+
             {/* Simulated Browser Floating Element */}
             <div className="w-full bg-slate-50/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[23px] shadow-2xl overflow-hidden backdrop-blur-xl">
-              
+
               {/* Browser Application Header (Violet Style) */}
               <div className="bg-primary-500 dark:bg-primary-900 pt-4 pb-3 px-4 flex items-center gap-3">
                 <div className="flex gap-1.5 shrink-0 pl-1">
@@ -308,7 +308,7 @@ export const Auth: React.FC = () => {
 
               {/* Browser Viewport Area matching image card */}
               <div className="p-6 md:p-8 flex flex-col gap-5">
-                
+
                 {/* Welcome Card matching image exact layout */}
                 <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
                   <div className="text-left">
@@ -385,13 +385,13 @@ export const Auth: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuresList.map((feat, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="lift flex flex-col text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-md group overflow-hidden"
               >
                 {/* The card content wireframe placeholder on top */}
                 {feat.illustration}
-                
+
                 {/* Information content at bottom of card */}
                 <div className="p-5 space-y-2 flex-1 flex flex-col justify-between">
                   <div>
@@ -402,7 +402,7 @@ export const Auth: React.FC = () => {
                       {feat.description}
                     </p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => triggerAuth(false)}
                     className="text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center gap-1 mt-3 transition-colors uppercase tracking-wider"
                   >
@@ -429,7 +429,7 @@ export const Auth: React.FC = () => {
           <div className="relative max-w-5xl mx-auto">
             {/* Connecting Line (Desktop) */}
             <div className="hidden md:block absolute top-[2.25rem] left-[16.66%] right-[16.66%] h-0.5 bg-slate-200 dark:bg-slate-800 pointer-events-none"></div>
-            
+
             {/* Connecting Line (Mobile) */}
             <div className="block md:hidden absolute top-[2.25rem] bottom-[2.25rem] left-[2.25rem] w-0.5 bg-slate-200 dark:bg-slate-800 pointer-events-none"></div>
 
@@ -446,7 +446,7 @@ export const Auth: React.FC = () => {
                       {st.step}
                     </div>
                   </div>
-                  
+
                   {/* Content */}
                   <div className="ml-6 md:ml-0 md:mt-8 flex flex-col items-start md:items-center flex-1">
                     <h4 className="font-extrabold text-base text-slate-950 dark:text-white tracking-tight mb-2.5 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
@@ -470,15 +470,15 @@ export const Auth: React.FC = () => {
             Ready to ace your exams?
           </h2>
           <div className="w-20 h-1 bg-slate-750 mx-auto rounded-full"></div>
-          
+
           <div className="flex justify-center items-center gap-3 pt-4">
-            <button 
+            <button
               onClick={() => triggerAuth(false)}
               className="bg-white text-slate-950 hover:bg-slate-100 text-xs sm:text-sm font-extrabold rounded-lg py-3 px-6 active:scale-95 transition-all cursor-pointer"
             >
               Create free account
             </button>
-            <button 
+            <button
               onClick={() => triggerAuth(true)}
               className="bg-slate-900 hover:bg-slate-850 text-white border border-slate-800 text-xs sm:text-sm font-extrabold rounded-lg py-3 px-6 active:scale-95 transition-all cursor-pointer"
             >
@@ -495,7 +495,7 @@ export const Auth: React.FC = () => {
       {/* 8. Minimalist exact footer (Image 3 section) */}
       <footer id="about" className="bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 py-16 text-xs transition-colors border-t border-slate-200 dark:border-slate-900">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-12 gap-8 mb-12">
-          
+
           <div className="md:col-span-6 space-y-4 text-left">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-slate-950 dark:bg-slate-200 rounded flex items-center justify-center text-white dark:text-slate-900 font-extrabold text-xs">
@@ -551,11 +551,11 @@ export const Auth: React.FC = () => {
       {/* 9. Authentic Interactive login modal representing Image 5 exactly! */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          
+
           <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-8 relative shadow-2xl animate-in zoom-in-95 duration-200 text-left">
-            
+
             {/* Back to home trigger */}
-            <button 
+            <button
               onClick={() => setShowAuthModal(false)}
               className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-[11px] font-bold flex items-center gap-1.5 mb-5 outline-none"
             >
@@ -571,7 +571,7 @@ export const Auth: React.FC = () => {
             </div>
 
             {/* Continue with Google button */}
-            <button 
+            <button
               type="button"
               onClick={() => setSoonNotice('Google sign-in is coming soon. Use your email for now.')}
               aria-describedby="soon-notice"
@@ -607,11 +607,11 @@ export const Auth: React.FC = () => {
               {!isLogin && (
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Your Full Name</label>
-                  <Input 
-                    type="text" 
-                    placeholder="Your name" 
-                    value={userName} 
-                    onChange={(e) => setUserName(e.target.value)} 
+                  <Input
+                    type="text"
+                    placeholder="Your name"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
                     required
                     className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-2.5 px-3.5 rounded-xl text-slate-850 dark:text-white outline-none focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all"
                   />
@@ -620,10 +620,10 @@ export const Auth: React.FC = () => {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Email</label>
-                <Input 
-                  type="email" 
+                <Input
+                  type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)} 
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-2.5 px-3.5 rounded-xl text-slate-850 dark:text-white outline-none focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all"
                 />
@@ -634,16 +634,16 @@ export const Auth: React.FC = () => {
                   <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Password</label>
                   <button type="button" onClick={() => setSoonNotice('Password reset by email is coming soon, along with full accounts.')} className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 transition-colors">Forgot password?</button>
                 </div>
-                <Input 
-                  type="password" 
+                <Input
+                  type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)} 
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-2.5 px-3.5 rounded-xl text-slate-850 dark:text-white outline-none focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all"
                 />
               </div>
 
-              <button 
+              <button
                 type="submit"
                 className="w-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs font-black py-3 rounded-xl tracking-wide uppercase shadow-md active:scale-95 transition-all text-center mt-3 cursor-pointer"
               >
@@ -651,8 +651,8 @@ export const Auth: React.FC = () => {
               </button>
 
               <div className="text-center pt-3 text-xs border-t border-slate-100 dark:border-slate-800">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setIsLogin(!isLogin)}
                   className="text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white transition-colors font-bold"
                 >
