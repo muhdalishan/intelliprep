@@ -53,3 +53,14 @@ def make_token(signing_key):
         return jwt.encode(claims, key, algorithm="ES256")
 
     return _make
+
+
+@pytest.fixture(autouse=True)
+def no_real_ai_calls(monkeypatch):
+    """Tests must never reach a paid AI API, even with a real key in .env."""
+    from app.core import llm
+
+    def _refuse():
+        raise AssertionError("A test tried to call the real AI provider")
+
+    monkeypatch.setattr(llm, "_client", _refuse)

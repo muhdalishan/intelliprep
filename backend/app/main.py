@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
+from app.core.llm import AIUnavailable
 from app.modules.adaptive_exam.router import router as adaptive_exam_router
 from app.modules.auth.router import router as auth_router
 from app.modules.dashboard.router import router as dashboard_router
@@ -14,6 +16,7 @@ from app.modules.notifications.router import router as notifications_router
 from app.modules.quizzes.router import router as quizzes_router
 from app.modules.rag.router import router as rag_router
 from app.modules.summaries.router import router as summaries_router
+from app.modules.tutor.router import router as tutor_router
 from app.modules.workspace.router import router as workspace_router
 
 MODULE_ROUTERS = [
@@ -30,6 +33,7 @@ MODULE_ROUTERS = [
     workspace_router,
     notifications_router,
     dashboard_router,
+    tutor_router,
 ]
 
 
@@ -48,6 +52,10 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
+
+    @app.exception_handler(AIUnavailable)
+    async def ai_unavailable(_request: Request, exc: AIUnavailable) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
 
     @app.get(f"{settings.api_prefix}/health", tags=["health"])
     async def health() -> dict[str, str]:

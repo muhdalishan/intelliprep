@@ -77,3 +77,11 @@ bug fixes stay in and the API client part moves to Sprint 2.
   `feat/IP-50-sm2-scheduler` (SM-2 + streak, flashcards tables), `feat/IP-22-pdf-chunking` (PDF extraction,
   chunking, documents/chunks tables), `feat/IP-61-exam-guess-ranking` (topic clustering and ranking,
   past paper tables). Their points stay in Sprints 2, 4 and 6.
+- 2026-11-02: OpenAI key added (decision 008). Branch `feat/IP-40-42-ai-generation`: backend endpoints for
+  summaries, flashcards, quizzes, a notes-based exam-topic estimate and the tutor chat (text and voice
+  style), all through one AI module; the frontend now calls them instead of demo data. Tested live.
+  Saving results and retrieval over stored documents still wait for Supabase, so IP-40/41/42/140 stay
+  open. Local runs without Supabase use a fixed dev user (only when ENVIRONMENT=local and SUPABASE_URL
+  is empty).
+- 2026-11-02: Branch `develop` merges every feature branch for running and testing everything together;
+  `main` stays the reviewed baseline. Open PRs from each feature branch (or from develop) when pushing.

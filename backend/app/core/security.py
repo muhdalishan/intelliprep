@@ -18,6 +18,13 @@ class CurrentUser:
     claims: dict[str, Any] = field(repr=False)
 
 
+LOCAL_DEV_USER = CurrentUser(
+    id="00000000-0000-0000-0000-000000000001",
+    email="dev@localhost",
+    claims={"sub": "00000000-0000-0000-0000-000000000001", "role": "authenticated"},
+)
+
+
 @lru_cache
 def _jwks_client() -> jwt.PyJWKClient:
     # Supabase asymmetric signing keys; public keys are cached by PyJWKClient.
@@ -36,10 +43,14 @@ def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> CurrentUser:
     """Verify the Supabase access token. Every non-public endpoint depends on this."""
+    settings = get_settings()
     if credentials is None:
+        if settings.local_dev_auth:
+            # Only with ENVIRONMENT=local and no Supabase project configured: lets the app run
+            # end to end on one machine before sign-in exists. Never true on staging or production.
+            return LOCAL_DEV_USER
         raise _unauthorized("Missing bearer token")
 
-    settings = get_settings()
     token = credentials.credentials
     try:
         signing_key = _jwks_client().get_signing_key_from_jwt(token)

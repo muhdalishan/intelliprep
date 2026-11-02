@@ -19,12 +19,18 @@ class Settings(BaseSettings):
     # AI provider for generation and embeddings: "openai" or "anthropic"
     llm_provider: str = "openai"
     openai_api_key: str = ""
+    openai_model: str = "gpt-5-mini"
     anthropic_api_key: str = ""
     voyage_api_key: str = ""
 
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
+
+    @property
+    def local_dev_auth(self) -> bool:
+        """Local development without a Supabase project: requests run as a fixed dev user."""
+        return self.environment == "local" and not self.supabase_url
 
 
 @lru_cache

@@ -546,11 +546,11 @@ Section 2: Practice applications
     if (selectedDocs.length > 0) {
       textToSummarize += selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n');
     } else {
-      textToSummarize += subject.name;
+      textToSummarize += summaryText;
     }
       
     setIsGenerating(true);
-    const result = await generateFlashcards(textToSummarize.substring(0, 300) || subject.name);
+    const result = await generateFlashcards(textToSummarize);
     if (result && result.length > 0) {
       setFlashcards(result);
       setActiveCardIndex(0);
@@ -590,7 +590,9 @@ Section 2: Practice applications
     setLastQuestionFeedback({
       correct: isCorrect,
       chosen: chosenIndex,
-      explanation: isCorrect 
+      explanation: q.explanation
+        ? `${isCorrect ? "Correct!" : `The answer is "${q.options[q.correctIndex]}".`} ${q.explanation}`
+        : isCorrect
         ? "Excellent work! Your knowledge base aligns perfectly with this subject point."
         : `Correction: The proper answer is "${q.options[q.correctIndex]}". Let's sync this question to your Weak Topics Tracker panel so we can review later.`
     });
@@ -643,12 +645,12 @@ Section 2: Practice applications
     if (selectedDocs.length > 0) {
       textToSummarize += selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n');
     } else {
-      textToSummarize += subject.name;
+      textToSummarize += summaryText;
     }
       
     setIsGenerating(true);
     try {
-      const gQuestions = await generateQuiz(textToSummarize.substring(0, 300) || 'Academic Core');
+      const gQuestions = await generateQuiz(textToSummarize);
       if (gQuestions && gQuestions.length > 0) {
         setQuizQuestions(gQuestions);
         setQuizActive(true);
@@ -678,11 +680,11 @@ Section 2: Practice applications
     if (selectedDocs.length > 0) {
       textToSummarize += selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n');
     } else {
-      textToSummarize += subject.name;
+      textToSummarize += summaryText;
     }
 
     setIsGuessing(true);
-    const result = await generateGuessPaper(subject.name, textToSummarize.substring(0, 1000));
+    const result = await generateGuessPaper(subject.name, textToSummarize);
     setGuessResults(result);
     setGuessPaperHistory(prev => [{
       id: Math.random().toString(),
