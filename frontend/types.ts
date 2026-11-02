@@ -51,6 +51,7 @@ export interface Reminder {
   message: string;
   date: string;
   platform: 'telegram' | 'email';
+  fired?: boolean; // already shown as a notification
 }
 
 // Gemini Types

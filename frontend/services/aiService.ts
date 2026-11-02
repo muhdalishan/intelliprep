@@ -100,15 +100,14 @@ export interface ChatMessage {
 }
 
 export const chatWithAssistant = async (subjectNameOrContext: string, history: ChatMessage[], message: string): Promise<string> => {
-  // Callers pass either a subject name or a description of the conversation mode.
-  const voice = subjectNameOrContext.includes("voice");
-  const subject = subjectNameOrContext.length <= 120 ? subjectNameOrContext : undefined;
+  // Callers pass the subject being studied, or "General study" outside a subject.
+  const subject = subjectNameOrContext && subjectNameOrContext !== "General study" ? subjectNameOrContext.slice(0, 120) : undefined;
   // The latest message is sent separately; history excludes it.
   const previous = history.length && history[history.length - 1].text === message ? history.slice(0, -1) : history;
   try {
     const { reply } = await apiFetch<{ reply: string }>("/tutor/chat", {
       method: "POST",
-      body: JSON.stringify({ message, history: previous.slice(-20), subject, voice }),
+      body: JSON.stringify({ message, history: previous.slice(-20), subject }),
     });
     return reply;
   } catch (error) {

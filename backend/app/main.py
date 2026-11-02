@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import get_settings
 from app.core.llm import AIUnavailable
 from app.modules.adaptive_exam.router import router as adaptive_exam_router
+from app.modules.assistant.router import router as assistant_router
 from app.modules.auth.router import router as auth_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.documents.router import router as documents_router
@@ -34,6 +35,7 @@ MODULE_ROUTERS = [
     notifications_router,
     dashboard_router,
     tutor_router,
+    assistant_router,
 ]
 
 
