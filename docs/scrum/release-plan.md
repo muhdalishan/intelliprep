@@ -22,7 +22,7 @@ forecast with measured velocity and move the cut line up or down.
 | 6 | Jan 11 – Jan 22 | **A student gets exam-topic predictions from their own past papers.** | IP-61 clustering + ranking, IP-62 topic drill-down | IP-70 adaptive exam engine, IP-110 Telegram reminders | 24 |
 | 7 | Jan 25 – Feb 5 | **Adaptive exam complete; the product is secure, tested and demo-ready.** | IP-130 abuse protection, IP-132 load test, IP-133 demo prep | IP-71 exam breakdown, IP-131 E2E test, IP-80 diagrams | 21 |
 
-**Planned: 151 of 181 points.** All **Must** items (107 points) are in Sprints 1–7.
+**Planned: 151 of 199 points.** All **Must** items (107 points) are in Sprints 1–7.
 
 ## Below the cut line (pulled in only if velocity is higher than forecast)
 
@@ -35,6 +35,9 @@ forecast with measured velocity and move the cut line up or down.
 | IP-33 | Contextual chunk enrichment | 3 |
 | IP-25 | Lecture audio transcription | 5 |
 | IP-111 | Daily digest | 2 |
+| IP-140 | Tutor chat grounded in your notes (added 2 Nov) | 5 |
+| IP-141 | Voice conversation with the tutor (added 2 Nov) | 5 |
+| IP-142 | Tutor actions: reminders, notes, tasks (added 2 Nov) | 8 |
 
 **Decision needed from the PO:** Study Groups (IP-90/91, 13 points) is a full module in the SRS but
 sits below the line. The trade-off options:
@@ -49,7 +52,7 @@ Bring this to the Sprint 1 Review.
 
 | After sprint | Total scope (pts) | Done (pts) | Velocity |
 |---|---|---|---|
-| 0 (today) | 181 | 0 | — |
+| 0 (2 Nov) | 199 | 0 | — |
 | 1 | | | |
 | 2 | | | |
 | 3 | | | |

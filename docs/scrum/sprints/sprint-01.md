@@ -8,12 +8,12 @@
 
 | ID | Item | Owner | Pts | Status |
 |---|---|---|---|---|
-| IP-01 | GitHub repo + CI | Murtaza | 3 | To do |
-| IP-02 | Supabase projects + migrations (`profiles`, `subjects`) | Murtaza | 3 | To do |
+| IP-01 | GitHub repo + CI | Murtaza | 3 | In progress: local repo, CI and templates done; push + branch protection pending |
+| IP-02 | Supabase projects + migrations (`profiles`, `subjects`) | Murtaza | 3 | In progress: first migration written; Supabase projects not created yet |
 | IP-04 | Auto-deploy backend + frontend to staging | Murtaza | 3 | To do |
 | IP-03 | Frontend stabilisation (remove browser AI key, fix 4 known bugs) | Alishan | 5 | In review: code done, needs PR review + CI + staging (IP-01, IP-04) to be Done |
 | IP-10 | Real sign-up / login with Supabase Auth | Alishan | 5 | To do |
-| IP-11 | Profile row on signup + `GET /api/auth/me` | Alishan | 3 | To do |
+| IP-11 | Profile row on signup + `GET /api/auth/me` | Alishan | 3 | In progress: backend + tests done; frontend header waits for IP-10 |
 
 **Forecast:** 22 pts · **Capacity notes:** first sprint, velocity unknown. If it slips, IP-03's
 bug fixes stay in and the API client part moves to Sprint 2.
@@ -22,10 +22,12 @@ bug fixes stay in and the API client part moves to Sprint 2.
 
 **Murtaza**
 - [ ] IP-01 Create GitHub repo, push this folder structure, protect `main` (PR + 1 review + green CI)
-- [ ] IP-01 Actions workflow: backend `uv sync` → `ruff check` → `pytest`; frontend `npm ci` → `tsc --noEmit` → `vite build`
-- [ ] IP-01 PR template with the Definition of Done checklist; issue per backlog item; GitHub Project board
+- [x] IP-01 Actions workflow: backend `uv sync` → `ruff check` → `pytest`; frontend `npm ci` → `tsc --noEmit` → `vite build`
+- [x] IP-01 PR template with the Definition of Done checklist and issue templates
+- [ ] IP-01 Issue per backlog item; GitHub Project board
 - [ ] IP-02 Create Supabase `intelliprep-dev` and `intelliprep-staging`; enable asymmetric JWT signing keys
-- [ ] IP-02 Migration tooling in `backend/migrations`; first migration: `profiles`, `subjects` (with RLS enabled)
+- [x] IP-02 First migration in `backend/supabase/migrations`: `profiles`, `subjects`, `class_slots`, all with RLS
+- [ ] IP-02 Apply it to dev and staging with `supabase db push`
 - [ ] IP-04 Render/Railway service from `backend/Dockerfile`; Cloudflare Pages/Vercel for `frontend/`
 - [ ] IP-04 Staging env vars set from `.env.example`; staging URLs added to root README
 
@@ -35,8 +37,9 @@ bug fixes stay in and the API client part moves to Sprint 2.
 - [x] IP-03 Fix double-counted final quiz answer; fix `mcqCount`/`frqCount`; add Exam + Weak Topics to sidebar; Overview "Practice Quizzes" opens the quiz tab
 - [x] IP-03 Remove fake landing-page stats/testimonials/badges, AI Studio import map and missing `index.css`; `npm run typecheck` passes
 - [ ] IP-10 Add `@supabase/supabase-js`; sign-up / login / logout; `ProtectedRoute` uses the real session
-- [ ] IP-11 DB trigger: insert `profiles` row on `auth.users` insert; frontend sends bearer token; `/api/auth/me` shown in header
-- [ ] IP-11 Tests: valid token → 200, expired → 401, missing → 401
+- [x] IP-11 DB trigger: insert `profiles` row on `auth.users` insert; `/api/auth/me` reads the profile through RLS
+- [ ] IP-11 Frontend sends bearer token; name from `/api/auth/me` shown in header
+- [x] IP-11 Tests: valid token → 200, missing profile → 404, expired / wrong audience / wrong issuer / wrong key / missing → 401
 
 ## Burndown
 
@@ -49,6 +52,11 @@ bug fixes stay in and the API client part moves to Sprint 2.
 - 2026-11-01: IP-03 started a day early. Found during the work, not fixed (add to backlog at refinement):
   "Ask Tutor AI" on Weak Topics sends the user to Overview, where no tutor chat exists; the floating
   Copilot is the only chat. Tailwind still loads from its CDN script (fine for dev, replace before release).
+- 2026-11-02: Scope change agreed with the team: IP-06 (Gen Z polish of the existing design: font, motion, dark
+  mode, copy) done on branch `feat/IP-06-genz-polish`; a full visual redesign was tried and rejected.
+- 2026-11-02: Tutor companion stories IP-140/141/142 added to the backlog below the cut line; PO to order them.
+- 2026-11-02: Branch `feat/IP-02-11-schema-and-profile` holds the migration and `/auth/me`. IP-10 (frontend login)
+  starts after IP-06 merges, since both touch `Auth.tsx`.
 
 ## Sprint Review (Fri 2026-11-13, with Bilal Shahid)
 
@@ -63,3 +71,9 @@ bug fixes stay in and the API client part moves to Sprint 2.
 - **Went well:**
 - **Didn't go well:**
 - **We will change:**
+- 2026-11-02: While account setup (GitHub push, Supabase projects) waits on the team, the pure-logic parts of
+  later items were built ahead, each on its own branch with tests; they are not Done until their API,
+  storage and UI parts land in their planned sprints:
+  `feat/IP-50-sm2-scheduler` (SM-2 + streak, flashcards tables), `feat/IP-22-pdf-chunking` (PDF extraction,
+  chunking, documents/chunks tables), `feat/IP-61-exam-guess-ranking` (topic clustering and ranking,
+  past paper tables). Their points stay in Sprints 2, 4 and 6.
