@@ -1,43 +1,70 @@
 import { Flashcard, QuizQuestion } from "../types";
+import { apiFetch, ApiError } from "./apiClient";
 
-// AI generation moves to the backend (no provider keys in the browser).
-// Until each backend endpoint lands, these return demo data so the UI stays usable.
-// Summaries: IP-40 · Flashcards: IP-41 · Quizzes: IP-42 · Exam-Guess: IP-60/61 · Q&A: IP-34
+// AI features call the IntelliPrep backend; no AI provider keys ever reach the browser.
 
-const DEMO_DELAY = 1200;
+const MAX_NOTES_CHARS = 60_000;
 
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+const notes = (text: string) => text.slice(0, MAX_NOTES_CHARS);
+
+const errorMessage = (error: unknown) =>
+  error instanceof ApiError
+    ? error.message
+    : "Can't reach the IntelliPrep server. Is the backend running?";
 
 export const generateSummary = async (text: string): Promise<string> => {
-  await delay(DEMO_DELAY);
-  return `[DEMO SUMMARY]\nAI summaries arrive with the backend (IP-40).\n\nThe input text was about: "${text.substring(0, 50)}..."\n\nKey points:\n1. Main concept identified.\n2. Supporting arguments listed.\n3. Conclusion reached.`;
+  try {
+    const { summary } = await apiFetch<{ summary: string }>("/summary/generate", {
+      method: "POST",
+      body: JSON.stringify({ text: notes(text) }),
+    });
+    return summary;
+  } catch (error) {
+    console.error("Summary failed:", error);
+    return `Couldn't generate a summary. ${errorMessage(error)}`;
+  }
 };
 
-export const generateFlashcards = async (topic: string): Promise<Flashcard[]> => {
-  await delay(DEMO_DELAY);
-  return [
-    { id: `demo-${Date.now()}-1`, front: `Demo Q1 about ${topic}`, back: 'Answer 1', mastered: false },
-    { id: `demo-${Date.now()}-2`, front: `Demo Q2 about ${topic}`, back: 'Answer 2', mastered: false },
-    { id: `demo-${Date.now()}-3`, front: `Demo Q3 about ${topic}`, back: 'Answer 3', mastered: false },
-  ];
+export const generateFlashcards = async (text: string): Promise<Flashcard[]> => {
+  try {
+    const { cards } = await apiFetch<{ cards: { front: string; back: string }[] }>("/flashcards/generate", {
+      method: "POST",
+      body: JSON.stringify({ text: notes(text), count: 8 }),
+    });
+    return cards.map((card, index) => ({
+      id: `gen-${Date.now()}-${index}`,
+      front: card.front,
+      back: card.back,
+      mastered: false,
+    }));
+  } catch (error) {
+    console.error("Flashcards failed:", error);
+    alert(`Couldn't make flashcards. ${errorMessage(error)}`);
+    return [];
+  }
 };
 
-export const generateQuiz = async (topic: string): Promise<QuizQuestion[]> => {
-  await delay(DEMO_DELAY);
-  return [
-    {
-      id: `demo-q-${Date.now()}-1`,
-      question: `What is a key feature of ${topic}?`,
-      options: ['Feature A', 'Feature B', 'Feature C', 'Feature D'],
-      correctIndex: 0
-    },
-    {
-      id: `demo-q-${Date.now()}-2`,
-      question: `Why is ${topic} important?`,
-      options: ['Reason 1', 'Reason 2', 'Reason 3', 'Reason 4'],
-      correctIndex: 2
-    }
-  ];
+export const generateQuiz = async (text: string): Promise<QuizQuestion[]> => {
+  try {
+    const { questions } = await apiFetch<{
+      questions: { question: string; options: string[]; correct_index: number; explanation: string; topic: string }[];
+    }>("/quiz/generate", {
+      method: "POST",
+      body: JSON.stringify({ text: notes(text), count: 5 }),
+    });
+    return questions.map((q, index) => ({
+      id: `quiz-${Date.now()}-${index}`,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correct_index,
+      explanation: q.explanation,
+      topic: q.topic,
+    }));
+  } catch (error) {
+    console.error("Quiz failed:", error);
+    alert(`Couldn't make a quiz. ${errorMessage(error)}`);
+    return [];
+  }
 };
 
 export interface GuessPaperResult {
@@ -55,21 +82,16 @@ export interface GuessPaperResult {
   strategicAdvice: string;
 }
 
-export const generateGuessPaper = async (subjectName: string, _materials?: string): Promise<GuessPaperResult> => {
-  await delay(DEMO_DELAY);
-  return {
-    predictions: [
-      { topic: `Fundamental Theorems of ${subjectName}`, probability: "High", reason: "Demo prediction. Real predictions come from your uploaded past papers (IP-60/61).", estimatedWeight: "25%" },
-      { topic: "Practical Applications and System Architecture", probability: "High", reason: "Demo prediction.", estimatedWeight: "20%" },
-      { topic: "Historical Developments & Timeline Analysis", probability: "Medium", reason: "Demo prediction.", estimatedWeight: "15%" },
-      { topic: "Advanced Calculations and Stress-testing Cases", probability: "Low", reason: "Demo prediction.", estimatedWeight: "10%" }
-    ],
-    sampleQuestions: [
-      { question: `Compare and contrast classical models versus modern paradigms within "${subjectName}".`, format: "Long Answer", suggestedStructure: "1. Short introduction\n2. Side-by-side comparison\n3. Worked example\n4. Limits and applications" },
-      { question: `Derive the key result of a basic "${subjectName}" model and state its assumptions.`, format: "Problem Solving", suggestedStructure: "1. List assumptions\n2. Set up the equations\n3. Solve step by step\n4. Interpret the result" }
-    ],
-    strategicAdvice: "Demo advice: review past papers first, practise active recall with flashcards, and take short timed quizzes twice a week."
-  };
+export const generateGuessPaper = async (subjectName: string, materials?: string): Promise<GuessPaperResult> => {
+  try {
+    return await apiFetch<GuessPaperResult>("/exam-guess/guess", {
+      method: "POST",
+      body: JSON.stringify({ subject_name: subjectName, text: notes(materials ?? "") }),
+    });
+  } catch (error) {
+    console.error("Exam guess failed:", error);
+    return { predictions: [], sampleQuestions: [], strategicAdvice: `Couldn't predict topics. ${errorMessage(error)}` };
+  }
 };
 
 export interface ChatMessage {
@@ -77,16 +99,20 @@ export interface ChatMessage {
   text: string;
 }
 
-export const chatWithAssistant = async (subjectNameOrContext: string, _history: ChatMessage[], message: string): Promise<string> => {
-  await delay(600);
-  const isVoiceMode = subjectNameOrContext.includes("live voice conversation");
-  const normalized = message.toLowerCase();
-
-  if (normalized.includes("hello") || normalized.includes("hi")) {
-    return "Hi! I'm the IntelliPrep study copilot. Answers grounded in your own notes are coming with the backend. What would you like to study?";
+export const chatWithAssistant = async (subjectNameOrContext: string, history: ChatMessage[], message: string): Promise<string> => {
+  // Callers pass either a subject name or a description of the conversation mode.
+  const voice = subjectNameOrContext.includes("voice");
+  const subject = subjectNameOrContext.length <= 120 ? subjectNameOrContext : undefined;
+  // The latest message is sent separately; history excludes it.
+  const previous = history.length && history[history.length - 1].text === message ? history.slice(0, -1) : history;
+  try {
+    const { reply } = await apiFetch<{ reply: string }>("/tutor/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, history: previous.slice(-20), subject, voice }),
+    });
+    return reply;
+  } catch (error) {
+    console.error("Tutor failed:", error);
+    return `Sorry, I couldn't answer that. ${errorMessage(error)}`;
   }
-  if (isVoiceMode) {
-    return "Good question. Let's break it into smaller steps. Which part should we start with?";
-  }
-  return "This is a demo reply. Once the backend is connected (IP-34), I'll answer from your uploaded notes with page citations.";
 };
