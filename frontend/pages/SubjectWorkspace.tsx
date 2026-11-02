@@ -5,6 +5,8 @@ import { MOCK_SUBJECTS, MOCK_FLASHCARDS, MOCK_QUIZ, MOCK_KANBAN, MOCK_NOTES, MOC
 import { Button, Card, cn, Input, ProgressBar, Badge } from '../components/UIComponents';
 import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
 import { StudyGroups } from '../components/StudyGroups';
+import { useSharedBoard } from '../hooks/useSharedBoard';
+import { isAccountSubjectId, listAccountSubjects, toSubject } from '../services/workspaceService';
 import { 
   generateSummary, 
   generateFlashcards, 
@@ -36,7 +38,25 @@ export const SubjectWorkspace: React.FC = () => {
     return saved ? JSON.parse(saved) : MOCK_SUBJECTS;
   });
 
-  const subject = subjects.find(s => s.id === id);
+  // Subjects from the account (e.g. shared with you through a group) aren't in this browser's list.
+  const localSubject = subjects.find(s => s.id === id);
+  const [remoteSubject, setRemoteSubject] = useState<Subject | null>(null);
+  const [remoteChecked, setRemoteChecked] = useState(false);
+  const subject = localSubject ?? remoteSubject ?? undefined;
+
+  useEffect(() => {
+    if (localSubject || !id || !isAccountSubjectId(id)) {
+      setRemoteChecked(true);
+      return;
+    }
+    listAccountSubjects()
+      .then(list => {
+        const found = list.find(s => s.id === id);
+        if (found) setRemoteSubject(toSubject(found));
+      })
+      .catch(() => {})
+      .finally(() => setRemoteChecked(true));
+  }, [id, localSubject]);
 
   useEffect(() => {
     if (subjects.length > 0) {
@@ -197,6 +217,14 @@ Section 2: Practice applications
   const storeId = id ?? GLOBAL_SUBJECT;
   const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(() => loadItems('tasks', storeId, MOCK_KANBAN));
   const [moodNotes, setMoodNotes] = useState<StickyNote[]>(() => loadItems('notes', storeId, MOCK_NOTES));
+
+  // Account subjects use the planner and board shared with their groups; others stay in this browser.
+  const isAccountSubject = isAccountSubjectId(storeId);
+  const sharedBoard = useSharedBoard(storeId, isAccountSubject);
+  const planTasks = isAccountSubject ? sharedBoard.tasks : kanbanTasks;
+  const setPlanTasks = isAccountSubject ? sharedBoard.setTasks : setKanbanTasks;
+  const boardNotes = isAccountSubject ? sharedBoard.notes : moodNotes;
+  const setBoardNotes = isAccountSubject ? sharedBoard.setNotes : setMoodNotes;
 
   // Workspace AI Assistant Chatbot
   const [tutorHistory, setTutorHistory] = useState<ChatMessage[]>([]);
@@ -434,6 +462,9 @@ Section 2: Practice applications
 
   // Early return must stay below every hook, or React crashes when the subject disappears
   if (!subject) {
+    if (!remoteChecked) {
+      return <div className="p-16 text-center text-sm text-gray-400">Loading subject…</div>;
+    }
     return (
       <div className="p-16 text-center">
         <ArrowLeft className="w-8 h-8 text-primary-500 mx-auto mb-4 cursor-pointer" onClick={() => navigate('/dashboard')} />
@@ -1962,7 +1993,7 @@ Section 2: Practice applications
 
           {/* TAB 4.9: STUDY GROUPS (shared subjects, planner and chat; access rules on the server) */}
           {activeTab === 'studyroom' && (
-            <StudyGroups subjectId={subject.id} subjectName={subject.name} />
+            <StudyGroups subject={subject} />
           )}
 
           {/* TAB 4.10: KANBAN BOARD */}
@@ -1972,11 +2003,12 @@ Section 2: Practice applications
                 <div>
                   <h3 className="font-extrabold text-sm text-gray-800">Dynamic Planning Kanban</h3>
                   <p className="text-xs text-gray-400 mt-0.5">Drag and drop items to shift active study workflows.</p>
+                  {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
                 </div>
                 <Button size="sm" icon={Plus} onClick={() => {
                   const title = prompt("Enter target study task title:");
                   if (title && title.trim()) {
-                    setKanbanTasks([...kanbanTasks, { id: Date.now().toString(), title: title.trim(), status: 'todo' }]);
+                    setPlanTasks([...planTasks, { id: Date.now().toString(), title: title.trim(), status: 'todo' }]);
                   }
                 }}>
                   Add Kanban Task
@@ -1984,7 +2016,7 @@ Section 2: Practice applications
               </div>
 
               <div className="flex-1 min-h-0">
-                <KanbanBoard tasks={kanbanTasks} onUpdateTasks={setKanbanTasks} />
+                <KanbanBoard tasks={planTasks} onUpdateTasks={setPlanTasks} />
               </div>
             </div>
           )}
@@ -1996,11 +2028,12 @@ Section 2: Practice applications
                 <div>
                   <h3 className="font-extrabold text-sm text-gray-800">Visual Sticky Note Moodboard</h3>
                   <p className="text-xs text-gray-400 mt-0.5">Drag to reposition notes. Click note area to enter study ideas or quotes.</p>
+                  {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
                 </div>
               </div>
               
               <div className="flex-1 min-h-0">
-                <MoodBoard notes={moodNotes} onUpdateNotes={setMoodNotes} />
+                <MoodBoard notes={boardNotes} onUpdateNotes={setBoardNotes} />
               </div>
             </div>
           )}

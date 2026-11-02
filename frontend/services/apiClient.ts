@@ -10,6 +10,13 @@ export class ApiError extends Error {
   }
 }
 
+// Local development only: which test student this browser acts as (the backend ignores it elsewhere).
+export const DEV_STUDENT_KEY = 'dev_student';
+const devStudentHeader = (): Record<string, string> => {
+  const student = localStorage.getItem(DEV_STUDENT_KEY);
+  return student ? { 'X-Dev-User': student } : {};
+};
+
 export const apiFetch = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   // File uploads send FormData; the browser sets its multipart Content-Type itself.
   const isForm = init.body instanceof FormData;
@@ -17,7 +24,11 @@ export const apiFetch = async <T>(path: string, init: RequestInit = {}): Promise
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: isForm ? init.headers : { 'Content-Type': 'application/json', ...init.headers },
+      headers: {
+        ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+        ...devStudentHeader(),
+        ...init.headers,
+      },
     });
   } catch {
     throw new ApiError(0, "Can't reach the IntelliPrep server. Is the backend running?", 'offline');

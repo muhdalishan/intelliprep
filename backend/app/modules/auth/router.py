@@ -9,11 +9,12 @@ Backlog: IP-10, IP-11, IP-12, IP-13 (docs/scrum/product-backlog.md)
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from app.core.security import CurrentUser, get_current_user
+from app.core.config import get_settings
+from app.core.security import DEV_USERS, CurrentUser, get_current_user
 from app.db.session import UserDb
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -44,3 +45,23 @@ async def read_me(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
     return Profile.model_validate(dict(row))
+
+
+class DevStudent(BaseModel):
+    key: str
+    name: str
+
+
+class DevSession(BaseModel):
+    current: DevStudent
+    students: list[DevStudent]
+
+
+@router.get("/dev-session")
+def dev_session(x_dev_user: Annotated[str | None, Header()] = None) -> DevSession:
+    """Which test student this browser is acting as. Only exists in local development."""
+    if not get_settings().local_dev_auth:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    students = [DevStudent(key=key, name=name) for key, (_id, name) in DEV_USERS.items()]
+    current = next((s for s in students if s.key == (x_dev_user or "").lower()), students[0])
+    return DevSession(current=current, students=students)

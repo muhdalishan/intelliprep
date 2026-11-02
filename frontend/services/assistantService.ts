@@ -1,6 +1,7 @@
 import { Subject } from "../types";
 import { apiFetch, ApiError } from "./apiClient";
-import { addNote, addReminder, addTask } from "./studyStore";
+import { addNote, addReminder, addTask, STORE_EVENT } from "./studyStore";
+import { createNote, createTask, isAccountSubjectId } from "./workspaceService";
 
 export type ActionType = "add_note" | "set_reminder" | "add_task" | "open_section";
 
@@ -63,13 +64,29 @@ export const sendCommand = async (
   }
 };
 
-/** Carries out the actions in this browser. Returns where to go if Nova was asked to open something. */
-export const runActions = (actions: AssistantAction[], currentSubjectId: string | null): string | null => {
+const notifyShared = (subjectId: string) =>
+  window.dispatchEvent(new CustomEvent(STORE_EVENT, { detail: { kind: "shared", subjectId } }));
+
+/**
+ * Carries out the actions. Account subjects use the shared planner and board on the server;
+ * subjects kept in this browser use local storage. Returns where to go if Nova was asked to open something.
+ */
+export const runActions = async (actions: AssistantAction[], currentSubjectId: string | null): Promise<string | null> => {
   let destination: string | null = null;
   for (const action of actions) {
     const subjectId = action.subject_id ?? currentSubjectId;
-    if (action.type === "add_task" && subjectId && action.title) addTask(subjectId, action.title);
-    if (action.type === "add_note" && subjectId && action.title) addNote(subjectId, action.title, action.content);
+    const shared = subjectId !== null && isAccountSubjectId(subjectId);
+    if (action.type === "add_task" && subjectId && action.title) {
+      if (shared) { await createTask(subjectId, action.title); notifyShared(subjectId); }
+      else addTask(subjectId, action.title);
+    }
+    if (action.type === "add_note" && subjectId && action.title) {
+      const content = action.content && !action.content.toLowerCase().startsWith(action.title.toLowerCase())
+        ? `${action.title}
+${action.content}` : (action.content || action.title);
+      if (shared) { await createNote(subjectId, { content, color: "bg-yellow-200", x: 120, y: 120 }); notifyShared(subjectId); }
+      else addNote(subjectId, action.title, action.content);
+    }
     if (action.type === "set_reminder" && action.title && action.due) addReminder(subjectId, action.title, action.due);
     if (action.type === "open_section" && action.section) {
       destination = action.section === "dashboard" || !subjectId

@@ -1,13 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Plus, LogIn, Copy, Check, Crown, X, Send, BookOpen, Share2, LogOut, Database, RefreshCw } from 'lucide-react';
 import { Button, Card, Input, cn } from './UIComponents';
 import { ApiError } from '../services/apiClient';
 import * as groups from '../services/groupService';
 import type { GroupDetail, GroupMessage, GroupSummary } from '../services/groupService';
+import { saveSubjectToAccount } from '../services/workspaceService';
+import { DevStudentSwitcher } from './DevStudentSwitcher';
+import { Subject } from '../types';
 
 interface Props {
-  subjectId: string;
-  subjectName: string;
+  subject: Subject;
 }
 
 const initials = (name: string) => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() || '?';
@@ -16,7 +19,9 @@ const timeLabel = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 /** Study groups: create or join with a code, share subjects, chat. Data and access rules live on the server. */
-export const StudyGroups: React.FC<Props> = ({ subjectId, subjectName }) => {
+export const StudyGroups: React.FC<Props> = ({ subject }) => {
+  const navigate = useNavigate();
+  const { id: subjectId, name: subjectName } = subject;
   const [list, setList] = useState<GroupSummary[] | null>(null);
   const [selected, setSelected] = useState<GroupDetail | null>(null);
   const [messages, setMessages] = useState<GroupMessage[]>([]);
@@ -115,7 +120,8 @@ export const StudyGroups: React.FC<Props> = ({ subjectId, subjectName }) => {
           <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Study groups go live with accounts</h2>
           <p className="mx-auto max-w-md text-sm leading-relaxed text-gray-500 dark:text-gray-400">
             Groups let classmates join with an invite code, share one or many subjects, plan and chat together.
-            They need real accounts and a shared database, which switch on when the Supabase project is connected.
+            They need real accounts and a shared database. Connect the Supabase project, or for testing on this
+            computer set DATABASE_URL=local in backend/.env and restart the backend.
           </p>
           <p className="text-xs text-gray-400">{unavailable}</p>
           <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => { setUnavailable(null); refreshList(); }}>
@@ -138,6 +144,7 @@ export const StudyGroups: React.FC<Props> = ({ subjectId, subjectName }) => {
             <Users className="h-5 w-5 text-emerald-500" /> Study groups
           </h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Study one or many subjects together with classmates.</p>
+          <DevStudentSwitcher className="mt-3" />
         </div>
 
         {error && (
@@ -232,15 +239,24 @@ export const StudyGroups: React.FC<Props> = ({ subjectId, subjectName }) => {
               <div className="flex items-center justify-between">
                 <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-500"><BookOpen className="h-4 w-4" /> Shared subjects</h4>
                 {!alreadyShared && (
-                  <Button size="sm" icon={Share2} disabled={busy || !canShareHere}
-                    title={canShareHere ? undefined : 'This subject is saved only in this browser'}
-                    onClick={async () => afterChange(await run(() => groups.shareSubject(selected.id, subjectId)))}>
+                  <Button size="sm" icon={Share2} disabled={busy}
+                    onClick={async () => {
+                      if (canShareHere) {
+                        afterChange(await run(() => groups.shareSubject(selected.id, subjectId)));
+                        return;
+                      }
+                      // Subjects that live only in this browser are saved to the account first.
+                      const accountId = await run(() => saveSubjectToAccount(subject));
+                      if (!accountId) return;
+                      const detail = await run(() => groups.shareSubject(selected.id, accountId));
+                      if (detail) navigate(`/subject/${accountId}?tab=studyroom`, { replace: true });
+                    }}>
                     Share {subjectName}
                   </Button>
                 )}
               </div>
               {!canShareHere && !alreadyShared && (
-                <p className="text-[11px] text-gray-400">{subjectName} is saved only in this browser. It can be shared once your subjects sync to your account.</p>
+                <p className="text-[11px] text-gray-400">Sharing saves {subjectName} to your account first, with its planner and moodboard.</p>
               )}
               {selected.subjects.length === 0 ? (
                 <p className="text-xs text-gray-400">No subjects shared yet.</p>

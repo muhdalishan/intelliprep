@@ -9,6 +9,10 @@ import {
   MoreVertical, Sparkles, Bolt, CheckCircle2
 } from 'lucide-react';
 import { chatWithAssistant, ChatMessage } from '../services/aiService';
+import { DevStudentSwitcher } from '../components/DevStudentSwitcher';
+import { listAccountSubjects, toSubject } from '../services/workspaceService';
+
+type SharedSubjectCard = Subject & { owned?: boolean; sharedIn?: string[] };
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -72,7 +76,16 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const filtered = subjects.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+  // Subjects on the account that aren't in this browser's list, e.g. shared with you by a group.
+  const [accountSubjects, setAccountSubjects] = useState<SharedSubjectCard[]>([]);
+  useEffect(() => {
+    listAccountSubjects()
+      .then(list => setAccountSubjects(list.map(toSubject)))
+      .catch(() => setAccountSubjects([])); // no database yet: only browser subjects
+  }, []);
+  const extraSubjects = accountSubjects.filter(remote => !subjects.some(local => local.id === remote.id));
+  const allSubjects: SharedSubjectCard[] = [...subjects, ...extraSubjects];
+  const filtered = allSubjects.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
   // Add Subject Form
   const handleAddSubject = (e: React.FormEvent) => {
@@ -170,6 +183,8 @@ export const Dashboard: React.FC = () => {
             >
               <Settings className="w-4 h-4 text-slate-400" /> Profile
             </Button>
+
+            <DevStudentSwitcher className="hidden lg:inline-flex" />
 
             <div className="flex items-center gap-3 pl-2 sm:pl-4 border-l border-slate-200/80 dark:border-slate-800">
               <div className="w-9 h-9 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0 overflow-hidden hover:scale-105 transition-transform">
@@ -284,15 +299,21 @@ export const Dashboard: React.FC = () => {
                 <div className="pl-1">
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Workspace</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSubject(sub.id, e);
-                      }}
-                      className="text-slate-300 hover:text-red-500 transition-colors z-10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {sub.sharedIn && !sub.owned ? (
+                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
+                        Shared · {sub.sharedIn.join(', ')}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSubject(sub.id, e);
+                        }}
+                        className="text-slate-300 hover:text-red-500 transition-colors z-10"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                   
                   <h3 className="font-bold text-[17px] text-slate-900 dark:text-white truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors leading-tight mb-1">{sub.name}</h3>

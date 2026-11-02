@@ -96,3 +96,8 @@ bug fixes stay in and the API client part moves to Sprint 2.
   students). Frontend Study Groups tab replaces the simulated "Study Guild". Goes live once Supabase
   accounts (IP-10) and account-synced subjects (IP-14) are connected; group Q&A over members' notes
   (rest of IP-91) waits for retrieval (IP-31).
+- 2026-11-03: Branch `feat/local-database-mode`: `DATABASE_URL=local` runs a real Postgres in `backend/.localdb`
+  with every migration and three test students (Ali, Sara, Hamza), switchable with "Testing as". Browser
+  subjects can be saved to the account when shared; shared subjects appear on the dashboard and use the
+  shared planner and moodboard; Nova writes to them. Tested in the app: Ali shares a subject, Sara joins
+  by code, both edit one planner and chat; Hamza sees nothing.
