@@ -10,13 +10,16 @@ export class ApiError extends Error {
 }
 
 export const apiFetch = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
+  // File uploads send FormData; the browser sets its multipart Content-Type itself.
+  const isForm = init.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init.headers },
+    headers: isForm ? init.headers : { 'Content-Type': 'application/json', ...init.headers },
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, body.detail ?? response.statusText);
+    const detail = typeof body.detail === 'string' ? body.detail : 'The request was rejected. Check the input and try again.';
+    throw new ApiError(response.status, detail);
   }
   return response.json() as Promise<T>;
 };
