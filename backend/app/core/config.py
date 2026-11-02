@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_audience: str = "authenticated"
 
+    # AI provider for generation and embeddings: "openai" or "anthropic"
+    llm_provider: str = "openai"
+    openai_api_key: str = ""
     anthropic_api_key: str = ""
     voyage_api_key: str = ""
 

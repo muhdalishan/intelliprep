@@ -12,6 +12,7 @@ an accepted one.
 | 005 | No AGPL document libraries | Accepted |
 | 006 | Anthropic SDK directly, no LangChain/LlamaIndex orchestration | Accepted |
 | 007 | Hosting: Render/Railway + Cloudflare for the FYP, AWS later | Accepted |
+| 008 | OpenAI as the AI provider for now | Accepted |
 
 ---
 
@@ -80,3 +81,15 @@ libraries are allowed.
 **Decision:** For the FYP: backend container on Render or Railway, frontend on Cloudflare Pages or
 Vercel, Supabase for Postgres/Auth/Storage, Upstash for Redis. Production path: AWS (ECS Fargate,
 RDS/Aurora, SQS, S3) using the same Docker image.
+
+## 008 — OpenAI as the AI provider for now
+
+**Context:** The team has an OpenAI API key; Anthropic and Voyage keys are not available yet.
+
+**Decision:** `LLM_PROVIDER=openai` by default. OpenAI models handle generation, and OpenAI
+embeddings (`text-embedding-3-small` requested at 1024 dimensions) fill the `vector(1024)` columns,
+so the schema doesn't change. Claude and Voyage stay supported through the same setting. This
+partly replaces decision 003.
+
+**Consequences:** The provider sits behind one internal module, so switching later is a config
+change plus re-embedding stored chunks.
