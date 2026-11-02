@@ -48,6 +48,16 @@ export const JarvisChat: React.FC = () => {
   const subjectName = subjectId ? loadSubjects().find(s => s.id === subjectId)?.name : undefined;
 
   const [isOpen, setIsOpen] = useState(false);
+
+  // Only one assistant panel is open at a time.
+  useEffect(() => {
+    if (isOpen) window.dispatchEvent(new CustomEvent('assistant-opened', { detail: 'tutor' }));
+  }, [isOpen]);
+  useEffect(() => {
+    const onOther = (e: Event) => { if ((e as CustomEvent).detail !== 'tutor') setIsOpen(false); };
+    window.addEventListener('assistant-opened', onOther);
+    return () => window.removeEventListener('assistant-opened', onOther);
+  }, []);
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -107,9 +117,9 @@ export const JarvisChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 right-6 z-50 flex flex-col items-end md:bottom-6">
+    <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
       {isOpen && (
-        <div className="mb-4 flex h-[580px] w-[360px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-2xl animate-in dark:border-slate-800/80 dark:bg-slate-900 md:w-[400px]">
+        <div className="mb-4 flex max-md:fixed max-md:inset-x-3 max-md:bottom-[9.5rem] max-md:w-auto h-[min(580px,calc(100dvh-12rem))] md:h-[min(580px,calc(100dvh-8rem))] md:w-[400px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-2xl animate-in dark:border-slate-800/80 dark:bg-slate-900">
 
           <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-4 shadow-md">
             <div className="flex items-center gap-3">
@@ -238,7 +248,7 @@ export const JarvisChat: React.FC = () => {
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            "relative z-10 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-xl transition-all duration-300 hover:scale-110 active:scale-95",
+            "relative z-10 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-xl transition-all duration-300 hover:scale-110 active:scale-95",
             isOpen && "rotate-90"
           )}
           title={isOpen ? "Close tutor" : "Open study tutor"}

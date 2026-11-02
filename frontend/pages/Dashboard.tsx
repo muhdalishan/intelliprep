@@ -199,7 +199,7 @@ export const Dashboard: React.FC = () => {
       </header>
 
       {/* Main Console Content */}
-      <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 flex flex-col gap-8 relative z-10">
+      <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 flex-1 flex flex-col gap-8 relative z-10">
 
         {/* Welcome Section */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col lg:flex-row lg:items-center justify-between p-6 sm:p-8 gap-6">
@@ -233,29 +233,29 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
             <Flame className="w-5 h-5 text-orange-500 mb-4" />
             <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-1">{streak} day{streak === 1 ? '' : 's'}</h3>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{streak ? 'Study streak' : 'Study today to start a streak'}</p>
+            <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{streak ? 'Study streak' : 'Study today to start a streak'}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
             <Calendar className="w-5 h-5 text-blue-500 mb-4" />
             <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-1 truncate max-w-full">{nextPaper ? (nextPaper.days === 0 ? 'Today' : `${nextPaper.days} day${nextPaper.days === 1 ? '' : 's'}`) : '—'}</h3>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate max-w-full">{nextPaper ? `Until ${nextPaper.sub.name}` : 'Add exam dates to your subjects'}</p>
+            <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider line-clamp-2 max-w-full">{nextPaper ? `Until ${nextPaper.sub.name}` : 'Add exam dates to your subjects'}</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
             <Award className="w-5 h-5 text-emerald-500 mb-4" />
             <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-1">{masteredCards} card{masteredCards === 1 ? '' : 's'}</h3>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Flashcards mastered</p>
+            <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Flashcards mastered</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col items-start text-left relative overflow-hidden">
             <Target className="w-5 h-5 text-purple-500 mb-4" />
             <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-1">{weakTopicCount}</h3>
-            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Weak topics to review</p>
+            <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Weak topics to review</p>
           </div>
         </div>
 
