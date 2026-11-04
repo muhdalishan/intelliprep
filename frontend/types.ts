@@ -55,10 +55,6 @@ export interface Reminder {
   fired?: boolean; // already shown as a notification
 }
 
-// Gemini Types
-export interface GeneratedContent {
-  text: string;
-}
 
 export type TabType = 
   | 'overview' 
