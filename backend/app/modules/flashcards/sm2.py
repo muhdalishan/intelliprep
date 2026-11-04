@@ -8,6 +8,8 @@ from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from enum import StrEnum
 
+from app.core.streaks import study_streak as study_streak  # moved to core, still importable here
+
 MIN_EASE_FACTOR = 1.3
 INITIAL_EASE_FACTOR = 2.5
 
@@ -62,16 +64,3 @@ def is_due(schedule: Schedule, today: date) -> bool:
     """A new card (never reviewed) is due immediately."""
     return schedule.next_review is None or schedule.next_review <= today
 
-
-def study_streak(review_days: set[date], today: date) -> int:
-    """Consecutive days with at least one review, ending today.
-
-    Today not reviewed yet doesn't break the streak; it counts back from yesterday.
-    A missed full day resets it to zero.
-    """
-    day = today if today in review_days else today - timedelta(days=1)
-    streak = 0
-    while day in review_days:
-        streak += 1
-        day -= timedelta(days=1)
-    return streak

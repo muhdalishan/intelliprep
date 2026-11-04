@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Subject } from '../types';
 import { MOCK_SUBJECTS } from '../constants';
+import { ComingUp } from '../components/ComingUp';
 import { Card, Button, ProgressBar, Badge, cn, Input } from '../components/UIComponents';
 import {
   Plus, Search, Users, Trash2, Calendar, BookOpen, Clock, Award,
@@ -258,6 +259,8 @@ export const Dashboard: React.FC = () => {
             <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Weak topics to review</p>
           </div>
         </div>
+
+        <ComingUp />
 
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
