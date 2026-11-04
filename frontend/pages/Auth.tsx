@@ -5,7 +5,7 @@ import {
   BookOpen, BrainCircuit, Users, CheckSquare, Layers, FileText,
   ArrowRight, Shield, Clock, Flame, CheckCircle, GraduationCap,
   ArrowLeft, Columns, Layout, Plus, Search, HelpCircle, Laptop,
-  Lightbulb, ChevronRight, Play, CheckCircle2, Sparkles, Medal, Star, Bolt
+  Lightbulb, ChevronRight, Play, CheckCircle2, Medal, Star, Bolt
 } from 'lucide-react';
 
 export const Auth: React.FC = () => {
@@ -252,8 +252,7 @@ export const Auth: React.FC = () => {
           {/* Hero text side */}
           <div className="lg:col-span-5 space-y-7 text-left xl:pr-10">
             {/* Tag */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 text-[11.5px] font-bold tracking-wide">
-              <Sparkles className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 text-[11.5px] font-bold tracking-wide">
               AI exam prep from your own notes
             </div>
 
