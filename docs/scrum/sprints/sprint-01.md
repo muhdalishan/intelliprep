@@ -109,3 +109,12 @@ bug fixes stay in and the API client part moves to Sprint 2.
   predictions) now persist per subject, and history buttons work. New pages: Groups, Settings, About,
   Privacy (discloses that notes go to OpenAI for processing), Terms, and a not-found page. Browser
   alert/confirm pop-ups are replaced by in-app messages and confirmation dialogs. Favicon and meta tags added.
+- 2026-11-04: Five modules built ahead of plan, each on its own branch with tests (114 backend tests pass):
+  RAG (`feat/IP-30-34-rag`: embeddings, hybrid search with reciprocal rank fusion, cited answers, document
+  library; indexing runs as a background task until the Redis worker, IP-21), Diagrams (`feat/IP-80-diagrams`:
+  photo to step-by-step explanation with KaTeX equations; photos not stored until IP-20), Adaptive exam
+  (`feat/IP-70-71-adaptive-exam`: two-in-a-row difficulty rule, weak-topic focus, answers sealed in encrypted
+  tokens), Reminders (`feat/IP-110-111-reminders`: server-side reminders, in-process scheduler with SKIP LOCKED,
+  quiet hours, retries, Telegram and email through a signed n8n webhook; needs the bot and workflow set up;
+  daily digest IP-111 not built) and the Dashboard API (`feat/IP-120-dashboard-api`). AI Studio prototype
+  leftovers removed. Points move to Done only after PR review, CI and staging (DoD).
