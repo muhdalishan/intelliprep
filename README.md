@@ -23,6 +23,8 @@ archive/       Old debugging scripts kept for reference, not part of the app
 
 ## Start here
 
+**Where things stand:** [KANBAN.md](KANBAN.md), every backlog item as done, in progress, to do or later.
+
 1. [docs/scrum/README.md](docs/scrum/README.md): roles, events, Definition of Done
 2. [docs/scrum/release-plan.md](docs/scrum/release-plan.md): the 7 sprints and their goals
 3. [docs/scrum/sprints/sprint-01.md](docs/scrum/sprints/sprint-01.md): the current sprint
