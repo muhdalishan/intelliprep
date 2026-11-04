@@ -5,6 +5,7 @@ Student material is always passed inside <notes> tags and the instructions say t
 data, so text in an uploaded file can't redirect the model.
 """
 
+import base64
 from functools import lru_cache
 from typing import Any
 
@@ -71,8 +72,25 @@ async def generate_text(
     return text
 
 
+def with_image(prompt: str, image: bytes, mime_type: str) -> list[dict[str, Any]]:
+    """A user turn with text and one image, for vision-capable models."""
+    encoded = base64.b64encode(image).decode("ascii")
+    return [
+        {
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": prompt},
+                {"type": "input_image", "image_url": f"data:{mime_type};base64,{encoded}"},
+            ],
+        }
+    ]
+
+
 async def generate_structured[T: BaseModel](
-    instructions: str, input: str, schema: type[T], max_output_tokens: int = 6000
+    instructions: str,
+    input: str | list[dict[str, Any]],
+    schema: type[T],
+    max_output_tokens: int = 6000,
 ) -> T:
     try:
         response = await _client().responses.parse(

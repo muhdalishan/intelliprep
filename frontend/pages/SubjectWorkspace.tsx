@@ -20,6 +20,7 @@ import {
 import { daysUntil, formatDue, GLOBAL_SUBJECT, loadItems, logStudyDay, saveItems, STORE_EVENT, studyDaysThisWeek, studyStreak } from '../services/studyStore';
 import { isIndexable, readStudyFile, uploadDocument } from '../services/documentService';
 import { AskNotes } from '../components/AskNotes';
+import { DiagramExplainer } from '../components/DiagramExplainer';
 import { confirmAction, notify } from '../components/Feedback';
 import {
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare,
@@ -413,7 +414,7 @@ Section 2: Practice applications
   // Seven sections. Sections with several screens show them as sub-tabs.
   const sections: { id: string; label: string; icon: any; tabs: { id: TabType; label: string }[] }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard, tabs: [{ id: 'overview', label: 'Overview' }] },
-    { id: 'notes', label: 'Notes', icon: FileText, tabs: [{ id: 'upload', label: 'Documents' }, { id: 'summary', label: 'Summaries' }] },
+    { id: 'notes', label: 'Notes', icon: FileText, tabs: [{ id: 'upload', label: 'Documents' }, { id: 'summary', label: 'Summaries' }, { id: 'diagrams', label: 'Diagrams' }] },
     { id: 'flashcards', label: 'Flashcards', icon: Layers, tabs: [{ id: 'flashcards', label: 'Flashcards' }] },
     { id: 'practice', label: 'Practice', icon: CheckSquare, tabs: [{ id: 'quiz', label: 'Quiz' }, { id: 'exam', label: 'Timed exam' }, { id: 'weak-topics', label: 'Weak topics' }] },
     { id: 'predictions', label: 'Exam predictions', icon: BrainCircuit, tabs: [{ id: 'guess-engine', label: 'Predictions' }] },
@@ -1182,6 +1183,11 @@ Section 2: Practice applications
               </Card>
 
             </div>
+          )}
+
+          {/* Diagrams and equations from photos */}
+          {activeTab === 'diagrams' && (
+            <DiagramExplainer subjectId={storeId} subjectName={subject.name} />
           )}
 
           {/* TAB 4.3: AI SUMMARIES */}

@@ -60,6 +60,7 @@ export type TabType =
   | 'overview' 
   | 'upload' 
   | 'summary' 
+  | 'diagrams'
   | 'flashcards' 
   | 'quiz' 
   | 'kanban' 

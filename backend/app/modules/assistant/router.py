@@ -23,6 +23,7 @@ Section = Literal[
     "overview",
     "upload",
     "summary",
+    "diagrams",
     "flashcards",
     "quiz",
     "exam",
