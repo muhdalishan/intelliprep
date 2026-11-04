@@ -8,6 +8,9 @@ const MAX_NOTES_CHARS = 60_000;
 
 const notes = (text: string) => text.slice(0, MAX_NOTES_CHARS);
 
+/** Notes text cut to what the backend accepts in one request. */
+export const notesPayload = notes;
+
 const errorMessage = (error: unknown) =>
   error instanceof ApiError
     ? error.message

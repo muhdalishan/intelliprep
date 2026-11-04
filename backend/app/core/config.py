@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
     redis_url: str = "redis://localhost:6379/0"
 
+    # Seals short-lived tokens the server hands out (e.g. adaptive exam answers). Set it in
+    # staging and production so tokens survive restarts; empty means a random key per process.
+    signing_secret: str = ""
+
     supabase_url: str = ""
     supabase_jwt_audience: str = "authenticated"
 

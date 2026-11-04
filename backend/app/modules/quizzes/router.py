@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.core import llm
-from app.core.schemas import NotesRequest
+from app.core.schemas import MultipleChoice, NotesRequest, is_well_formed
 from app.core.security import CurrentUser, get_current_user
 
 router = APIRouter(prefix="/quiz", tags=["quizzes"])
@@ -24,12 +24,7 @@ The explanation says why the correct option is right, citing the idea from the n
 Topic is a short name (2-5 words) for the idea being tested. Only use facts in the notes."""
 
 
-class Question(BaseModel):
-    question: str
-    options: list[str]
-    correct_index: int
-    explanation: str
-    topic: str
+Question = MultipleChoice
 
 
 class _QuestionSet(BaseModel):
@@ -44,15 +39,6 @@ class QuizResponse(BaseModel):
     questions: list[Question]
 
 
-def _well_formed(q: Question) -> bool:
-    return (
-        bool(q.question.strip())
-        and len(q.options) == 4
-        and len({o.strip().lower() for o in q.options}) == 4
-        and 0 <= q.correct_index < 4
-    )
-
-
 @router.post("/generate")
 async def generate_quiz(
     body: QuizRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
@@ -60,7 +46,7 @@ async def generate_quiz(
     focus = f"Focus on: {body.focus}\n" if body.focus else ""
     prompt = f"Write exactly {body.count} questions.\n{focus}\n{llm.as_notes(body.text)}"
     result = await llm.generate_structured(INSTRUCTIONS, prompt, _QuestionSet)
-    questions = [q for q in result.questions if _well_formed(q)][: body.count]
+    questions = [q for q in result.questions if is_well_formed(q)][: body.count]
     if not questions:
         raise llm.AIUnavailable("No questions could be made from this text. Try longer notes.")
     return QuizResponse(questions=questions)
