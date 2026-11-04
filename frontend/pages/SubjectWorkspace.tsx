@@ -18,7 +18,8 @@ import {
   GuessPaperResult
 } from '../services/aiService';
 import { daysUntil, formatDue, GLOBAL_SUBJECT, loadItems, logStudyDay, saveItems, STORE_EVENT, studyDaysThisWeek, studyStreak } from '../services/studyStore';
-import { readStudyFile } from '../services/documentService';
+import { isIndexable, readStudyFile, uploadDocument } from '../services/documentService';
+import { AskNotes } from '../components/AskNotes';
 import { confirmAction, notify } from '../components/Feedback';
 import {
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare,
@@ -274,6 +275,7 @@ Section 2: Practice applications
   const [guessPaperHistory, setGuessPaperHistory] = usePersistentState<{id: string, doc: string[], date: string, questions: number, result?: GuessPaperResult}[]>(`ip_guesses_${id}`, () => []);
 
   const [previewContent, setPreviewContent] = useState<{title: string, text: string} | null>(null);
+  const [documentsVersion, setDocumentsVersion] = useState(0);
 
   // Reads a .txt/.md/.pdf file into the library. PDFs are read by the backend.
   const addStudyFile = async (file: File): Promise<string | null> => {
@@ -282,6 +284,12 @@ Section 2: Practice applications
       const { content, note } = await readStudyFile(file);
       setLoadedFiles(prev => [{ name: file.name, content, date: new Date().toLocaleDateString() }, ...prev.filter(f => f.name !== file.name)]);
       notify(note || `${file.name} added`, note ? 'info' : 'success');
+      // Account subjects also keep the document and make it searchable with citations.
+      if (isAccountSubject && isIndexable(file)) {
+        uploadDocument(storeId, file)
+          .then(() => setDocumentsVersion(v => v + 1))
+          .catch(error => notify(`Couldn't save ${file.name} for search: ${error instanceof Error ? error.message : 'try again'}`, 'error'));
+      }
       return content;
     } catch (error) {
       notify(error instanceof Error ? error.message : "This file couldn't be read.", 'error');
@@ -1129,17 +1137,17 @@ Section 2: Practice applications
                     </span>
                     <input
                       type="file"
-                      accept=".pdf,.txt,.md,.json"
+                      accept=".pdf,.txt,.md"
                       className="hidden"
                       onChange={handleFileUpload}
                     />
                   </label>
 
-                  <span className="text-xs text-gray-400 font-mono">or paste raw study notes directly below</span>
+                  <span className="text-xs text-gray-400">PDF, TXT or Markdown, up to 25 MB</span>
                 </div>
               </div>
 
-
+              <AskNotes subjectId={storeId} enabled={isAccountSubject} refreshKey={documentsVersion} />
 
               {/* Log List of upload history */}
               <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left">
