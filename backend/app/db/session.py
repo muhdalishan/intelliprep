@@ -51,3 +51,21 @@ async def get_user_db(
 
 
 UserDb = Annotated[AsyncSession, Depends(get_user_db)]
+
+Sessions = Annotated[async_sessionmaker[AsyncSession], Depends(get_sessionmaker)]
+"""The session factory, for handlers that open their own transactions (e.g. before a job)."""
+
+
+@asynccontextmanager
+async def service_session(
+    factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
+    """One transaction as the server itself, so row-level security does not apply.
+
+    Only for writes the system makes on a student's behalf, like the ingestion worker saving
+    chunks, and only after a user session has checked the student may act on that row. Never use
+    it to read data for a response. On Supabase this is the `postgres` connection, which bypasses
+    RLS; locally it is the database superuser.
+    """
+    async with factory() as session, session.begin():
+        yield session
