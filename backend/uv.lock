@@ -390,6 +390,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "anthropic" },
     { name = "asyncpg" },
+    { name = "cryptography" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "openai" },
@@ -414,6 +415,7 @@ dev = [
 requires-dist = [
     { name = "anthropic", specifier = ">=0.60" },
     { name = "asyncpg", specifier = ">=0.30" },
+    { name = "cryptography", specifier = ">=44" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "openai", specifier = ">=1.99" },

@@ -21,6 +21,7 @@ import { daysUntil, formatDue, GLOBAL_SUBJECT, loadItems, logStudyDay, saveItems
 import { isIndexable, readStudyFile, uploadDocument } from '../services/documentService';
 import { AskNotes } from '../components/AskNotes';
 import { DiagramExplainer } from '../components/DiagramExplainer';
+import { AdaptiveExam } from '../components/AdaptiveExam';
 import { confirmAction, notify } from '../components/Feedback';
 import {
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare,
@@ -201,6 +202,7 @@ Section 2: Practice applications
   const [quizScore, setQuizScore] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [isAdaptiveMode, setIsAdaptiveMode] = useState(false);
+  const [adaptiveActive, setAdaptiveActive] = useState(false);
   const [lastQuestionFeedback, setLastQuestionFeedback] = useState<{correct: boolean, chosen: number, explanation: string} | null>(null);
   const [showQuizResult, setShowQuizResult] = useState(false);
 
@@ -627,6 +629,25 @@ Section 2: Practice applications
     setCurrentQuestion(0);
     setLastQuestionFeedback(null);
     setShowQuizResult(false);
+  };
+
+  // The notes a quiz is made from: attached documents (or the last summary) plus any typed topic.
+  const quizSourceText = () => {
+    const focus = customTopic ? `[FOCUS TOPIC/INSTRUCTION: ${customTopic}]\n\n` : '';
+    const body = selectedDocs.length > 0
+      ? selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n')
+      : summaryText;
+    return focus + body;
+  };
+
+  const addMissedTopic = (topic: string, explanation: string) => {
+    setWeakTopics(prev => prev.some(w => w.name === topic) ? prev : [{
+      id: `adaptive-${Date.now()}`,
+      name: topic,
+      origin: 'quiz' as const,
+      date: 'Just now',
+      reviewIdea: explanation,
+    }, ...prev]);
   };
 
   const handleGenerateQuiz = async () => {
@@ -1448,7 +1469,15 @@ Section 2: Practice applications
               <div className="lg:col-span-7 flex min-w-0 flex-col gap-6 text-left">
                 <div className="flex flex-col space-y-6">
 
-                  {!quizActive ? (
+                  {adaptiveActive ? (
+                    <AdaptiveExam
+                      sourceText={quizSourceText()}
+                      weakTopics={weakTopics.map(w => w.name)}
+                      onMissed={addMissedTopic}
+                      onFinished={logStudyDay}
+                      onExit={() => setAdaptiveActive(false)}
+                    />
+                  ) : !quizActive ? (
                     <Card className="flex-1 flex flex-col items-center justify-center text-center py-12 p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6 min-h-[300px]">
                       <div className="w-14 h-14 rounded-full bg-primary-100 dark:bg-primary-950/40 text-primary-600 flex items-center justify-center mx-auto shadow-md">
                         <CheckSquare className="w-8 h-8" />
@@ -1464,15 +1493,14 @@ Section 2: Practice applications
                       {/* Adaptive toggle switch */}
                       <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 p-4 rounded-xl max-w-sm mx-auto flex items-center justify-between">
                         <div className="text-left leading-none">
-                          <span className="font-bold text-xs text-gray-800 dark:text-gray-200 block">Adaptive difficulty<SoonBadge /></span>
-                          <span className="text-[10px] text-gray-400 mt-1 block">Questions get harder or easier as you answer.</span>
+                          <span className="font-bold text-xs text-gray-800 dark:text-gray-200 block">Adaptive difficulty</span>
+                          <span className="text-[10px] text-gray-400 mt-1 block">10 questions that get harder or easier as you answer, focused on your weak topics.</span>
                         </div>
-                        <label className="relative inline-flex items-center cursor-not-allowed opacity-50" title="Coming soon">
+                        <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
                             checked={isAdaptiveMode}
-                            disabled
-                            aria-label="Adaptive difficulty (coming soon)"
+                            aria-label="Adaptive difficulty"
                             onChange={() => setIsAdaptiveMode(!isAdaptiveMode)}
                             className="sr-only peer"
                           />
@@ -1482,13 +1510,21 @@ Section 2: Practice applications
 
                       <div className="flex justify-center gap-3 pt-2">
                         <Button onClick={() => {
+                          if (isAdaptiveMode) {
+                            if (!quizSourceText().trim()) {
+                              notify('Attach your notes or type a topic below first, so the questions come from your material.', 'info');
+                              return;
+                            }
+                            setAdaptiveActive(true);
+                            return;
+                          }
                           setQuizActive(true);
                           setCurrentQuestion(0);
                           setQuizScore(0);
                           setLastQuestionFeedback(null);
                           setShowQuizResult(false);
                         }}>
-                          Start MCQ Session
+                          {isAdaptiveMode ? 'Start adaptive exam' : 'Start MCQ Session'}
                         </Button>
                       </div>
                     </Card>
