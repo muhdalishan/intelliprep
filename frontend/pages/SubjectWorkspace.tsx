@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote, Reminder } from '../types';
+import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote } from '../types';
 import { MOCK_SUBJECTS, MOCK_FLASHCARDS, MOCK_QUIZ, MOCK_KANBAN, MOCK_NOTES } from '../constants';
 import { Button, Card, cn, Input, ProgressBar, Badge, SoonBadge } from '../components/UIComponents';
 import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
@@ -22,6 +22,7 @@ import { isIndexable, readStudyFile, uploadDocument } from '../services/document
 import { AskNotes } from '../components/AskNotes';
 import { DiagramExplainer } from '../components/DiagramExplainer';
 import { AdaptiveExam } from '../components/AdaptiveExam';
+import { RemindersPanel } from '../components/RemindersPanel';
 import { confirmAction, notify } from '../components/Feedback';
 import {
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare,
@@ -237,12 +238,8 @@ Section 2: Practice applications
   const [showChat, setShowChat] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  // Reminders list
-  const [reminders, setReminders] = useState<Reminder[]>(() => loadItems('reminders', storeId, []));
-
   useEffect(() => { saveItems('tasks', storeId, kanbanTasks); }, [storeId, kanbanTasks]);
   useEffect(() => { saveItems('notes', storeId, moodNotes); }, [storeId, moodNotes]);
-  useEffect(() => { saveItems('reminders', storeId, reminders); }, [storeId, reminders]);
 
   // Pick up changes made elsewhere (e.g. Nova adding a task while this subject is open)
   useEffect(() => {
@@ -251,7 +248,6 @@ Section 2: Practice applications
       if (subjectId !== storeId) return;
       if (kind === 'tasks') setKanbanTasks(loadItems('tasks', storeId));
       if (kind === 'notes') setMoodNotes(loadItems('notes', storeId));
-      if (kind === 'reminders') setReminders(loadItems('reminders', storeId));
     };
     window.addEventListener(STORE_EVENT, reload);
     return () => window.removeEventListener(STORE_EVENT, reload);
@@ -774,29 +770,6 @@ Section 2: Practice applications
     setWeakTopics(weakTopics.filter(wt => wt.id !== id));
   };
 
-  // Reminders creation
-  const handleCreateReminder = (e: React.FormEvent) => {
-    e.preventDefault();
-    const form = e.target as HTMLFormElement;
-    const msg = (form.elements.namedItem('message') as HTMLInputElement).value;
-    const dateInput = (form.elements.namedItem('dueDate') as HTMLInputElement).value;
-    const platform = (form.elements.namedItem('platform') as HTMLSelectElement).value as any;
-
-    if (!msg.trim()) return;
-
-    setReminders([...reminders, {
-      id: `rem-${Date.now()}`,
-      message: msg,
-      date: dateInput,
-      platform: platform || 'app'
-    }]);
-    form.reset();
-  };
-
-  // Remove dynamic reminder
-  const handleRemoveReminder = (id: string) => {
-    setReminders(reminders.filter(r => r.id !== id));
-  };
 
 
   return (
@@ -1966,75 +1939,9 @@ Section 2: Practice applications
           )}
 
           {/* TAB 4.12: REMINDERS */}
+          {/* Reminders: kept on the server and delivered by the scheduler */}
           {activeTab === 'reminders' && (
-            <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-300 text-left">
-
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">Reminders</h2>
-                  <p className="text-xs text-gray-405 mt-1">Review active reminder configurations below.</p>
-                </div>
-                <Badge color="bg-primary-50 text-primary-800 font-bold">{reminders.length} Active</Badge>
-              </div>
-
-              <div className="space-y-3">
-                {reminders.map(rem => (
-                  <Card key={rem.id} className="flex justify-between items-center p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-violet-50 text-violet-600 rounded-xl">
-                        <Bell size={18} />
-                      </div>
-                      <div className="leading-none text-left">
-                        <h3 className="font-black text-xs text-gray-800">{rem.message}</h3>
-                        <span className="text-[10px] text-gray-400 mt-1 block">Due: {formatDue(rem.date)}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-violet-700 bg-violet-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                        {rem.platform === 'app' ? (rem.fired ? 'Shown' : 'In-app') : <>{rem.platform}<SoonBadge /></>}
-                      </span>
-                      <button onClick={() => handleRemoveReminder(rem.id)} className="p-1 hover:bg-red-50 text-gray-450 hover:text-red-500 rounded border">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Form creation card */}
-              <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left space-y-4">
-                <h4 className="font-extrabold text-sm text-gray-800">New reminder</h4>
-
-                <form onSubmit={handleCreateReminder} className="space-y-4 text-xs font-medium">
-                  <div>
-                    <label className="block text-gray-400 mb-1 font-bold">What to remind you about</label>
-                    <Input name="message" required placeholder="e.g. Finish Taylor Series practice test..." className="text-xs" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-gray-400 mb-1 font-bold">When</label>
-                      <Input name="dueDate" type="datetime-local" required className="text-xs" />
-                    </div>
-
-                    <div>
-                      <label className="block text-gray-400 mb-1 font-bold">How</label>
-                      <select name="platform" className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-xs outline-none focus:border-primary-500">
-                        <option value="app">In the app (pops up while IntelliPrep is open)</option>
-                        <option value="telegram" disabled>Telegram (coming soon)</option>
-                        <option value="email" disabled>Email (coming soon)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-2">
-                    <Button type="submit">Add reminder</Button>
-                  </div>
-                </form>
-              </Card>
-
-            </div>
+            <RemindersPanel subjectKey={storeId} subjectName={subject.name} />
           )}
 
         </div>

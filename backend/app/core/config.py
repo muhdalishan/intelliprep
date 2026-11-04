@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_audience: str = "authenticated"
 
+    # Reminders (IP-110). The scheduler runs inside the API process and is safe to run in several
+    # processes at once (rows are locked with SKIP LOCKED). Telegram and email go through an n8n
+    # workflow at N8N_WEBHOOK_URL; requests are signed with N8N_WEBHOOK_SECRET.
+    scheduler_enabled: bool = True
+    scheduler_interval_seconds: int = 60
+    n8n_webhook_url: str = ""
+    n8n_webhook_secret: str = ""
+    telegram_bot_username: str = ""
+
     # AI provider for generation and embeddings: "openai" or "anthropic"
     llm_provider: str = "openai"
     openai_api_key: str = ""

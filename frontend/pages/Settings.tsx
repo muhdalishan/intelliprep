@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Camera, Moon, Sun, Bell, AudioLines, User, ShieldAlert, Target } from 'lucide-react';
 import { AppTopBar } from '../components/AppTopBar';
 import { Button, Card, Input, SoonBadge, cn } from '../components/UIComponents';
 import { DevStudentSwitcher } from '../components/DevStudentSwitcher';
+import { NotificationPreferences, getPreferences, telegramLink, updatePreferences } from '../services/reminderService';
 import { confirmAction, notify } from '../components/Feedback';
 
 const Section: React.FC<{ icon: React.ElementType; title: string; description?: string; children: React.ReactNode }> = ({ icon: Icon, title, description, children }) => (
@@ -61,6 +62,44 @@ export const Settings: React.FC = () => {
   const [wake, setWake] = useState(() => localStorage.getItem('nova_wake') === 'true');
   const [voiceReplies, setVoiceReplies] = useState(() => localStorage.getItem('nova_muted') !== 'true');
   const [notifications, setNotifications] = useState(() => ('Notification' in window ? Notification.permission : 'denied'));
+  const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
+  const [prefsError, setPrefsError] = useState(false);
+  const [quietStart, setQuietStart] = useState('');
+  const [quietEnd, setQuietEnd] = useState('');
+
+  useEffect(() => {
+    getPreferences()
+      .then(p => {
+        setPrefs(p);
+        setQuietStart(p.quiet_hours_start?.slice(0, 5) ?? '');
+        setQuietEnd(p.quiet_hours_end?.slice(0, 5) ?? '');
+      })
+      .catch(() => setPrefsError(true));
+  }, []);
+
+  const connectTelegram = async () => {
+    try {
+      const { url } = await telegramLink();
+      window.open(url, '_blank', 'noopener');
+      notify('Tap Start in the Telegram bot, then come back here.', 'info');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Couldn't start linking Telegram.", 'error');
+    }
+  };
+
+  const saveQuietHours = async () => {
+    const [start, end] = [quietStart, quietEnd];
+    try {
+      setPrefs(await updatePreferences({
+        quiet_hours_start: start || null,
+        quiet_hours_end: end || null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }));
+      notify(start && end ? `Quiet from ${start} to ${end}` : 'Quiet hours off', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Couldn't save quiet hours.", 'error');
+    }
+  };
 
   const saveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,8 +221,20 @@ export const Settings: React.FC = () => {
                 ? <span className="text-xs text-slate-500">Blocked in browser settings</span>
                 : <Button size="sm" variant="secondary" onClick={askNotifications}>Turn on</Button>}
           </Row>
-          <Row label={<>Telegram reminders<SoonBadge /></>} hint="Due flashcards and reminders sent to your Telegram.">
-            <Toggle label="Telegram reminders" checked={false} disabled onChange={() => {}} />
+          <Row label="Telegram reminders" hint="Reminders sent to your Telegram, even when IntelliPrep is closed.">
+            {prefsError ? <span className="text-xs text-slate-500">Can't reach the server</span>
+              : !prefs ? <span className="text-xs text-slate-400">Checking…</span>
+              : prefs.telegram_linked ? <span className="text-xs font-bold text-emerald-600">Connected</span>
+              : prefs.channels_available.includes('telegram') ? <Button size="sm" variant="secondary" onClick={connectTelegram}>Connect Telegram</Button>
+              : <span className="text-xs text-slate-500">Not set up on this server yet</span>}
+          </Row>
+          <Row label="Quiet hours" hint="Telegram and email reminders wait until quiet hours end. In-app reminders still show.">
+            <div className="flex items-center gap-2 text-xs">
+              <input type="time" aria-label="Quiet from" value={quietStart} onChange={e => setQuietStart(e.target.value)} disabled={!prefs} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900" />
+              <span className="text-slate-400">to</span>
+              <input type="time" aria-label="Quiet until" value={quietEnd} onChange={e => setQuietEnd(e.target.value)} disabled={!prefs} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900" />
+              <Button size="sm" variant="secondary" disabled={!prefs} onClick={saveQuietHours}>Save</Button>
+            </div>
           </Row>
           <Row label={<>Weekly progress email<SoonBadge /></>} hint="A short summary of your week.">
             <Toggle label="Weekly email" checked={false} disabled onChange={() => {}} />
