@@ -1,5 +1,6 @@
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
@@ -20,6 +21,7 @@ from app.modules.flashcards.router import router as flashcards_router
 from app.modules.groups.router import router as groups_router
 from app.modules.multimodal.router import router as multimodal_router
 from app.modules.notifications.router import router as notifications_router
+from app.modules.notifications.scheduler import run_forever as run_reminder_scheduler
 from app.modules.quizzes.router import router as quizzes_router
 from app.modules.rag.router import router as rag_router
 from app.modules.summaries.router import router as summaries_router
@@ -47,10 +49,22 @@ MODULE_ROUTERS = [
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    if get_settings().database_url == "local":
+    settings = get_settings()
+    if settings.database_url == "local":
         # Start the local Postgres before the first request instead of during it.
         await run_in_threadpool(get_sessionmaker)
+    scheduler = None
+    if settings.scheduler_enabled:
+        # Reminders are delivered from inside the API process (IP-110); see
+        # app/modules/notifications/scheduler.py.
+        scheduler = asyncio.create_task(
+            run_reminder_scheduler(get_sessionmaker(), settings.scheduler_interval_seconds)
+        )
     yield
+    if scheduler:
+        scheduler.cancel()
+        with suppress(asyncio.CancelledError):
+            await scheduler
 
 
 def create_app() -> FastAPI:

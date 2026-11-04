@@ -7,6 +7,7 @@ import { cn } from './UIComponents';
 import { speechSupported, useVoice } from '../hooks/useVoice';
 import { AssistantAction, AssistantTurn, loadSubjects, runActions, sendCommand } from '../services/assistantService';
 import { allReminders, formatDue, markReminderFired } from '../services/studyStore';
+import { fetchInbox, markSeen } from '../services/reminderService';
 
 const SECTION_NAMES: Record<string, string> = {
   dashboard: 'your dashboard', overview: 'Overview', upload: 'Documents', summary: 'Summaries', flashcards: 'Flashcards',
@@ -155,20 +156,31 @@ export const NovaAssistant: React.FC = () => {
     previousState.current = voice.state;
   }, [voice.state]);
 
-  // Reminders set by Nova (or in Reminders) pop up and are spoken when they fall due.
+  // Due in-app reminders pop up and are spoken: from the server's inbox, and any still kept in this browser.
   useEffect(() => {
-    const check = () => {
+    const announce = (message: string) => {
+      setNotice(`Reminder: ${message}`);
+      setIsOpen(true);
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`${name} reminder`, { body: message });
+      }
+      speakRef.current(`Reminder: ${message}`, mutedRef.current);
+    };
+    const check = async () => {
       const now = Date.now();
       for (const { subjectId, reminder } of allReminders()) {
         if (reminder.fired || !reminder.date.includes('T')) continue;
         if (new Date(reminder.date).getTime() > now) continue;
         markReminderFired(subjectId, reminder.id);
-        setNotice(`Reminder: ${reminder.message}`);
-        setIsOpen(true);
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(`${name} reminder`, { body: reminder.message });
+        announce(reminder.message);
+      }
+      try {
+        for (const reminder of await fetchInbox()) {
+          await markSeen(reminder.id);
+          announce(reminder.subject_name ? `${reminder.subject_name}: ${reminder.message}` : reminder.message);
         }
-        speakRef.current(`Reminder: ${reminder.message}`, mutedRef.current);
+      } catch {
+        // Server unreachable: the browser-kept reminders above still work.
       }
     };
     check();

@@ -2,6 +2,7 @@ import { Subject } from "../types";
 import { apiFetch, ApiError } from "./apiClient";
 import { addNote, addReminder, addTask, STORE_EVENT } from "./studyStore";
 import { createNote, createTask, isAccountSubjectId } from "./workspaceService";
+import { createReminder } from "./reminderService";
 
 export type ActionType = "add_note" | "set_reminder" | "add_task" | "open_section";
 
@@ -87,7 +88,16 @@ ${action.content}` : (action.content || action.title);
       if (shared) { await createNote(subjectId, { content, color: "bg-yellow-200", x: 120, y: 120 }); notifyShared(subjectId); }
       else addNote(subjectId, action.title, action.content);
     }
-    if (action.type === "set_reminder" && action.title && action.due) addReminder(subjectId, action.title, action.due);
+    if (action.type === "set_reminder" && action.title && action.due) {
+      // Saved on the server so it's delivered even if the app is closed; kept in this browser if the server is unreachable.
+      const subjectName = loadSubjects().find(s => s.id === subjectId)?.name ?? null;
+      try {
+        await createReminder({ message: action.title, when: action.due, subjectKey: subjectId, subjectName, source: "nova" });
+        window.dispatchEvent(new CustomEvent(STORE_EVENT, { detail: { kind: "reminders", subjectId } }));
+      } catch {
+        addReminder(subjectId, action.title, action.due);
+      }
+    }
     if (action.type === "open_section" && action.section) {
       destination = action.section === "dashboard" || !subjectId
         ? "/dashboard"
