@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote, Reminder } from '../types';
-import { MOCK_SUBJECTS, MOCK_FLASHCARDS, MOCK_QUIZ, MOCK_KANBAN, MOCK_NOTES, MOCK_REMINDERS } from '../constants';
+import { MOCK_SUBJECTS, MOCK_FLASHCARDS, MOCK_QUIZ, MOCK_KANBAN, MOCK_NOTES } from '../constants';
 import { Button, Card, cn, Input, ProgressBar, Badge, SoonBadge } from '../components/UIComponents';
 import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
 import { StudyGroups } from '../components/StudyGroups';

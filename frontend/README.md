@@ -13,9 +13,8 @@ npx tsc --noEmit   # type check
 
 ## Current state
 
-This is still the prototype: login is simulated (IP-10 replaces it with Supabase Auth), data lives
-in `localStorage`, and AI features return demo data from `services/aiService.ts` until each backend
-endpoint is built. Never put an AI provider key in this app; only `VITE_*` variables reach the
+Login is still simulated (IP-10 replaces it with Supabase Auth) and most study data lives in
+`localStorage` until each module moves to the API. AI features call the backend through `services/`. Never put an AI provider key in this app; only `VITE_*` variables reach the
 browser.
 
 Copy `.env.example` to `.env.local` to point at a different API URL.

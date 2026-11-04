@@ -1,4 +1,4 @@
-import { Subject, Flashcard, QuizQuestion, KanbanTask, StickyNote, Reminder } from './types';
+import { Subject, Flashcard, QuizQuestion, KanbanTask, StickyNote } from './types';
 
 export const MOCK_SUBJECTS: Subject[] = [
   {
@@ -74,9 +74,4 @@ export const MOCK_KANBAN: KanbanTask[] = [
 export const MOCK_NOTES: StickyNote[] = [
   { id: '1', x: 100, y: 100, content: 'Remember to practice integrals!', color: 'bg-yellow-200' },
   { id: '2', x: 300, y: 150, content: 'Exam date: Dec 15th', color: 'bg-pink-200' },
-];
-
-export const MOCK_REMINDERS: Reminder[] = [
-  { id: '1', message: 'Math Homework Due', date: '2023-10-25', platform: 'telegram' },
-  { id: '2', message: 'Physics Lab Report', date: '2023-10-28', platform: 'telegram' },
 ];
