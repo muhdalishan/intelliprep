@@ -10,7 +10,7 @@ import { allReminders, formatDue, markReminderFired } from '../services/studySto
 
 const SECTION_NAMES: Record<string, string> = {
   dashboard: 'your dashboard', overview: 'Overview', upload: 'Documents', summary: 'Summaries', flashcards: 'Flashcards',
-  quiz: 'Quiz', exam: 'Timed Exam', 'weak-topics': 'Weak Topics', 'guess-engine': 'Exam Guess', studyroom: 'Study Group',
+  diagrams: 'Diagrams', quiz: 'Quiz', exam: 'Timed Exam', 'weak-topics': 'Weak Topics', 'guess-engine': 'Exam Guess', studyroom: 'Study Group',
   kanban: 'Planner', moodboard: 'Moodboard', reminders: 'Reminders',
 };
 
