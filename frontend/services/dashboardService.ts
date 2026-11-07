@@ -11,6 +11,8 @@ export interface DashboardData {
   top_predictions: { subject_name: string; topic_name: string; confidence: number }[];
   recent_documents: { id: string; subject_id: string; filename: string; status: string; created_at: string }[];
   upcoming_reminders: { id: string; message: string; due_at: string; channel: string; subject_name: string | null }[];
+  weak_topics: number;
+  recent_quiz_scores: { quiz_title: string; subject_name: string; score: number; total: number; submitted_at: string }[];
 }
 
 export const fetchDashboard = () => apiFetch<DashboardData>("/dashboard");

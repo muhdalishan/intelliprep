@@ -26,8 +26,10 @@ export const ComingUp: React.FC = () => {
 
   if (!data) return null;
   const { upcoming_reminders: reminders, recent_documents: documents, tasks, top_predictions: predictions } = data;
+  const weakTopics = data.weak_topics ?? 0;
+  const lastQuiz = data.recent_quiz_scores?.[0];
   const taskTotal = tasks.todo + tasks.learning + tasks.practiced + tasks.mastered;
-  if (!reminders.length && !documents.length && !taskTotal && !predictions.length) return null;
+  if (!reminders.length && !documents.length && !taskTotal && !predictions.length && !weakTopics && !lastQuiz) return null;
 
   return (
     <section className="grid grid-cols-1 gap-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 md:grid-cols-2 xl:grid-cols-4" aria-label="Coming up">
@@ -59,11 +61,21 @@ export const ComingUp: React.FC = () => {
         )}
       </Column>
 
-      <Column icon={Columns} title="Planner">
+      <Column icon={Columns} title="Planner and practice">
         {taskTotal === 0 ? <p className="text-xs text-slate-400">No planner tasks in shared subjects.</p> : (
           <div className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
             <p><strong>{tasks.todo}</strong> to study · <strong>{tasks.learning}</strong> learning</p>
             <p><strong>{tasks.practiced}</strong> practiced · <strong>{tasks.mastered}</strong> mastered</p>
+          </div>
+        )}
+        {(weakTopics > 0 || lastQuiz) && (
+          <div className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-200">
+            {weakTopics > 0 && <p><strong>{weakTopics}</strong> weak {weakTopics === 1 ? 'topic' : 'topics'} to review</p>}
+            {lastQuiz && (
+              <p className="truncate" title={`${lastQuiz.quiz_title} · ${lastQuiz.subject_name}`}>
+                Last quiz <strong>{lastQuiz.score}/{lastQuiz.total}</strong> <span className="text-[11px] text-slate-500">· {lastQuiz.subject_name}</span>
+              </p>
+            )}
           </div>
         )}
       </Column>

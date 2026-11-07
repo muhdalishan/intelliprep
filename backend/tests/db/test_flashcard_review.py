@@ -60,6 +60,15 @@ def test_deck_due_queue_and_sm2_schedule(client, students) -> None:
         "title": "Trees", "card_count": 3, "due_count": 3, "mastered_count": 0,
     }
 
+    other = client.post(
+        "/api/flashcards/decks",
+        json={"subject_id": subject["id"], "title": "Graphs", "cards": CARDS[:1]},
+        headers=alice,
+    ).json()
+    only = client.get(f"/api/flashcards/due?deck_id={other['id']}", headers=alice).json()
+    assert only["due_total"] == 1 and only["cards"][0]["deck_id"] == other["id"]
+    client.delete(f"/api/flashcards/decks/{other['id']}", headers=alice)
+
     queue = client.get(f"/api/flashcards/due?subject_id={subject['id']}", headers=alice).json()
     assert queue["due_total"] == 3 and queue["streak_days"] == 0 and not queue["reviewed_today"]
     assert queue["today"] == local_today("Asia/Karachi").isoformat()
