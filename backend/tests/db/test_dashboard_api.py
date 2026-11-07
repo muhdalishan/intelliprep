@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.security import CurrentUser, get_current_user
+from app.core.streaks import local_today
 from app.db.session import get_sessionmaker, get_user_db, user_session
 from app.main import app
 
@@ -43,7 +44,7 @@ def student(db, make_token):
 def test_dashboard_numbers_and_who_sees_them(client, student, db) -> None:
     alice_id, alice = student("Alice")
     _, bob = student("Bob")
-    today = datetime.now(UTC).date()
+    today = local_today("Asia/Karachi")
 
     soon = client.post(
         "/api/workspace/subjects",
