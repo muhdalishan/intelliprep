@@ -2,8 +2,8 @@
 
 One request returns everything the "what should I study today?" screen needs. It only reads,
 in the student's own session, so row-level security decides every number: their own subjects
-and data, plus subjects shared with their groups. Quiz scores and weak topics join once their
-tables exist (IP-42).
+and data, plus subjects shared with their groups. Flashcards, quiz scores and weak topics stay
+personal even in shared subjects.
 
 Backlog: IP-120 (docs/scrum/product-backlog.md)
 """
@@ -49,6 +49,14 @@ class RecentDocument(BaseModel):
     created_at: datetime
 
 
+class QuizScore(BaseModel):
+    quiz_title: str
+    subject_name: str
+    score: int
+    total: int
+    submitted_at: datetime
+
+
 class UpcomingReminder(BaseModel):
     id: UUID
     message: str
@@ -67,6 +75,8 @@ class Dashboard(BaseModel):
     top_predictions: list[Prediction]
     recent_documents: list[RecentDocument]
     upcoming_reminders: list[UpcomingReminder]
+    weak_topics: int
+    recent_quiz_scores: list[QuizScore]
 
 
 @router.get("")
@@ -158,6 +168,26 @@ async def dashboard(db: UserDb) -> Dashboard:
         ).mappings()
     ]
 
+    weak = (
+        await db.execute(
+            text("select count(*) from weak_topics where user_id = (select auth.uid())")
+        )
+    ).scalar_one()
+
+    scores = [
+        QuizScore(**row)
+        for row in (
+            await db.execute(
+                text(
+                    "select q.title as quiz_title, s.name as subject_name, a.score, a.total, "
+                    "a.submitted_at from quiz_attempts a join quizzes q on q.id = a.quiz_id "
+                    "join subjects s on s.id = q.subject_id "
+                    "where a.user_id = (select auth.uid()) order by a.submitted_at desc limit 5"
+                )
+            )
+        ).mappings()
+    ]
+
     return Dashboard(
         subjects=subjects,
         next_exam=NextExam(**exam, days_left=(exam["exam_date"] - today).days) if exam else None,
@@ -168,4 +198,6 @@ async def dashboard(db: UserDb) -> Dashboard:
         top_predictions=predictions,
         recent_documents=documents,
         upcoming_reminders=reminders,
+        weak_topics=weak,
+        recent_quiz_scores=scores,
     )

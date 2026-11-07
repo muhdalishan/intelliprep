@@ -114,6 +114,7 @@ def test_dashboard_numbers_and_who_sees_them(client, student, db) -> None:
     ]
     assert [d["filename"] for d in body["recent_documents"]] == ["week3.pdf"]
     assert [r["message"] for r in body["upcoming_reminders"]] == ["Mock test"]
+    assert body["weak_topics"] == 0 and body["recent_quiz_scores"] == []
 
     # Bob sees nothing of Alice's...
     empty = client.get("/api/dashboard", headers=bob).json()
