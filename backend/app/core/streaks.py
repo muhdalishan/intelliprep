@@ -1,6 +1,9 @@
-"""Study streaks, shared by flashcards and the dashboard."""
+"""Study streaks and the student's local date, shared by flashcards and the dashboard."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+DEFAULT_TIMEZONE = "Asia/Karachi"
 
 
 def study_streak(review_days: set[date], today: date) -> int:
@@ -15,3 +18,12 @@ def study_streak(review_days: set[date], today: date) -> int:
         streak += 1
         day -= timedelta(days=1)
     return streak
+
+
+def local_today(timezone: str | None) -> date:
+    """Today's date where the student is, so "due today" and streaks follow their own midnight."""
+    try:
+        zone = ZoneInfo(timezone or DEFAULT_TIMEZONE)
+    except (ZoneInfoNotFoundError, ValueError):
+        zone = ZoneInfo(DEFAULT_TIMEZONE)
+    return datetime.now(zone).date()

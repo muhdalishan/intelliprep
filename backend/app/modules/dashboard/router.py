@@ -8,14 +8,14 @@ tables exist (IP-42).
 Backlog: IP-120 (docs/scrum/product-backlog.md)
 """
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from app.core.streaks import study_streak
+from app.core.streaks import local_today, study_streak
 from app.db.session import UserDb
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -71,7 +71,8 @@ class Dashboard(BaseModel):
 
 @router.get("")
 async def dashboard(db: UserDb) -> Dashboard:
-    today = datetime.now(UTC).date()
+    zone = (await db.execute(text("select timezone from profiles"))).scalar()
+    today = local_today(zone)  # the student's own date, like the flashcard queue
 
     subjects = (await db.execute(text("select count(*) from subjects"))).scalar_one()
 
