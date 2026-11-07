@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.core import llm
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
@@ -130,7 +131,7 @@ def _validate(
     return kept, skipped
 
 
-@router.post("/command")
+@router.post("/command", dependencies=[AIQuota])
 async def command(
     body: CommandRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> CommandResponse:

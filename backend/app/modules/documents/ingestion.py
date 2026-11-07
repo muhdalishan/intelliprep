@@ -12,13 +12,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core import llm
+from app.core.usage import DatabaseUsageStore, metered
 from app.db.session import service_session
 from app.modules.documents.chunking import chunk_pages
 
 log = logging.getLogger(__name__)
 
 
-async def index_document(
+async def _index_document(
     factory: async_sessionmaker[AsyncSession],
     document_id: UUID,
     user_id: str,
@@ -72,3 +73,15 @@ async def index_document(
                 text("update documents set status = 'failed', failure_reason = :r where id = :id"),
                 {"r": reason, "id": document_id},
             )
+
+
+async def index_document(
+    factory: async_sessionmaker[AsyncSession],
+    document_id: UUID,
+    user_id: str,
+    subject_id: UUID,
+    pages: list[str],
+) -> None:
+    """The job, with its embedding tokens counted toward the student's daily AI budget."""
+    async with metered(DatabaseUsageStore(factory), user_id):
+        await _index_document(factory, document_id, user_id, subject_id, pages)

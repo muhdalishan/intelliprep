@@ -21,6 +21,7 @@ from app.core import llm
 from app.core.pdf import PdfError, extract_pdf
 from app.core.schemas import MAX_NOTES_CHARS
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 from app.db.errors import db_errors
 from app.db.session import Sessions, UserDb, user_session
 from app.modules.exam_guess.processing import process_past_paper, refresh_predictions
@@ -61,7 +62,7 @@ class GuessRequest(BaseModel):
     focus: str | None = Field(default=None, max_length=500)
 
 
-@router.post("/guess")
+@router.post("/guess", dependencies=[AIQuota])
 async def guess_from_notes(
     body: GuessRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> GuessResponse:
@@ -146,7 +147,7 @@ async def _paper_text(file: UploadFile) -> str:
     return content[:MAX_NOTES_CHARS]
 
 
-@router.post("/papers", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/papers", status_code=status.HTTP_202_ACCEPTED, dependencies=[AIQuota])
 async def upload_past_paper(
     subject_id: Annotated[UUID, Form()],
     year: Annotated[int, Form(ge=1990, le=2100)],

@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from app.core import llm, tokens
 from app.core.schemas import MultipleChoice, NotesRequest, is_well_formed
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 from app.modules.adaptive_exam.engine import (
     Answered,
     Level,
@@ -123,7 +124,7 @@ def _fingerprint(question: str) -> str:
     return hashlib.sha256(" ".join(question.lower().split()).encode()).hexdigest()
 
 
-@router.post("/next")
+@router.post("/next", dependencies=[AIQuota])
 async def next_question(
     body: NextRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> NextResponse:

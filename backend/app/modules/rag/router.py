@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.core import llm
+from app.core.usage import AIQuota
 from app.db.session import UserDb
 from app.modules.rag.search import Passage, hybrid_search
 
@@ -73,7 +74,7 @@ def _excerpt(content: str, limit: int = 280) -> str:
     return flat if len(flat) <= limit else flat[:limit].rsplit(" ", 1)[0] + "…"
 
 
-@router.post("/query")
+@router.post("/query", dependencies=[AIQuota])
 async def ask(body: AskRequest, db: UserDb) -> AskResponse:
     visible = (
         await db.execute(text("select 1 from subjects where id = :sid"), {"sid": body.subject_id})

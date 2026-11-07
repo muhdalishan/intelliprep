@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core import llm
+from app.core.usage import DatabaseUsageStore, metered
 from app.db.session import service_session
 from app.modules.exam_guess.ranking import MIN_PAPERS, PastQuestion, predict_topics
 
@@ -45,7 +46,7 @@ class _Labels(BaseModel):
     names: list[str]
 
 
-async def process_past_paper(
+async def _process_past_paper(
     factory: async_sessionmaker[AsyncSession],
     paper_id: UUID,
     user_id: str,
@@ -171,3 +172,15 @@ async def refresh_predictions(
             ],
         )
         return len(topics)
+
+
+async def process_past_paper(
+    factory: async_sessionmaker[AsyncSession],
+    paper_id: UUID,
+    user_id: str,
+    subject_id: UUID,
+    paper_text: str,
+) -> None:
+    """The job, with its AI tokens counted toward the student's daily AI budget."""
+    async with metered(DatabaseUsageStore(factory), user_id):
+        await _process_past_paper(factory, paper_id, user_id, subject_id, paper_text)

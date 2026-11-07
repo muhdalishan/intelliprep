@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.core import llm
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 
 router = APIRouter(prefix="/tutor", tags=["tutor"])
 
@@ -45,7 +46,7 @@ class TutorResponse(BaseModel):
     reply: str
 
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[AIQuota])
 async def chat(
     body: TutorRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> TutorResponse:
