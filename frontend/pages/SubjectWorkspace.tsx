@@ -10,6 +10,8 @@ import { usePersistentState } from '../hooks/usePersistentState';
 import { isAccountSubjectId, listAccountSubjects, toSubject } from '../services/workspaceService';
 import {
   generateSummary,
+  summarise,
+  notesPayload,
   generateFlashcards,
   generateQuiz,
   generateGuessPaper,
@@ -18,7 +20,13 @@ import {
   GuessPaperResult
 } from '../services/aiService';
 import { daysUntil, formatDue, GLOBAL_SUBJECT, loadItems, logStudyDay, saveItems, STORE_EVENT, studyDaysThisWeek, studyStreak } from '../services/studyStore';
-import { isIndexable, readStudyFile, uploadDocument } from '../services/documentService';
+import { isIndexable, listDocuments, readStudyFile, StoredDocument, uploadDocument } from '../services/documentService';
+import { createQuiz, getQuiz, listQuizzes, SavedQuiz, saveDeck, saveSummary, summariseDocuments } from '../services/studyService';
+import { useWeakTopics } from '../hooks/useWeakTopics';
+import { AccountFlashcards } from '../components/AccountFlashcards';
+import { SavedQuizList, SavedQuizRunner } from '../components/AccountQuiz';
+import { SavedSummaries } from '../components/SavedSummaries';
+import { PastPapers } from '../components/PastPapers';
 import { AskNotes } from '../components/AskNotes';
 import { DiagramExplainer } from '../components/DiagramExplainer';
 import { AdaptiveExam } from '../components/AdaptiveExam';
@@ -177,8 +185,6 @@ Section 2: Practice applications
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // Weak Topic list dynamically aggregated from Quiz failures and manual flags
-  const [weakTopics, setWeakTopics] = usePersistentState<{id: string, name: string, origin: 'quiz' | 'flashcard', date: string, reviewIdea: string}[]>(`ip_weak_${id}`, () => []);
 
   // Quiz state
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() => {
@@ -230,6 +236,21 @@ Section 2: Practice applications
   const setPlanTasks = isAccountSubject ? sharedBoard.setTasks : setKanbanTasks;
   const boardNotes = isAccountSubject ? sharedBoard.notes : moodNotes;
   const setBoardNotes = isAccountSubject ? sharedBoard.setNotes : setMoodNotes;
+
+  // Weak topics: on the server for account subjects (quiz attempts add to them there), else in this browser.
+  const { topics: weakTopics, add: addWeak, clear: clearWeak, refresh: refreshWeak } = useWeakTopics(storeId, isAccountSubject);
+
+  // Account subjects save decks, quizzes and summaries to the account (IP-40, IP-41, IP-42).
+  const [deckVersion, setDeckVersion] = useState(0);
+  const [quizVersion, setQuizVersion] = useState(0);
+  const [summaryVersion, setSummaryVersion] = useState(0);
+  const [serverQuiz, setServerQuiz] = useState<SavedQuiz | null>(null);
+  const [quizRun, setQuizRun] = useState(0);
+  const startSavedQuiz = (quiz: SavedQuiz) => {
+    setAdaptiveActive(false);
+    setServerQuiz(quiz);
+    setQuizRun(r => r + 1);
+  };
 
   // Workspace AI Assistant Chatbot
   const [tutorHistory, setTutorHistory] = useState<ChatMessage[]>([]);
@@ -500,6 +521,43 @@ Section 2: Practice applications
     setActiveTab('summary');
   };
 
+  // Library documents stored on the server that match the attached files (all of them, or none).
+  const attachedDocumentIds = async (): Promise<string[] | null> => {
+    if (!isAccountSubject || selectedDocs.length === 0) return null;
+    // Fresh list: a file uploaded a moment ago may have just finished indexing.
+    const docs = await listDocuments(storeId).catch(() => [] as StoredDocument[]);
+    const ids = selectedDocs.map(name => docs.find(d => d.filename === name && d.status === 'completed')?.id);
+    return ids.every(Boolean) ? (ids as string[]) : null;
+  };
+
+  // A name for what was made: the typed topic, else the attached files, else the subject.
+  const sourceTitle = (kind: string) => {
+    const topic = customTopic.trim();
+    if (topic) return topic.length > 80 ? `${topic.slice(0, 77)}…` : topic;
+    if (selectedDocs.length) return selectedDocs.join(', ');
+    return `${subject.name} ${kind}`;
+  };
+
+  // Account subjects: summaries of stored documents cite pages; anything else is summarised, then saved.
+  const saveAccountSummary = async (text: string) => {
+    const documentIds = await attachedDocumentIds();
+    try {
+      if (documentIds) {
+        const saved = await summariseDocuments(storeId, documentIds, customTopic.trim() || undefined);
+        setGeneratedSummary(saved.content);
+      } else {
+        const content = await summarise(text);
+        setGeneratedSummary(content);
+        await saveSummary(storeId, sourceTitle('summary'), content);
+      }
+      logStudyDay();
+      setSummaryVersion(v => v + 1);
+      notify('Summary saved to your account', 'success');
+    } catch (error) {
+      notify(`Couldn't make the summary. ${error instanceof Error ? error.message : ''}`, 'error');
+    }
+  };
+
   // AI Summary generation
   const handleGenerateSummary = async () => {
     let textToSummarize = customTopic ? `[FOCUS TOPIC/INSTRUCTION: ${customTopic}]\n\n` : '';
@@ -511,6 +569,11 @@ Section 2: Practice applications
 
     if (!textToSummarize.trim()) return;
     setIsGenerating(true);
+    if (isAccountSubject) {
+      await saveAccountSummary(textToSummarize);
+      setIsGenerating(false);
+      return;
+    }
     const result = await generateSummary(textToSummarize);
     setGeneratedSummary(result);
     logStudyDay();
@@ -534,6 +597,20 @@ Section 2: Practice applications
 
     setIsGenerating(true);
     const result = await generateFlashcards(textToSummarize);
+    if (isAccountSubject) {
+      if (result.length > 0) {
+        try {
+          await saveDeck(storeId, sourceTitle('deck'), result.map(({ front, back }) => ({ front, back })), (await attachedDocumentIds()) ?? []);
+          logStudyDay();
+          setDeckVersion(v => v + 1);
+          notify(`Deck of ${result.length} cards saved; they're due today`, 'success');
+        } catch (error) {
+          notify(`Couldn't save the deck. ${error instanceof Error ? error.message : ''}`, 'error');
+        }
+      }
+      setIsGenerating(false);
+      return;
+    }
     if (result && result.length > 0) {
       setFlashcards(result);
       setActiveCardIndex(0);
@@ -552,18 +629,17 @@ Section 2: Practice applications
   };
 
   // Flag active flashcard as weak topic
-  const flagFlashcardAsWeak = (card: Flashcard) => {
+  const flagFlashcardAsWeak = async (card: { front: string; back: string }) => {
     // Avoid double entries
-    if (weakTopics.some(wt => wt.name.includes(card.front))) return;
-
-    const newWeak = {
-      id: `fc-weak-${Date.now()}`,
-      name: `Flashcard query: "${card.front}"`,
-      origin: 'flashcard' as const,
-      date: "Just now",
-      reviewIdea: `Check answer explanation: "${card.back}". Consider reviewing related lecture notes.`
-    };
-    setWeakTopics([newWeak, ...weakTopics]);
+    if (weakTopics.some(wt => wt.name.includes(card.front))) {
+      notify('Already in your weak topics.', 'info');
+      return;
+    }
+    await addWeak(
+      isAccountSubject ? card.front : `Flashcard query: "${card.front}"`,
+      'flashcard',
+      `Check answer explanation: "${card.back}". Consider reviewing related lecture notes.`,
+    );
     notify('Added to your weak topics in Practice.', 'success');
   };
 
@@ -587,16 +663,11 @@ Section 2: Practice applications
     } else {
       // Auto register quiz failure to Weak Topics!
       if (!weakTopics.some(wt => wt.name.includes(q.question))) {
-        setWeakTopics(wt => [
-          ...wt,
-          {
-            id: `q-weak-${Date.now()}`,
-            name: `Incorrect Quiz Point: "${q.question}"`,
-            origin: 'quiz',
-            date: "Today",
-            reviewIdea: `Study correct answer parameters: "${q.options[q.correctIndex]}". Practice active recall inside practice quizzes.`
-          }
-        ]);
+        addWeak(
+          `Incorrect Quiz Point: "${q.question}"`,
+          'quiz',
+          `Study correct answer parameters: "${q.options[q.correctIndex]}". Practice active recall inside practice quizzes.`,
+        );
       }
     }
   };
@@ -637,13 +708,21 @@ Section 2: Practice applications
   };
 
   const addMissedTopic = (topic: string, explanation: string) => {
-    setWeakTopics(prev => prev.some(w => w.name === topic) ? prev : [{
-      id: `adaptive-${Date.now()}`,
-      name: topic,
-      origin: 'quiz' as const,
-      date: 'Just now',
-      reviewIdea: explanation,
-    }, ...prev]);
+    addWeak(topic, 'exam', explanation);
+  };
+
+  // Account subjects: "Start" opens the newest saved quiz.
+  const openLatestSavedQuiz = async () => {
+    try {
+      const [latest] = await listQuizzes(storeId);
+      if (!latest) {
+        notify('Generate a quiz below first. It will be saved to your account.', 'info');
+        return;
+      }
+      startSavedQuiz(await getQuiz(latest.id));
+    } catch (error) {
+      notify(`Couldn't open your quizzes. ${error instanceof Error ? error.message : ''}`, 'error');
+    }
   };
 
   const handleGenerateQuiz = async () => {
@@ -655,6 +734,18 @@ Section 2: Practice applications
     }
 
     setIsGenerating(true);
+    if (isAccountSubject) {
+      try {
+        const quiz = await createQuiz(storeId, notesPayload(textToSummarize), sourceTitle('quiz'), (await attachedDocumentIds()) ?? []);
+        startSavedQuiz(quiz);
+        setQuizVersion(v => v + 1);
+      } catch (error) {
+        notify(`Couldn't make a quiz. ${error instanceof Error ? error.message : ''}`, 'error');
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
     try {
       const gQuestions = await generateQuiz(textToSummarize);
       if (gQuestions && gQuestions.length > 0) {
@@ -748,16 +839,11 @@ Section 2: Practice applications
     quizQuestions.forEach(q => {
       if (selectedExamAnswers[q.id] !== q.correctIndex) {
         if (!weakTopics.some(wt => wt.name.includes(q.question))) {
-          setWeakTopics(wt => [
-            ...wt,
-            {
-              id: `q-exam-weak-${Date.now()}`,
-              name: `Missed Exam Question: "${q.question}"`,
-              origin: 'quiz' as const,
-              date: "Exam final",
-              reviewIdea: `Focus on corrective syllabus terms: "${q.options[q.correctIndex]}" immediately.`
-            }
-          ]);
+          addWeak(
+            isAccountSubject && q.topic ? q.topic : `Missed Exam Question: "${q.question}"`,
+            'exam',
+            `Focus on corrective syllabus terms: "${q.options[q.correctIndex]}" immediately.`,
+          );
         }
       }
     });
@@ -767,7 +853,7 @@ Section 2: Practice applications
 
   // Delete dynamic weak item
   const handleClearWeakTopic = (id: string) => {
-    setWeakTopics(weakTopics.filter(wt => wt.id !== id));
+    clearWeak(id);
   };
 
 
@@ -1227,7 +1313,14 @@ Section 2: Practice applications
               </div>
 
               <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
-                {/* Right pane: Earlier summaries */}
+                {/* Right pane: Earlier summaries (saved to the account for account subjects) */}
+                {isAccountSubject ? (
+                  <SavedSummaries
+                    subjectId={storeId}
+                    refreshKey={summaryVersion}
+                    onOpen={s => setPreviewContent({ title: s.title, text: s.content })}
+                  />
+                ) : (
                 <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <Layers className="w-4 h-4 text-primary-500"/> Local History Vault
@@ -1250,12 +1343,22 @@ Section 2: Practice applications
                     )}
                   </div>
                 </Card>
+                )}
               </div>
             </div>
           )}
 
-          {/* TAB 4.4: FLASHCARDS */}
-          {activeTab === 'flashcards' && (
+          {/* TAB 4.4: FLASHCARDS (account subjects: saved decks and SM-2 review) */}
+          {activeTab === 'flashcards' && isAccountSubject && (
+            <AccountFlashcards
+              subjectId={storeId}
+              refreshKey={deckVersion}
+              input={renderDualInputHeader("Flashcards Room", "Flip cards to test active recall definitions", handleGenerateFlashcards, isGenerating, "Generate Deck")}
+              onFlagWeak={flagFlashcardAsWeak}
+              onReviewed={logStudyDay}
+            />
+          )}
+          {activeTab === 'flashcards' && !isAccountSubject && (
             <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
               <div className="lg:col-span-7 flex min-w-0 flex-col gap-6">
                 {/* Left Pane: Flashcard Interaction */}
@@ -1450,6 +1553,13 @@ Section 2: Practice applications
                       onFinished={logStudyDay}
                       onExit={() => setAdaptiveActive(false)}
                     />
+                  ) : serverQuiz ? (
+                    <SavedQuizRunner
+                      key={quizRun}
+                      quiz={serverQuiz}
+                      onFinished={() => { logStudyDay(); refreshWeak(); setQuizVersion(v => v + 1); }}
+                      onExit={() => setServerQuiz(null)}
+                    />
                   ) : !quizActive ? (
                     <Card className="flex-1 flex flex-col items-center justify-center text-center py-12 p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6 min-h-[300px]">
                       <div className="w-14 h-14 rounded-full bg-primary-100 dark:bg-primary-950/40 text-primary-600 flex items-center justify-center mx-auto shadow-md">
@@ -1489,6 +1599,10 @@ Section 2: Practice applications
                               return;
                             }
                             setAdaptiveActive(true);
+                            return;
+                          }
+                          if (isAccountSubject) {
+                            openLatestSavedQuiz();
                             return;
                           }
                           setQuizActive(true);
@@ -1625,7 +1739,14 @@ Section 2: Practice applications
               </div>
 
               <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
-                {/* Right Pane: Past quizzes */}
+                {/* Right Pane: Past quizzes (saved to the account for account subjects) */}
+                {isAccountSubject ? (
+                  <SavedQuizList
+                    subjectId={storeId}
+                    refreshKey={quizVersion}
+                    onOpen={startSavedQuiz}
+                  />
+                ) : (
                 <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
                   <h3 className="font-bold text-base mb-4 flex items-center gap-2">
                     <History className="w-4 h-4 text-pink-500"/> Quiz History Vault
@@ -1651,6 +1772,7 @@ Section 2: Practice applications
                     )}
                   </div>
                 </Card>
+                )}
               </div>
             </div>
           )}
@@ -1691,6 +1813,9 @@ Section 2: Practice applications
             <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
               <div className="lg:col-span-7 flex min-w-0 flex-col gap-6 text-left">
                 <div className="flex flex-col space-y-6 sm:space-y-8">
+                  {/* Ranked topics from uploaded past papers (account subjects) */}
+                  <PastPapers subjectId={storeId} enabled={isAccountSubject} />
+
                   {/* Trigger header */}
                   <div className="shrink-0 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700">
                     <div className="flex-1">
@@ -1856,7 +1981,9 @@ Section 2: Practice applications
                           )}></span>
                           <div>
                             <span className="font-black text-xs text-gray-800 dark:text-gray-200 leading-tight block">{wt.name}</span>
-                            <span className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider block">Source origin: {wt.origin} • Added: {wt.date}</span>
+                            <span className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider block">
+                              Source origin: {wt.origin} • {wt.misses ? `Missed ${wt.misses}× • Last: ${wt.date}` : `Added: ${wt.date}`}
+                            </span>
                           </div>
                         </div>
 

@@ -211,21 +211,26 @@ async def delete_deck(deck_id: UUID, db: UserDb) -> None:
 
 _DUE_COUNT = text(
     "select count(*) from flashcards where (next_review is null or next_review <= :today) "
-    "and (cast(:sid as uuid) is null or subject_id = :sid)"
+    "and (cast(:sid as uuid) is null or subject_id = :sid) "
+    "and (cast(:deck as uuid) is null or deck_id = :deck)"
 )
 _DUE_CARDS = text(
     "select id, deck_id, subject_id, term as front, definition as back, repetitions, "
     "interval_days from flashcards where (next_review is null or next_review <= :today) "
     "and (cast(:sid as uuid) is null or subject_id = :sid) "
+    "and (cast(:deck as uuid) is null or deck_id = :deck) "
     "order by next_review nulls last, created_at limit :limit"
 )
 
 
 @router.get("/due")
-async def due_cards(db: UserDb, subject_id: UUID | None = None, limit: int = 20) -> DueQueue:
-    """Cards to review today: overdue first, new cards last, plus the study streak."""
+async def due_cards(
+    db: UserDb, subject_id: UUID | None = None, deck_id: UUID | None = None, limit: int = 20
+) -> DueQueue:
+    """Cards to review today (optionally from one deck): overdue first, new cards last, plus the
+    study streak."""
     today = await _today(db)
-    params = {"today": today, "sid": subject_id, "limit": max(1, min(limit, 100))}
+    params = {"today": today, "sid": subject_id, "deck": deck_id, "limit": max(1, min(limit, 100))}
     total = (await db.execute(_DUE_COUNT, params)).scalar_one()
     rows = await db.execute(_DUE_CARDS, params)
     streak, reviewed_today = await _streak(db, today)

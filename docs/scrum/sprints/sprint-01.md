@@ -128,3 +128,9 @@ bug fixes stay in and the API client part moves to Sprint 2.
   papers) and abuse protection (`feat/IP-130-abuse-protection`: 20 AI requests a minute, a daily AI token
   budget per student counted from what OpenAI bills, security headers, prompt-injection tests). The dashboard
   now shows weak topics and recent quiz scores. The screens don't use these APIs yet (next task).
+- 2026-11-08: Branch `feat/wire-study-screens`: the screens now use those APIs for subjects saved to the account.
+  Flashcards show today's due cards with Again / Hard / Good / Easy and the saved decks (the due queue can now
+  be filtered to one deck); quizzes are saved, answered without seeing the answers, then scored on the server
+  with every explanation; weak topics, summaries (page-cited when made from library documents) and past papers
+  with ranked topics come from the account; the dashboard shows weak topics and the last quiz score. Subjects
+  kept only in the browser work as before. Tested in the app against the local database with real AI.

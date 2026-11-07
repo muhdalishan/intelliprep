@@ -16,13 +16,18 @@ const errorMessage = (error: unknown) =>
     ? error.message
     : "Can't reach the IntelliPrep server. Is the backend running?";
 
+/** Summarises notes; throws on failure (use when the result is saved). */
+export const summarise = async (text: string): Promise<string> => {
+  const { summary } = await apiFetch<{ summary: string }>("/summary/generate", {
+    method: "POST",
+    body: JSON.stringify({ text: notes(text) }),
+  });
+  return summary;
+};
+
 export const generateSummary = async (text: string): Promise<string> => {
   try {
-    const { summary } = await apiFetch<{ summary: string }>("/summary/generate", {
-      method: "POST",
-      body: JSON.stringify({ text: notes(text) }),
-    });
-    return summary;
+    return await summarise(text);
   } catch (error) {
     console.error("Summary failed:", error);
     return `Couldn't generate a summary. ${errorMessage(error)}`;

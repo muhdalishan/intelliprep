@@ -39,13 +39,13 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 |---|---|---|---:|---|
 | IP-03 | Frontend stabilised: browser AI key removed, 4 bugs fixed, fake stats removed | MA | 5 | |
 | IP-22 | PDF text extraction and structure-aware chunking (500 tokens, 60 overlap) | MB | 5 | |
-| IP-40 | Summaries saved to history; summaries of saved documents cite pages | MA | 5 | API built; screen next |
-| IP-41 | Flashcard decks saved with SM-2 starting values | MA | 3 | API built; screen next |
-| IP-42 | Saved quizzes scored on the server, answers hidden by the database; weak topics | MA | 8 | API built; screen next |
+| IP-40 | Summaries saved to history; summaries of saved documents cite pages | MA | 5 | on screen for account subjects |
+| IP-41 | Flashcard decks saved with SM-2 starting values | MA | 3 | on screen for account subjects |
+| IP-42 | Saved quizzes scored on the server, answers hidden by the database; weak topics | MA | 8 | on screen; answers shown after submitting |
 | IP-50 | SM-2 scheduler and streak, now used by the review endpoint | MB | 3 | |
-| IP-51 | "Due today" queue and Again / Hard / Good / Easy ratings, in the student's time zone | MB | 5 | API built; screen next |
-| IP-60 | Past-paper upload; questions extracted by the AI and embedded | MB | 5 | API built; screen next |
-| IP-61 | Topics ranked from past papers (frequency × recency), named by the AI | MB | 8 | API built; screen next |
+| IP-51 | "Due today" queue and Again / Hard / Good / Easy ratings, in the student's time zone | MB | 5 | on screen for account subjects |
+| IP-60 | Past-paper upload; questions extracted by the AI and embedded | MB | 5 | on screen for account subjects |
+| IP-61 | Topics ranked from past papers (frequency × recency), named by the AI | MB | 8 | on screen once 3 papers are read |
 | IP-30 | Embeddings in pgvector (OpenAI, 1024 dimensions) | MB | 5 | indexed in the background |
 | IP-31 | Hybrid search: vectors + full text, reciprocal rank fusion, row-level security | MB | 5 | |
 | IP-34 | "Ask your notes" with page citations; "not in your notes" when nothing fits | MB | 3 | |
@@ -92,7 +92,6 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 
 | Sprint | ID | Card | Owner | Pts | Pri |
 |---|---|---|---|---:|---|
-| Next | UI | Connect the new APIs to the screens: deck review, saved quizzes, saved summaries, past papers | MA | – | M |
 | 1 · Nov 2–13 | IP-04 | Deploy backend and frontend to staging | MB | 3 | M |
 | 1 · Nov 2–13 | IP-10 | Real sign-up, login and logout with Supabase Auth | MA | 5 | M |
 | 2 · Nov 16–27 | IP-20 | Upload files to Supabase Storage with signed URLs | MB | 3 | M |
@@ -130,7 +129,8 @@ Mobile app · LMS integration · FSRS algorithm · offline review · instructor 
 - [ ] Most study data lives in the browser: clearing it or changing device loses subjects, decks and quizzes (IP-14, 40, 41, 42).
 - [ ] Uploaded files and diagram photos aren't kept yet, only their text and explanations (IP-20).
 - [ ] Background work runs inside the API process: a crash mid-job loses that job (IP-21).
-- [ ] The new APIs (decks and review, saved quizzes, summaries, past papers) aren't used by the screens yet, so the app still shows browser-only versions.
+- [ ] Saved decks, quizzes, summaries, weak topics and past papers need a subject saved to the account; subjects kept only in the browser still use the browser versions.
+- [ ] Typing a topic with nothing attached sends the subject's sample notes with it, so generated cards and questions can drift from the topic.
 - [ ] Switching to Claude or Gemini isn't wired up yet; only OpenAI works. The docs say one setting; that comes when we add providers.
 - [ ] Every new subject starts with sample flashcards, quiz, tasks and notes.
 - [ ] Local database can time out after the laptop sleeps (start it with `pg_ctl ... -t 120`, see the Project Report).
