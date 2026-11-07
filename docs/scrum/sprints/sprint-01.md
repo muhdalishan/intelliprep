@@ -121,7 +121,7 @@ bug fixes stay in and the API client part moves to Sprint 2.
 - 2026-11-08: Backend for the remaining Must items that don't need accounts, each on its own branch with tests
   (132 backend tests pass). Flashcard decks and review (`feat/IP-41-51-flashcard-review`: decks, a "due today"
   queue in the student's time zone, Again/Hard/Good/Easy through SM-2, streak), quizzes
-  (`feat/IP-42-quizzes`: saved quizzes scored on the server; answers and explanations hidden by the database
+  (`feat/IP-42-quizzes-weak-topics`: saved quizzes scored on the server; answers and explanations hidden by the database
   until submitted; missed topics become weak topics), saved summaries (`feat/IP-40-saved-summaries`: saved
   history, and summaries of library documents that cite pages), past papers (`feat/IP-60-61-past-papers`:
   questions extracted by the AI and embedded, then topics ranked by frequency and recency once there are three
