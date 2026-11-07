@@ -1,6 +1,6 @@
 # IntelliPrep AI · Kanban board
 
-**Updated 4 November 2026 · Sprint 1 of 7 (2–13 Nov) · Final demo after 5 February 2027**
+**Updated 8 November 2026 · Sprint 1 of 7 (2–13 Nov) · Final demo after 5 February 2027**
 
 Where every backlog item stands, from the [product backlog](docs/scrum/product-backlog.md) (199 points).
 Owners: **MB** Murtaza · **MA** Alishan · **You** both. Priority: **M** Must · **S** Should · **C** Could.
@@ -8,9 +8,9 @@ Owners: **MB** Murtaza · **MA** Alishan · **You** both. Priority: **M** Must �
 | Column | Items | Points | Share |
 |---|---:|---:|---|
 | ⚠️ Needs you (setup, not code) | 6 | – | blocks going live |
-| ✅ Done (built and tested locally) | 13 | 67 | `███████░░░░░░░░░░░░░` 34% |
-| 🟡 In progress (partly built) | 17 | 71 | `███████░░░░░░░░░░░░░` 36% |
-| 📋 To do (planned in sprints) | 13 | 44 | `████░░░░░░░░░░░░░░░░` 22% |
+| ✅ Done (built and tested locally) | 21 | 109 | `███████████░░░░░░░░░` 55% |
+| 🟡 In progress (partly built) | 12 | 44 | `████░░░░░░░░░░░░░░░░` 22% |
+| 📋 To do (planned in sprints) | 10 | 29 | `███░░░░░░░░░░░░░░░░░` 15% |
 | 💤 Later (below the cut line) | 5 | 17 | `██░░░░░░░░░░░░░░░░░░` 8% |
 | **Total** | **48** | **199** | |
 
@@ -33,12 +33,19 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 
 ---
 
-## ✅ Done: built and tested locally (67 points)
+## ✅ Done: built and tested locally (109 points)
 
 | ID | Card | Owner | Pts | Notes |
 |---|---|---|---:|---|
 | IP-03 | Frontend stabilised: browser AI key removed, 4 bugs fixed, fake stats removed | MA | 5 | |
 | IP-22 | PDF text extraction and structure-aware chunking (500 tokens, 60 overlap) | MB | 5 | |
+| IP-40 | Summaries saved to history; summaries of saved documents cite pages | MA | 5 | API built; screen next |
+| IP-41 | Flashcard decks saved with SM-2 starting values | MA | 3 | API built; screen next |
+| IP-42 | Saved quizzes scored on the server, answers hidden by the database; weak topics | MA | 8 | API built; screen next |
+| IP-50 | SM-2 scheduler and streak, now used by the review endpoint | MB | 3 | |
+| IP-51 | "Due today" queue and Again / Hard / Good / Easy ratings, in the student's time zone | MB | 5 | API built; screen next |
+| IP-60 | Past-paper upload; questions extracted by the AI and embedded | MB | 5 | API built; screen next |
+| IP-61 | Topics ranked from past papers (frequency × recency), named by the AI | MB | 8 | API built; screen next |
 | IP-30 | Embeddings in pgvector (OpenAI, 1024 dimensions) | MB | 5 | indexed in the background |
 | IP-31 | Hybrid search: vectors + full text, reciprocal rank fusion, row-level security | MB | 5 | |
 | IP-34 | "Ask your notes" with page citations; "not in your notes" when nothing fits | MB | 3 | |
@@ -47,7 +54,8 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 | IP-80 | Diagrams and equations from photos, rendered with KaTeX | MA | 5 | photos not stored yet |
 | IP-90 | Study groups: invite codes, roles, share subjects, leave, remove | MB | 5 | local database |
 | IP-110 | Reminders: scheduler, quiet hours, retries, inbox, Telegram and email channels | MA | 5 | needs bot and n8n setup |
-| IP-120 | Dashboard API and the "Coming up" card | MA | 5 | |
+| IP-120 | Dashboard API and the "Coming up" card; adds weak topics and quiz scores | MA | 5 | |
+| IP-130 | Rate limit, daily AI budget per student, security headers, injection tests | MB | 5 | |
 | IP-141 | Nova voice: "Hey Nova" wake word, tap to talk, spoken replies | MA | 5 | Chrome and Edge only |
 | IP-142 | Nova actions: reminders, notes, tasks, open sections (checked by the server) | MB | 8 | |
 
@@ -61,7 +69,7 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 
 ---
 
-## 🟡 In progress: partly built (71 points)
+## 🟡 In progress: partly built (44 points)
 
 | ID | Card | Owner | Pts | What's left |
 |---|---|---|---:|---|
@@ -73,11 +81,6 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 | IP-14 | Subjects saved to the account | MA | 3 | move the student's own subjects off the browser |
 | IP-21 | Background processing with status and failure reason | MB | 3 | Redis + arq worker, automatic retries |
 | IP-26 | Document library with live status and delete | MA | 3 | retry failed documents; delete the stored file |
-| IP-40 | AI summaries | MA | 5 | save to the database, with citations |
-| IP-41 | AI flashcards | MA | 3 | save decks with SM-2 starting values |
-| IP-42 | MCQ quizzes and weak topics | MA | 8 | quiz tables, server-side scoring |
-| IP-50 | SM-2 scheduler and streak (tested) | MB | 3 | connect to the app |
-| IP-61 | Exam-Guess clustering and ranking (tested) | MB | 8 | needs past papers (IP-60) |
 | IP-91 | Shared planner, board and chat in groups | MB | 8 | group Q&A across members' notes |
 | IP-100 | Planner API (used by shared subjects) | MA | 3 | personal planners off the browser |
 | IP-101 | Board API (used by shared subjects) | MA | 2 | personal boards off the browser |
@@ -85,20 +88,18 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 
 ---
 
-## 📋 To do: planned in sprints (44 points)
+## 📋 To do: planned in sprints (29 points)
 
 | Sprint | ID | Card | Owner | Pts | Pri |
 |---|---|---|---|---:|---|
+| Next | UI | Connect the new APIs to the screens: deck review, saved quizzes, saved summaries, past papers | MA | – | M |
 | 1 · Nov 2–13 | IP-04 | Deploy backend and frontend to staging | MB | 3 | M |
 | 1 · Nov 2–13 | IP-10 | Real sign-up, login and logout with Supabase Auth | MA | 5 | M |
 | 2 · Nov 16–27 | IP-20 | Upload files to Supabase Storage with signed URLs | MB | 3 | M |
 | 3 · Nov 30–Dec 11 | IP-05 | Sentry error tracking and Langfuse AI tracing | MA | 2 | S |
-| 4 · Dec 14–25 | IP-51 | "Due today" flashcard queue with Again / Hard / Good / Easy | MB | 5 | M |
 | 5 · Dec 28–Jan 8 | IP-32 | Rerank the top passages before answering | MB | 2 | S |
 | 5 · Dec 28–Jan 8 | IP-35 | Retrieval test set (30 real questions), measured each sprint | MB | 3 | S |
-| 5 · Dec 28–Jan 8 | IP-60 | Past-paper upload by year; questions extracted | MB | 5 | M |
 | 6 · Jan 11–22 | IP-62 | Prediction drill-down and "Add to plan" | MB | 3 | S |
-| 7 · Jan 25–Feb 5 | IP-130 | Rate limits, daily AI budget, security headers | MB | 5 | M |
 | 7 · Jan 25–Feb 5 | IP-131 | End-to-end test of the student journey (Playwright) | MA | 3 | S |
 | 7 · Jan 25–Feb 5 | IP-132 | Load test with 10 users (k6) | MB | 2 | S |
 | 7 · Jan 25–Feb 5 | IP-133 | Demo account, demo script, backup recordings | MB | 3 | M |
@@ -129,7 +130,7 @@ Mobile app · LMS integration · FSRS algorithm · offline review · instructor 
 - [ ] Most study data lives in the browser: clearing it or changing device loses subjects, decks and quizzes (IP-14, 40, 41, 42).
 - [ ] Uploaded files and diagram photos aren't kept yet, only their text and explanations (IP-20).
 - [ ] Background work runs inside the API process: a crash mid-job loses that job (IP-21).
-- [ ] Exam predictions estimate from notes until past papers are uploaded (IP-60, IP-61).
+- [ ] The new APIs (decks and review, saved quizzes, summaries, past papers) aren't used by the screens yet, so the app still shows browser-only versions.
 - [ ] Switching to Claude or Gemini isn't wired up yet; only OpenAI works. The docs say one setting; that comes when we add providers.
 - [ ] Every new subject starts with sample flashcards, quiz, tasks and notes.
 - [ ] Local database can time out after the laptop sleeps (start it with `pg_ctl ... -t 120`, see the Project Report).
