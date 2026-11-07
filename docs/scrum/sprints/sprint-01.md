@@ -118,3 +118,13 @@ bug fixes stay in and the API client part moves to Sprint 2.
   quiet hours, retries, Telegram and email through a signed n8n webhook; needs the bot and workflow set up;
   daily digest IP-111 not built) and the Dashboard API (`feat/IP-120-dashboard-api`). AI Studio prototype
   leftovers removed. Points move to Done only after PR review, CI and staging (DoD).
+- 2026-11-08: Backend for the remaining Must items that don't need accounts, each on its own branch with tests
+  (132 backend tests pass). Flashcard decks and review (`feat/IP-41-51-flashcard-review`: decks, a "due today"
+  queue in the student's time zone, Again/Hard/Good/Easy through SM-2, streak), quizzes
+  (`feat/IP-42-quizzes`: saved quizzes scored on the server; answers and explanations hidden by the database
+  until submitted; missed topics become weak topics), saved summaries (`feat/IP-40-saved-summaries`: saved
+  history, and summaries of library documents that cite pages), past papers (`feat/IP-60-61-past-papers`:
+  questions extracted by the AI and embedded, then topics ranked by frequency and recency once there are three
+  papers) and abuse protection (`feat/IP-130-abuse-protection`: 20 AI requests a minute, a daily AI token
+  budget per student counted from what OpenAI bills, security headers, prompt-injection tests). The dashboard
+  now shows weak topics and recent quiz scores. The screens don't use these APIs yet (next task).
