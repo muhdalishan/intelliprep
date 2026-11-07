@@ -20,6 +20,7 @@ from app.core import llm
 from app.core.schemas import NotesRequest
 from app.core.security import CurrentUser, get_current_user
 from app.core.streaks import local_today, study_streak
+from app.core.usage import AIQuota
 from app.db.errors import db_errors
 from app.db.session import UserDb
 from app.modules.flashcards.sm2 import INITIAL_EASE_FACTOR, Rating, Schedule, review
@@ -49,7 +50,7 @@ class FlashcardsResponse(BaseModel):
     cards: list[Card]
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=[AIQuota])
 async def generate_flashcards(
     body: FlashcardsRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> FlashcardsResponse:

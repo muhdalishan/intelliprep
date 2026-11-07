@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_jwt_audience: str = "authenticated"
 
+    # Abuse protection (IP-130): AI requests per student per minute, and AI tokens per student
+    # per day (resets at midnight Pakistan time).
+    ai_requests_per_minute: int = 20
+    ai_daily_token_budget: int = 300_000
+
     # Reminders (IP-110). The scheduler runs inside the API process and is safe to run in several
     # processes at once (rows are locked with SKIP LOCKED). Telegram and email go through an n8n
     # workflow at N8N_WEBHOOK_URL; requests are signed with N8N_WEBHOOK_SECRET.

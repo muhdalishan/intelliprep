@@ -86,6 +86,26 @@ def create_app() -> FastAPI:
         allow_headers=["Authorization", "Content-Type", "X-Dev-User"],
     )
 
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        """IP-130: headers that stop browsers sniffing, framing or caching API responses."""
+        response = await call_next(request)
+        headers = response.headers
+        headers.setdefault("X-Content-Type-Options", "nosniff")
+        headers.setdefault("X-Frame-Options", "DENY")
+        headers.setdefault("Referrer-Policy", "no-referrer")
+        headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        if not request.url.path.startswith(("/docs", "/openapi.json")):
+            # The API serves only JSON; the interactive docs page needs its scripts, so it's exempt.
+            headers.setdefault(
+                "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+            )
+            headers.setdefault("Cache-Control", "no-store")
+        if settings.is_production:
+            headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+        return response
+
     @app.exception_handler(AIUnavailable)
     async def ai_unavailable(_request: Request, exc: AIUnavailable) -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": str(exc)})

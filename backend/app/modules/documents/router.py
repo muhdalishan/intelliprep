@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 from app.db.errors import db_errors
 from app.db.session import Sessions, UserDb, user_session
 from app.modules.documents.chunking import chunk_pages
@@ -124,7 +125,7 @@ _SELECT = (
 )
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
+@router.post("", status_code=status.HTTP_202_ACCEPTED, dependencies=[AIQuota])
 async def upload_document(
     subject_id: Annotated[UUID, Form()],
     file: UploadFile,

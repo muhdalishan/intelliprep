@@ -64,3 +64,16 @@ def no_real_ai_calls(monkeypatch):
         raise AssertionError("A test tried to call the real AI provider")
 
     monkeypatch.setattr(llm, "_client", _refuse)
+
+
+@pytest.fixture(autouse=True)
+def usage_in_memory():
+    """AI quota bookkeeping in memory, with a fresh rate limit, unless a test sets its own."""
+    from app.core import usage
+    from app.main import app
+
+    store = usage.MemoryUsageStore()
+    usage.limiter.calls.clear()
+    app.dependency_overrides[usage.get_usage_store] = lambda: store
+    yield store
+    app.dependency_overrides.pop(usage.get_usage_store, None)

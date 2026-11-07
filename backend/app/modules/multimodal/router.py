@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.core import llm
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 
 router = APIRouter(prefix="/multimodal", tags=["multimodal"])
 
@@ -55,7 +56,7 @@ def image_type(data: bytes) -> str | None:
     return None
 
 
-@router.post("/explain")
+@router.post("/explain", dependencies=[AIQuota])
 async def explain_image(
     image: UploadFile,
     _user: Annotated[CurrentUser, Depends(get_current_user)],

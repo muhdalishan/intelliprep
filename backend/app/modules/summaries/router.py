@@ -19,6 +19,7 @@ from sqlalchemy import text
 from app.core import llm
 from app.core.schemas import MAX_NOTES_CHARS, NotesRequest
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 from app.db.errors import db_errors
 from app.db.session import UserDb
 
@@ -39,7 +40,7 @@ class SummaryResponse(BaseModel):
     summary: str
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=[AIQuota])
 async def generate_summary(
     body: NotesRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> SummaryResponse:
@@ -97,7 +98,7 @@ async def _save(db: UserDb, values: dict) -> SavedSummary:
     return SavedSummary(**row)
 
 
-@router.post("/documents", status_code=status.HTTP_201_CREATED)
+@router.post("/documents", status_code=status.HTTP_201_CREATED, dependencies=[AIQuota])
 async def summarise_documents(body: FromDocuments, db: UserDb) -> SavedSummary:
     """Summarises saved documents with page citations and keeps the summary."""
     rows = (

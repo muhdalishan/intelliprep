@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import llm
 from app.core.schemas import MultipleChoice, NotesRequest, is_well_formed
 from app.core.security import CurrentUser, get_current_user
+from app.core.usage import AIQuota
 from app.db.errors import db_errors
 from app.db.session import Sessions, UserDb, service_session, user_session
 
@@ -60,7 +61,7 @@ async def _generate(body: QuizRequest) -> list[Question]:
     return questions
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=[AIQuota])
 async def generate_quiz(
     body: QuizRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> QuizResponse:
@@ -177,7 +178,7 @@ async def _questions(db: AsyncSession, quiz_id: UUID) -> list[QuestionOut]:
     return [QuestionOut(**row) for row in rows.mappings()]
 
 
-@router.post("/quizzes", status_code=status.HTTP_201_CREATED)
+@router.post("/quizzes", status_code=status.HTTP_201_CREATED, dependencies=[AIQuota])
 async def create_quiz(
     body: SavedQuizRequest,
     user: Annotated[CurrentUser, Depends(get_current_user)],

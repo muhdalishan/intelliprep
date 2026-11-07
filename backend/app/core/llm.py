@@ -13,6 +13,7 @@ import openai
 from pydantic import BaseModel
 
 from app.core.config import get_settings
+from app.core.usage import record_tokens
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIMENSIONS = 1024  # matches the vector(1024) columns in the schema
@@ -43,6 +44,11 @@ def _client() -> openai.AsyncOpenAI:
     return openai.AsyncOpenAI(api_key=settings.openai_api_key, timeout=90, max_retries=2)
 
 
+def _count(response: Any) -> None:
+    """Adds the call's billed tokens to the current student's daily budget (core/usage.py)."""
+    record_tokens(getattr(getattr(response, "usage", None), "total_tokens", 0) or 0)
+
+
 def _model_options() -> dict[str, Any]:
     model = get_settings().openai_model
     options: dict[str, Any] = {"model": model}
@@ -66,6 +72,7 @@ async def generate_text(
         raise AIUnavailable("The AI is busy right now. Try again in a minute.") from exc
     except openai.APIError as exc:
         raise AIUnavailable("The AI service didn't respond. Try again.") from exc
+    _count(response)
     text = response.output_text.strip()
     if not text:
         raise AIUnavailable("The AI returned an empty answer. Try again.")
@@ -104,6 +111,7 @@ async def generate_structured[T: BaseModel](
         raise AIUnavailable("The AI is busy right now. Try again in a minute.") from exc
     except openai.APIError as exc:
         raise AIUnavailable("The AI service didn't respond. Try again.") from exc
+    _count(response)
     if response.output_parsed is None:
         raise AIUnavailable("The AI returned an answer in the wrong shape. Try again.")
     return response.output_parsed
@@ -119,6 +127,7 @@ async def embed(texts: list[str]) -> list[list[float]]:
                 input=texts[start : start + EMBEDDING_BATCH],
                 dimensions=EMBEDDING_DIMENSIONS,
             )
+            _count(response)
             vectors.extend(item.embedding for item in sorted(response.data, key=lambda d: d.index))
     except openai.RateLimitError as exc:
         raise AIUnavailable("The AI is busy right now. Try again in a minute.") from exc
