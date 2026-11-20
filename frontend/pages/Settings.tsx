@@ -142,7 +142,7 @@ export const Settings: React.FC = () => {
     Object.keys(localStorage)
       .filter(key => key.startsWith('ip_') || ['prep_subjects', 'nova_name', 'nova_wake', 'nova_muted', 'goal_days'].includes(key))
       .forEach(key => localStorage.removeItem(key));
-    window.location.hash = '#/dashboard';
+    window.location.assign('/dashboard');
   };
 
   return (

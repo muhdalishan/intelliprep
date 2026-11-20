@@ -18,7 +18,7 @@ export const arrivedFromEmail = () => landing.has('code');
 export const supabase: SupabaseClient | null =
   url && anonKey
     ? createClient(url, anonKey, {
-        // PKCE puts ?code= in the query string, which leaves the HashRouter's #/route alone.
+        // PKCE puts ?code= in the query string; the email links come back to the page that sent them.
         auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
       })
     : null;
@@ -142,7 +142,7 @@ export const setNewPassword = async (password: string): Promise<AuthResult> => {
   if (password.length < 8) return { ok: false, error: 'Use a password of at least 8 characters.' };
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { ok: false, error: friendly(error.message) };
-  window.history.replaceState(null, '', `${window.location.pathname}#/dashboard`);
+  window.history.replaceState(null, '', '/dashboard');
   return { ok: true };
 };
 
