@@ -11,7 +11,10 @@ import {
 } from 'lucide-react';
 import { DevStudentSwitcher } from '../components/DevStudentSwitcher';
 import { daysUntil, readSubjectList, studyStreak } from '../services/studyStore';
-import { listAccountSubjects, toSubject } from '../services/workspaceService';
+import { deleteAccountSubject, isAccountSubjectId, listAccountSubjects, saveSubjectToAccount, toSubject } from '../services/workspaceService';
+import { ApiError } from '../services/apiClient';
+import { realAccounts, signOut } from '../services/authService';
+import { notify } from '../components/Feedback';
 
 type SharedSubjectCard = Subject & { owned?: boolean; sharedIn?: string[] };
 
@@ -64,7 +67,8 @@ export const Dashboard: React.FC = () => {
   const filtered = allSubjects.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
   // Add Subject Form
-  const handleAddSubject = (e: React.FormEvent) => {
+  const [savingSubject, setSavingSubject] = useState(false);
+  const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const name = (form.elements.namedItem('name') as HTMLInputElement).value;
@@ -94,7 +98,18 @@ export const Dashboard: React.FC = () => {
         type: 'Lecture'
       }]
     };
-    setSubjects([...subjects, newSubject]);
+    // Saved to the account so it's on every device and can keep decks, quizzes and summaries.
+    // Without a reachable database (local development) it stays in this browser.
+    setSavingSubject(true);
+    let added = newSubject;
+    try {
+      added = { ...newSubject, id: await saveSubjectToAccount(newSubject) };
+    } catch {
+      if (realAccounts) notify(`Couldn't save ${name} to your account, so it's only on this device for now.`, 'error');
+    } finally {
+      setSavingSubject(false);
+    }
+    setSubjects(current => [...current, added]);
     form.reset();
     setShowAddModal(false);
   };
@@ -104,11 +119,22 @@ export const Dashboard: React.FC = () => {
     setSubjectToDelete(id);
   };
 
-  const confirmDeleteSubject = () => {
-    if (subjectToDelete) {
-      setSubjects(subjects.filter(s => s.id !== subjectToDelete));
-      setSubjectToDelete(null);
+  const confirmDeleteSubject = async () => {
+    if (!subjectToDelete) return;
+    const target = allSubjects.find(s => s.id === subjectToDelete);
+    setSubjectToDelete(null);
+    if (isAccountSubjectId(subjectToDelete) && target?.owned !== false) {
+      try {
+        await deleteAccountSubject(subjectToDelete);
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 404)) {
+          notify(`Couldn't delete ${target?.name ?? 'the subject'}. Try again.`, 'error');
+          return;
+        }
+      }
     }
+    setSubjects(current => current.filter(s => s.id !== subjectToDelete));
+    setAccountSubjects(current => current.filter(s => s.id !== subjectToDelete));
   };
 
   // Real numbers from what the student has done in this browser.
@@ -125,8 +151,8 @@ export const Dashboard: React.FC = () => {
 
   const loadSampleSubjects = () => setSubjects(MOCK_SUBJECTS);
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
+  const handleLogout = async () => {
+    await signOut();
     navigate('/');
   };
 
@@ -319,6 +345,8 @@ export const Dashboard: React.FC = () => {
                           deleteSubject(sub.id, e);
                         }}
                         className="text-slate-300 hover:text-red-500 transition-colors z-10"
+                        aria-label={`Delete ${sub.name}`}
+                        title="Delete subject"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -432,7 +460,7 @@ export const Dashboard: React.FC = () => {
 
               <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)} className="text-xs font-bold">Cancel</Button>
-                <Button type="submit" className="bg-primary-600 text-white hover:bg-primary-700 text-xs font-bold">Add subject</Button>
+                <Button type="submit" disabled={savingSubject} className="bg-primary-600 text-white hover:bg-primary-700 text-xs font-bold">{savingSubject ? 'Saving…' : 'Add subject'}</Button>
               </div>
             </form>
           </Card>

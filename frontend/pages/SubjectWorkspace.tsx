@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote } from '../types';
-import { MOCK_SUBJECTS, MOCK_FLASHCARDS, MOCK_QUIZ, MOCK_KANBAN, MOCK_NOTES } from '../constants';
 import { Button, Card, cn, Input, ProgressBar, Badge, SoonBadge } from '../components/UIComponents';
 import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
 import { StudyGroups } from '../components/StudyGroups';
@@ -49,7 +48,7 @@ export const SubjectWorkspace: React.FC = () => {
   // Load consolidated subjects state so added/edited subjects exist here
   const [subjects, setSubjects] = useState<Subject[]>(() => {
     const saved = localStorage.getItem('prep_subjects');
-    return saved ? JSON.parse(saved) : MOCK_SUBJECTS;
+    return saved ? JSON.parse(saved) : [];
   });
 
   // Subjects from the account (e.g. shared with you through a group) aren't in this browser's list.
@@ -91,119 +90,20 @@ export const SubjectWorkspace: React.FC = () => {
   const userName = localStorage.getItem('userName') || 'Scholar';
   const profilePic = localStorage.getItem('profilePic') || '';
 
-  // High fidelity default study notes based on course topic
-  const getDefaultSyllabusNotes = (subjectName: string) => {
-    if (subjectName.includes("Math")) {
-      return `LECTURE NOTES: Advanced Calculus & Integration Principles
-Course weight: Major Final Course
-
-Section 1: Core Theorems
-1. Rolle's Theorem: If f is continuous on [a, b] and differentiable on (a, b), and f(a) = f(b), then there exists a c in (a, b) such that f'(c) = 0.
-2. Mean Value Theorem (MVT): If f(x) is continuous on [a, b] and differentiable on (a, b), then f'(c) = (f(b) - f(a)) / (b - a).
-3. Fundamental Theorem of Calculus: Connecting differentiation and integration.
-
-Section 2: Multi-Variable Double Integrals
-Double integrals over generic regions are computed using iterated integrals. Switching limits using Fubini's theorem:
-Integrate with respect to x first, then y. If the boundary curves are algebraic (e.g., y = x^2), polar coordinate coordinates (r, theta) are highly optimal where dA = r dr dtheta.
-
-Section 3: Infinite Series Convergence limits
-- Geometric Series converges if |r| < 1.
-- Ratio Test: L = lim |a_{n+1}/a_n|. Converges if L < 1, diverges if L > 1.
-- Taylor Series Expansion: f(x) = sum [f^(n)(a) / n!] * (x - a)^n.`;
-    }
-    if (subjectName.includes("Computer") || subjectName.includes("Science")) {
-      return `LECTURE NOTES: Computer Systems Framework & Algorithmic Analysis
-Course weight: Core Technical
-
-Section 1: Data Structures
-1. Linked Lists vs Arrays: Arrays offer O(1) random index access but O(N) insertion in random offsets. Linked lists offer O(1) pointer updates but require O(N) sequential search patterns.
-2. Binary Search Trees (BST): Left children hold lower keys, right children hold greater keys. Average search complexity is O(log N). Worst case degenerates to O(N) if tree is un-balanced.
-3. Hash Tables: Key-value mapped configurations mapping key inputs using standard hash divisions. Solves collisions using chaining loops or open addressing.
-
-Section 2: Master Algorithmic Complexity (Big O)
-Big O represents the asymptotic upperbound on running time or memory:
-- Bubble Sort and Insertion Sort: O(N^2)
-- Merge Sort and Quick Sort: O(N log N)
-- Binary Search algorithms: O(log N)`;
-    }
-    if (subjectName.includes("Physics")) {
-      return `LECTURE NOTES: General Electromagnetism and Coulombic Waves
-Course weight: Lab Science Core
-
-Section 1: Electrostatic forces
-1. Coulomb's Law: The force F between point charges q1, q2 is proportional to the values and inversely proportional to the square of physical distance: F = k * (q1*q2)/r^2.
-2. Gauss's Law: Int[ E * dA ] = Q_enclosed / epsilon_0.
-3. Capacitors: Devices storing electro-potential charges in dual metal planes. C = Q/V. Standard parallel configurations have C = (epsilon * A)/d.
-
-Section 2: DC Circuits & Kirchhoff Laws
-- KCL (Current Law): The sum of incoming currents in any circuit junction is exactly equal to outgoing sums. (Conservation of charge).
-- KVL (Voltage Law): The sum of net voltage drops across any closed loop equals exactly zero. (Conservation of energy).`;
-    }
-    return `LECTURE NOTES: Foundations & Core Syllabi review
-Subject: ${subjectName}
-
-Section 1: Core Paradigms
-- Comprehensive historical analysis of methodologies.
-- Comparative reviews of standard practices versus contemporary iterations.
-- Analyzing regional, administrative, and strategic configurations.
-
-Section 2: Practice applications
-- Practical case analyses on implementation.
-- Standard formulas, system workflows, and structural dependencies.
-- Analyzing common failures and optimization thresholds.`;
-  };
-
   // State Management
   const [generatedSummary, setGeneratedSummary] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [loadedFiles, setLoadedFiles] = usePersistentState<{name: string, content: string, date: string}[]>(`ip_files_${id}`, () => [
-    { name: `Sample notes – ${subject?.name ?? 'this subject'}.txt`, content: getDefaultSyllabusNotes(subject?.name || ''), date: "Sample" }
-  ]);
+  const [loadedFiles, setLoadedFiles] = usePersistentState<{name: string, content: string, date: string}[]>(`ip_files_${id}`, () => []);
 
   // Flashcards state
-  const [flashcards, setFlashcards] = usePersistentState<Flashcard[]>(`ip_cards_${id}`, () => {
-    // Generate some mock topic specific flashcards initially
-    const subName = subject?.name || '';
-    if (subName.includes("Math")) {
-      return [
-        { id: 'mat-1', front: "What is the derivative of x * sin(x)?", back: "sin(x) + x*cos(x) using the Product Rule f'g + fg'", mastered: false },
-        { id: 'mat-2', front: "What is Taylor Series Expansion for e^x?", back: "1 + x + x^2/2! + x^3/3! + ...", mastered: false },
-        { id: 'mat-3', front: " Fubini's Theorem parameter", back: "Allows switching order of double integration boundaries over continuous areas.", mastered: true }
-      ];
-    }
-    if (subName.includes("Computer")) {
-      return [
-        { id: 'cs-1', front: "What is Binary Search time complexity?", back: "O(log N)", mastered: false },
-        { id: 'cs-2', front: "Difference between Stack and Queue?", back: "Stack is Last-In First-Out (LIFO); Queue is First-In First-Out (FIFO)", mastered: false },
-        { id: 'cs-3', front: "Average sorting cost for Merge Sort?", back: "O(N log N) in all scenarios", mastered: true }
-      ];
-    }
-    return MOCK_FLASHCARDS;
-  });
+  const [flashcards, setFlashcards] = usePersistentState<Flashcard[]>(`ip_cards_${id}`, () => []);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
 
   // Quiz state
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>(() => {
-    const subName = subject?.name || '';
-    if (subName.includes("Math")) {
-      return [
-        { id: 'qm-1', question: "What represents Rolle's Theorem requirement under continuous [a, b] limits?", options: ["f(a) must equal f(b)", "f'(a) = f'(b)", "Interval has to cross zero value", "Integral equals 1"], correctIndex: 0 },
-        { id: 'qm-2', question: "What is the result of integrating cos(2x) dx?", options: ["sin(2x) + C", "0.5 * sin(2x) + C", "-0.5 * sin(2x) + C", "-2 * sin(2x)"], correctIndex: 1 },
-        { id: 'qm-3', question: "Which test confirms geometric series convergence parameters?", options: ["Ratio test only", "Asymptotic bound checking", "Checking whether absolute common ratio |r| < 1", "Root evaluation"], correctIndex: 2 }
-      ];
-    }
-    if (subName.includes("Computer")) {
-      return [
-        { id: 'qc-1', question: "Which search algorithm holds O(log N) worst efficiency limits?", options: ["Linear Search", "Binary Search over sorted data", "Depth First Search", "Breadth First Search"], correctIndex: 1 },
-        { id: 'qc-2', question: "What happens if a Binary Search Tree degenerates to a single sorted sequential chain?", options: ["Complexity is still O(log N)", "Complexity improves to O(1)", "Complexity decays to O(N)", "Stack overflow"], correctIndex: 2 },
-        { id: 'qc-3', question: "Which sorting algorithm is guaranteed to execute O(N log N) in worst case?", options: ["Quick Sort", "Bubble Sort", "Merge Sort", "Insertion Sort"], correctIndex: 2 }
-      ];
-    }
-    return MOCK_QUIZ;
-  });
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [quizActive, setQuizActive] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -225,8 +125,8 @@ Section 2: Practice applications
   // Kanban and Moodboard state
   // Plan, moodboard and reminders persist per subject through the shared store (Nova writes there too)
   const storeId = id ?? GLOBAL_SUBJECT;
-  const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(() => loadItems('tasks', storeId, MOCK_KANBAN));
-  const [moodNotes, setMoodNotes] = useState<StickyNote[]>(() => loadItems('notes', storeId, MOCK_NOTES));
+  const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(() => loadItems('tasks', storeId));
+  const [moodNotes, setMoodNotes] = useState<StickyNote[]>(() => loadItems('notes', storeId));
 
   // Account subjects use the planner and board shared with their groups; others stay in this browser.
   const isAccountSubject = isAccountSubjectId(storeId);
@@ -792,6 +692,10 @@ Section 2: Practice applications
 
   // Start exam mode
   const startExamModeSession = () => {
+    if (quizQuestions.length === 0) {
+      notify('Generate a quiz first; the timed exam uses its questions.', 'info');
+      return;
+    }
     setSelectedExamAnswers({});
     setExamTimeLeft(600); // 10 minutes session
     setExamFeedbackText('');
@@ -1583,6 +1487,10 @@ Section 2: Practice applications
                           }
                           if (isAccountSubject) {
                             openLatestSavedQuiz();
+                            return;
+                          }
+                          if (quizQuestions.length === 0) {
+                            notify('Generate a quiz from your notes or a topic first.', 'info');
                             return;
                           }
                           setQuizActive(true);

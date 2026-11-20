@@ -71,6 +71,11 @@ def create_app() -> FastAPI:
     settings = get_settings()
     if settings.database_url == "local" and settings.environment != "local":
         raise RuntimeError("DATABASE_URL=local is only for ENVIRONMENT=local.")
+    if missing := settings.missing_for_deploy():
+        raise RuntimeError(
+            f"ENVIRONMENT={settings.environment} needs these settings: {', '.join(missing)}. "
+            "See LAUNCH.md."
+        )
     app = FastAPI(
         title="IntelliPrep AI API",
         version="0.1.0",

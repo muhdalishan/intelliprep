@@ -9,10 +9,12 @@ import { About, NotFound, Privacy, Terms } from './pages/InfoPages';
 import { JarvisChat } from './components/JarvisChat';
 import { NovaAssistant } from './components/NovaAssistant';
 import { FeedbackHost } from './components/Feedback';
+import { useAuth } from './services/authService';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const isAuth = localStorage.getItem('isAuthenticated') === 'true';
-  return isAuth ? <>{children}</> : <Navigate to="/" replace />;
+  const { ready, signedIn } = useAuth();
+  if (!ready) return <div className="min-h-screen bg-[#fafbff] dark:bg-slate-950" aria-busy="true" />;
+  return signedIn ? <>{children}</> : <Navigate to="/" replace />;
 };
 
 // A fresh workspace per subject, so one subject's state never carries into another.
@@ -24,7 +26,7 @@ const SubjectRoute: React.FC = () => {
 // The tutor chat and Nova belong to the signed-in app, not the landing page.
 const Assistants: React.FC = () => {
   const { pathname } = useLocation();
-  const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+  const { signedIn: isAuth } = useAuth();
   const publicPages = ['/', '/about', '/privacy', '/terms'];
   if (!isAuth || publicPages.includes(pathname)) return null;
   return (
