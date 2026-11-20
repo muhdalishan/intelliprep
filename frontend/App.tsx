@@ -28,6 +28,8 @@ const Assistants: React.FC = () => {
   const { signedIn: isAuth } = useAuth();
   const publicPages = ['/', '/about', '/privacy', '/terms'];
   if (!isAuth || publicPages.includes(pathname)) return null;
+  // Group chats have their own message box; Nova stays out of the way there.
+  if (pathname.startsWith('/groups')) return null;
   return <NovaAssistant />;
 };
 
