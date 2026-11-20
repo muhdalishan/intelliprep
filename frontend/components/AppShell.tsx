@@ -41,9 +41,9 @@ const NAV = [
 ];
 
 const itemClass = (active: boolean) => cn(
-  'flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium transition-colors',
+  'flex h-8 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors duration-150',
   active
-    ? 'bg-gray-200/70 text-gray-900 dark:bg-white/[.07] dark:text-white'
+    ? 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-inset ring-black/[.06] dark:bg-white/[.07] dark:text-white dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-white/[.06]'
     : 'text-gray-600 hover:bg-gray-200/50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.04] dark:hover:text-gray-100'
 );
 
@@ -66,7 +66,7 @@ const Sidebar: React.FC<SidebarProps> = ({ context, onNavigate }) => {
 
   return (
     <div className="flex h-full flex-col px-2.5 py-3">
-      <div className="mb-3 flex items-center justify-between px-1.5">
+      <div className="mb-4 flex h-8 items-center justify-between px-1">
         <button onClick={() => go('/dashboard')} className="flex min-w-0 items-center gap-2 rounded-md py-1 pr-2" aria-label="IntelliPrep AI dashboard">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary-600 text-white">
             <GraduationCap className="h-3.5 w-3.5" />
@@ -92,8 +92,8 @@ const Sidebar: React.FC<SidebarProps> = ({ context, onNavigate }) => {
         ))}
       </nav>
 
-      <div className="mt-5 min-h-0 flex-1 overflow-y-auto no-scrollbar">
-        <p className="mb-1 px-2.5 text-xs font-medium text-gray-500 dark:text-gray-500">Subjects</p>
+      <div className="mt-6 min-h-0 flex-1 overflow-y-auto no-scrollbar">
+        <p className="mb-2 px-2.5 text-xs font-medium text-gray-500">Subjects</p>
         {subjects.length === 0 && (
           <button onClick={() => go('/dashboard?new=1')} className="px-2.5 py-1.5 text-left text-[13px] text-gray-500 hover:text-gray-900 dark:hover:text-gray-200">
             Add your first subject
@@ -120,7 +120,7 @@ const Sidebar: React.FC<SidebarProps> = ({ context, onNavigate }) => {
           <Settings className="h-4 w-4 shrink-0 opacity-80" />
           Settings
         </NavLink>
-        <DevStudentSwitcher className="w-full justify-center" />
+        <DevStudentSwitcher className="w-full" />
         <div className="flex items-center gap-2 px-1">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-xs font-semibold text-gray-700 dark:bg-white/10 dark:text-gray-200">
             {profilePic ? <img src={profilePic} alt="" className="h-full w-full object-cover" /> : userName.charAt(0).toUpperCase()}

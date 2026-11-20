@@ -108,7 +108,7 @@ ${action.content}` : (action.content || action.title);
       }
     }
     if (action.type === "open_section" && action.section) {
-      destination = action.section === "dashboard" || !subjectId
+      destination = action.section === "studyroom" ? "/groups" : action.section === "dashboard" || !subjectId
         ? "/dashboard"
         : `/subject/${subjectId}?tab=${action.section}`;
     }
