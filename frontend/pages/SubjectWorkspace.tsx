@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote } from '../types';
 import { Button, Card, cn, Input, ProgressBar, Badge, SoonBadge } from '../components/UIComponents';
+import { AppShell, ContextItem } from '../components/AppShell';
 import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
 import { StudyGroups } from '../components/StudyGroups';
 import { useSharedBoard } from '../hooks/useSharedBoard';
@@ -742,104 +743,44 @@ export const SubjectWorkspace: React.FC = () => {
 
 
 
+  const studiedDays = studyDaysThisWeek();
+  const sectionNav = (
+    <div className="space-y-0.5 py-0.5">
+      {sections.map(section => (
+        <ContextItem
+          key={section.id}
+          icon={section.icon}
+          label={section.label}
+          active={activeSection.id === section.id}
+          badge={section.id === 'practice' ? weakTopics.length : undefined}
+          onClick={() => openSection(section)}
+        />
+      ))}
+      <p className="px-2.5 pt-2 text-[11px] text-gray-500" title="Days you studied this week, from your activity">
+        Studied {studiedDays} of {Number(localStorage.getItem('goal_days') || 5)} days this week
+      </p>
+    </div>
+  );
+
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden font-sans">
-
-      {/* 1. Left Vertical Action Sidebar */}
-      <aside className="hidden md:flex w-18 lg:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-col z-20">
-
-        {/* Course Return banner */}
-        <button
-          className="p-4 flex w-full items-center gap-3 border-b border-gray-200 dark:border-gray-700 h-16 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
-          onClick={() => navigate('/dashboard')}
-          aria-label="Back to dashboard"
-        >
-          <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500">
-            <ArrowLeft className="w-5 h-5" />
-          </div>
-          <div className="hidden lg:block truncate">
-            <span className="block text-[10px] text-gray-400 font-extrabold uppercase leading-none">Back</span>
-            <span className="font-extrabold text-base text-primary-900 dark:text-white leading-tight truncate block">{subject.name}</span>
-          </div>
-        </button>
-
-        {/* Tab List */}
-        <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2.5 no-scrollbar">
-          {sections.map(section => (
-            <button
-              key={section.id}
-              onClick={() => openSection(section)}
-              title={section.label}
-              aria-label={section.label}
-              aria-current={activeSection.id === section.id ? 'page' : undefined}
-              className={cn(
-                "w-full flex items-center gap-3 px-3.5 py-3 rounded-xl transition-all duration-200 group relative",
-                activeSection.id === section.id
-                  ? "bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300 font-bold shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-50/50 dark:hover:bg-gray-700/60"
-              )}
-            >
-              <section.icon className={cn("w-5 h-5 transition-colors", activeSection.id === section.id ? "text-primary-600 dark:text-primary-400" : "text-gray-400 group-hover:text-primary-500")} />
-              <span className="font-medium text-xs lg:text-sm hidden lg:block leading-none">{section.label}</span>
-
-              {/* Weak topics waiting, shown on Practice */}
-              {section.id === 'practice' && weakTopics.length > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 w-4.5 h-4.5 rounded-full bg-orange-500 text-white font-extrabold flex items-center justify-center text-[10px] animate-pulse">
-                  {weakTopics.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* Study days in the last week, from real activity */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 hidden lg:block bg-gray-50/50 dark:bg-gray-800/40">
-          <div className="bg-primary-900 rounded-xl p-3.5 text-white shadow-inner relative overflow-hidden">
-            <p className="text-[10px] uppercase font-bold text-primary-200 leading-none">Study goal this week</p>
-            <div className="flex justify-between items-baseline mt-1.5 mb-1 text-xs">
-              <span className="font-black text-sm">{studyDaysThisWeek()} of {Number(localStorage.getItem('goal_days') || 5)} days</span>
-              <span className="opacity-80">studied</span>
-            </div>
-            <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-white h-full" style={{ width: `${Math.min(100, Math.round((studyDaysThisWeek() / Number(localStorage.getItem('goal_days') || 5)) * 100))}%` }}></div>
-            </div>
-          </div>
+    <AppShell
+      context={sectionNav}
+      bodyClassName="flex flex-col overflow-hidden"
+      title={
+        <div className="flex min-w-0 items-center gap-1.5">
+          <button onClick={() => navigate('/dashboard')} className="hidden shrink-0 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 sm:inline">Subjects</button>
+          <span className="hidden text-gray-400 sm:inline">/</span>
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", subject.color)} />
+          <span className="truncate">{subject.name}</span>
+          <span className="hidden truncate text-xs font-normal text-gray-500 md:inline">· {subject.teacher || 'No instructor added'} · {subject.credits} credits</span>
         </div>
-      </aside>
-
-      {/* 2. Main Module Viewer Space / Header */}
-      <main className="flex-1 min-w-0 min-h-0 flex flex-col h-full overflow-hidden relative">
-
-        {/* Wide Header Info */}
-        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 px-4 md:px-8 z-10">
-          <div className="flex min-w-0 items-center gap-3">
-            <button onClick={() => navigate('/dashboard')} className="-ml-1 rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden" aria-label="Back to dashboard">
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div className={cn("w-3 h-3 shrink-0 rounded-full", subject.color)}></div>
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-extrabold text-gray-900 dark:text-white leading-tight">
-                {subject.name} <span className="hidden text-xs text-gray-400 font-normal sm:inline">· {subject.credits} credit hours</span>
-              </h1>
-              <p className="truncate text-xs text-gray-500 font-medium">{subject.teacher ? `Instructor: ${subject.teacher}` : 'No instructor added'}</p>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-4">
-            <div className="hidden items-center gap-2 bg-[#ccfbf1] text-[#0f172a] dark:bg-primary-900/50 dark:text-primary-100 px-3 py-1 rounded-full text-xs font-bold border border-transparent sm:flex" title="Days in a row you've studied">
-              <Flame className="w-4 h-4 text-[#0b957f]" /> {studyStreak()}-day streak
-            </div>
-
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary-500 to-primary-700 flex items-center justify-center text-white font-bold text-xs overflow-hidden">
-              {profilePic ? (
-                <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                userName.charAt(0).toUpperCase()
-              )}
-            </div>
-          </div>
-        </header>
-
+      }
+      actions={
+        <span className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 dark:border-white/[.08] dark:text-gray-300" title="Days in a row you've studied">
+          <Flame className="h-3.5 w-3.5 text-orange-500" /> <span>{studyStreak()}<span className="hidden sm:inline">-day streak</span></span>
+        </span>
+      }
+    >
         {/* 3. Deep Focus High-Stakes Exam Mode Screen Overlay (Takes full height/width) */}
         {activeTab === 'exam' && examActive && (
           <div className="absolute inset-0 z-[100] bg-gray-950 text-white flex flex-col animate-in fade-in duration-300">
@@ -930,7 +871,7 @@ export const SubjectWorkspace: React.FC = () => {
         )}
 
         {activeSection.tabs.length > 1 && (
-          <div className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800 md:px-8 no-scrollbar" role="tablist" aria-label={activeSection.label}>
+          <div className="flex shrink-0 gap-4 overflow-x-auto border-b border-gray-200 px-4 dark:border-white/[.07] md:px-8 no-scrollbar" role="tablist" aria-label={activeSection.label}>
             {activeSection.tabs.map(tab => (
               <button
                 key={tab.id}
@@ -938,14 +879,14 @@ export const SubjectWorkspace: React.FC = () => {
                 aria-selected={activeTab === tab.id}
                 onClick={() => { setActiveTab(tab.id); setLastQuestionFeedback(null); }}
                 className={cn(
-                  "whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold transition-colors",
+                  "-mb-px whitespace-nowrap border-b-2 py-2.5 text-[13px] font-medium transition-colors",
                   activeTab === tab.id
-                    ? "bg-primary-600 text-white"
-                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                    ? "border-primary-500 text-gray-900 dark:text-white"
+                    : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
                 )}
               >
                 {tab.label}
-                {tab.id === 'weak-topics' && weakTopics.length > 0 && <span className="ml-1.5 rounded-full bg-orange-500 px-1.5 text-[10px] text-white">{weakTopics.length}</span>}
+                {tab.id === 'weak-topics' && weakTopics.length > 0 && <span className="ml-1.5 rounded bg-orange-500/15 px-1.5 text-[11px] text-orange-600 dark:text-orange-400">{weakTopics.length}</span>}
               </button>
             ))}
           </div>
@@ -955,7 +896,7 @@ export const SubjectWorkspace: React.FC = () => {
         <div className={cn(
           "flex-1 min-h-0 relative w-full flex flex-col overflow-y-auto",
           activeTab === 'studyroom' ? "" : "ip-content p-4 md:p-8",
-          "pb-40 md:pb-28"
+          "pb-40 lg:pb-28"
         )}>
 
           {/* TAB 4.1: OVERVIEW: real numbers for this subject and what to do next */}
@@ -1961,9 +1902,8 @@ export const SubjectWorkspace: React.FC = () => {
 
         </div>
 
-      </main>
 
-      <nav className="ip-safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 md:hidden" aria-label="Subject sections">
+      <nav className="ip-safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white/90 backdrop-blur-xl dark:border-white/[.07] dark:bg-gray-950/90 lg:hidden" aria-label="Subject sections">
         {sections.map(section => (
           <button
             key={section.id}
@@ -2049,6 +1989,6 @@ export const SubjectWorkspace: React.FC = () => {
         </div>
       )}
 
-    </div>
+    </AppShell>
   );
 };

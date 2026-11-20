@@ -96,7 +96,7 @@ export const Auth: React.FC = () => {
       title: "AI Summaries",
       description: "Turn long lecture PDFs into short, structured notes, taken only from what you uploaded.",
       illustration: (
-        <div className="h-32 w-full border-b border-slate-100 dark:border-slate-800/80 bg-blue-50/40 dark:bg-blue-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-blue-100/60 dark:group-hover:bg-blue-900/30 transition-colors">
+        <div className="h-32 w-full border-b border-slate-100 dark:border-slate-800/80 bg-blue-50/40 dark:bg-white/[.02] flex items-center justify-center overflow-hidden relative group-hover:bg-blue-100/60 dark:group-hover:bg-white/[.04] transition-colors">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
           <div className="relative w-36 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-3 transform transition-transform duration-500 group-hover:-translate-y-1">
@@ -125,7 +125,7 @@ export const Auth: React.FC = () => {
       title: "Practice Quizzes",
       description: "Multiple-choice questions from your notes, with explanations and a list of what you got wrong.",
       illustration: (
-        <div className="h-32 w-full border-b border-emerald-100 dark:border-emerald-800/80 bg-emerald-50/40 dark:bg-emerald-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-emerald-100/60 dark:group-hover:bg-emerald-900/30 transition-colors">
+        <div className="h-32 w-full border-b border-emerald-100 dark:border-white/[.07] bg-emerald-50/40 dark:bg-white/[.02] flex items-center justify-center overflow-hidden relative group-hover:bg-emerald-100/60 dark:group-hover:bg-white/[.04] transition-colors">
           <div className="relative w-40 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-3 transform transition-transform duration-500 group-hover:translate-x-1">
             <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded w-24 mb-3"></div>
             <div className="space-y-2">
@@ -152,7 +152,7 @@ export const Auth: React.FC = () => {
       title: "Flashcards",
       description: "Cards made from your notes. Flip them, mark what you know, and come back to the rest.",
       illustration: (
-        <div className="h-32 w-full border-b border-amber-100 dark:border-amber-800/80 bg-amber-50/40 dark:bg-amber-950/20 flex items-center justify-center overflow-hidden relative perspective-1000 group-hover:bg-amber-100/60 dark:group-hover:bg-amber-900/30 transition-colors">
+        <div className="h-32 w-full border-b border-amber-100 dark:border-white/[.07] bg-amber-50/40 dark:bg-white/[.02] flex items-center justify-center overflow-hidden relative perspective-1000 group-hover:bg-amber-100/60 dark:group-hover:bg-white/[.04] transition-colors">
           <div className="relative w-32 h-20 transform-style-3d transition-transform duration-700 group-hover:rotate-y-180">
             {/* Front of card */}
             <div className="absolute inset-0 backface-hidden bg-white dark:bg-slate-800 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center p-3">
@@ -173,7 +173,7 @@ export const Auth: React.FC = () => {
       title: "Exam Predictions",
       description: "See which topics are most likely to come, with sample questions and an answer outline for each.",
       illustration: (
-        <div className="h-32 w-full border-b border-indigo-100 dark:border-indigo-800/80 bg-indigo-50/40 dark:bg-indigo-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-indigo-100/60 dark:group-hover:bg-indigo-900/30 transition-colors">
+        <div className="h-32 w-full border-b border-indigo-100 dark:border-white/[.07] bg-indigo-50/40 dark:bg-white/[.02] flex items-center justify-center overflow-hidden relative group-hover:bg-indigo-100/60 dark:group-hover:bg-white/[.04] transition-colors">
           <div className="relative w-40 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 transform transition-transform duration-500 group-hover:-translate-y-1">
             <div className="flex items-end gap-2 h-12 mb-2 items-baseline">
               <div className="w-1/4 bg-indigo-200 dark:bg-indigo-900/50 rounded-t h-4 transition-all duration-700 group-hover:h-6"></div>
@@ -195,7 +195,7 @@ export const Auth: React.FC = () => {
       title: "Nova, your study assistant",
       description: "One assistant to type or talk to: step-by-step explanations, quick quizzes, and reminders, notes and tasks. Say “Hey Nova” to go hands-free.",
       illustration: (
-        <div className="h-32 w-full border-b border-violet-100 dark:border-violet-800/80 bg-violet-50/40 dark:bg-violet-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-violet-100/60 dark:group-hover:bg-violet-900/30 transition-colors">
+        <div className="h-32 w-full border-b border-violet-100 dark:border-white/[.07] bg-violet-50/40 dark:bg-white/[.02] flex items-center justify-center overflow-hidden relative group-hover:bg-violet-100/60 dark:group-hover:bg-white/[.04] transition-colors">
           <div className="flex gap-2 transform transition-transform duration-500 group-hover:scale-105">
             <div className="w-12 bg-white dark:bg-slate-800 rounded shadow-sm border border-slate-200 dark:border-slate-700 p-1.5 flex flex-col gap-1.5">
               <div className="h-1.5 w-6 bg-slate-300 dark:bg-slate-600 rounded"></div>
@@ -218,7 +218,7 @@ export const Auth: React.FC = () => {
       title: "Study Groups",
       description: "Invite classmates with a code, share subjects, plan together and chat while you prepare.",
       illustration: (
-         <div className="h-32 w-full border-b border-rose-100 dark:border-rose-800/80 bg-rose-50/40 dark:bg-rose-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-rose-100/60 dark:group-hover:bg-rose-900/30 transition-colors">
+         <div className="h-32 w-full border-b border-rose-100 dark:border-white/[.07] bg-rose-50/40 dark:bg-white/[.02] flex items-center justify-center overflow-hidden relative group-hover:bg-rose-100/60 dark:group-hover:bg-white/[.04] transition-colors">
           <div className="w-40 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 transform transition-transform duration-500 group-hover:-translate-y-1">
             <div className="flex justify-between items-center mb-3">
               <div className="flex -space-x-1.5">
@@ -265,8 +265,6 @@ export const Auth: React.FC = () => {
 
       {/* Background Gradients matching image */}
       <div className="absolute top-0 inset-x-0 h-[800px] pointer-events-none -z-10 bg-gradient-to-br from-teal-50/50 via-white to-primary-50 dark:from-slate-950 dark:via-slate-950 dark:to-primary-950/20" />
-      <div className="absolute top-1/4 -right-60 w-[600px] h-[600px] rounded-full bg-primary-100/50 dark:bg-primary-950/20 blur-[130px] pointer-events-none -z-10" />
-      <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-teal-100/40 dark:bg-teal-950/20 blur-[130px] pointer-events-none -z-10" />
 
       {/* 1. Header component */}
       <header className={`sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-300 ${scrolled ? "border-slate-200/60 bg-white/75 backdrop-blur-xl backdrop-saturate-150 dark:border-slate-800/60 dark:bg-slate-950/70" : "border-transparent bg-transparent"}`}>
@@ -303,15 +301,10 @@ export const Auth: React.FC = () => {
 
           {/* Hero text side */}
           <div className="lg:col-span-5 space-y-7 text-left xl:pr-10">
-            {/* Tag */}
-            <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 text-[11.5px] font-bold tracking-wide">
-              AI exam prep from your own notes
-            </div>
-
             {/* Display Headline */}
-            <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.05]">
+            <h1 className="text-5xl sm:text-6xl xl:text-7xl font-semibold text-slate-900 dark:text-white tracking-[-0.035em] leading-[1.02]">
               Study smarter.<br />
-              <span className="text-primary-600 dark:text-primary-400">Score higher.</span>
+              <span className="text-gray-400 dark:text-gray-500">Score higher.</span>
             </h1>
 
             <p className="text-base sm:text-[1.05rem] text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
@@ -431,7 +424,6 @@ export const Auth: React.FC = () => {
             <h2 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight leading-tight">
               Everything you need to excel
             </h2>
-            <div className="w-20 h-1 bg-slate-350 dark:bg-slate-800 mx-auto mt-3.5 rounded-full"></div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -473,7 +465,6 @@ export const Auth: React.FC = () => {
             <h2 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight leading-tight">
               How it works
             </h2>
-            <div className="w-20 h-1 bg-slate-350 dark:bg-slate-800 mx-auto mt-3.5 rounded-full animate-pulse"></div>
           </div>
 
           {/* Flowchart Container */}
@@ -520,7 +511,6 @@ export const Auth: React.FC = () => {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             Ready to ace your exams?
           </h2>
-          <div className="w-20 h-1 bg-slate-750 mx-auto rounded-full"></div>
 
           <div className="flex justify-center items-center gap-3 pt-4">
             <button
@@ -618,8 +608,7 @@ export const Auth: React.FC = () => {
               <h3 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight">
                 {settingPassword ? 'Choose a new password' : isLogin ? 'Sign in to IntelliPrep AI' : 'Join IntelliPrep AI'}
               </h3>
-              <div className="w-16 h-1 bg-[#14b8a6]/70 rounded-full"></div>
-            </div>
+              </div>
 
             {!settingPassword && (<>
             {/* Continue with Google button */}

@@ -1,24 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Camera, Moon, Sun, Bell, AudioLines, User, ShieldAlert, Target } from 'lucide-react';
-import { AppTopBar } from '../components/AppTopBar';
+import { AppShell } from '../components/AppShell';
+import { useTheme } from '../services/theme';
 import { Button, Card, Input, SoonBadge, cn } from '../components/UIComponents';
-import { DevStudentSwitcher } from '../components/DevStudentSwitcher';
 import { NotificationPreferences, getPreferences, telegramLink, updatePreferences } from '../services/reminderService';
 import { confirmAction, notify } from '../components/Feedback';
 
 const Section: React.FC<{ icon: React.ElementType; title: string; description?: string; children: React.ReactNode }> = ({ icon: Icon, title, description, children }) => (
-  <Card className="border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-    <div className="mb-5 flex items-start gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-950/40 dark:text-primary-300">
-        <Icon className="h-5 w-5" />
-      </span>
+  <section className="border-t border-gray-200 py-7 first:border-t-0 first:pt-0 dark:border-white/[.07]">
+    <div className="mb-4 flex items-start gap-2.5">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
       <div>
-        <h2 className="text-base font-extrabold text-slate-900 dark:text-white">{title}</h2>
-        {description && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>}
+        <h2 className="text-[15px] font-semibold text-gray-900 dark:text-white">{title}</h2>
+        {description && <p className="mt-0.5 text-[13px] text-gray-500 dark:text-gray-400">{description}</p>}
       </div>
     </div>
-    <div className="space-y-4">{children}</div>
-  </Card>
+    <div className="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-white/[.07]">{children}</div>
+  </section>
 );
 
 const Row: React.FC<{ label: React.ReactNode; hint?: string; children: React.ReactNode }> = ({ label, hint, children }) => (
@@ -57,7 +55,8 @@ export const Settings: React.FC = () => {
   const email = localStorage.getItem('userEmail') || '';
 
   const [goalDays, setGoalDays] = useState(() => Number(localStorage.getItem('goal_days') || 5));
-  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+  const { theme, setTheme: applyTheme } = useTheme();
+  const dark = theme === 'dark';
   const [novaName, setNovaName] = useState(() => localStorage.getItem('nova_name') || 'Nova');
   const [wake, setWake] = useState(() => localStorage.getItem('nova_wake') === 'true');
   const [voiceReplies, setVoiceReplies] = useState(() => localStorage.getItem('nova_muted') !== 'true');
@@ -118,11 +117,7 @@ export const Settings: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const setTheme = (isDark: boolean) => {
-    setDark(isDark);
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', isDark);
-  };
+  const setTheme = (isDark: boolean) => applyTheme(isDark ? 'dark' : 'light');
 
   const saveNova = (changes: { name?: string; wake?: boolean; voice?: boolean }) => {
     if (changes.name !== undefined) localStorage.setItem('nova_name', changes.name.trim() || 'Nova');
@@ -151,14 +146,12 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafbff] dark:bg-slate-950">
-      <AppTopBar />
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 max-md:pb-32 sm:px-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Settings</h1>
+    <AppShell title="Settings">
+      <main className="mx-auto max-w-2xl px-4 py-8 pb-32 sm:px-8">
 
         <Section icon={User} title="Profile" description="How you appear to your study groups.">
           <form onSubmit={saveProfile} className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <label className="relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-full bg-gradient-to-tr from-primary-500 to-teal-500 text-2xl font-black text-white">
+            <label className="relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-full bg-gray-200 text-2xl font-semibold text-gray-700 dark:bg-white/10 dark:text-gray-200">
               {photo ? <img src={photo} alt="Your profile photo" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center">{(name || 'S').charAt(0).toUpperCase()}</span>}
               <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/50 py-1"><Camera className="h-3.5 w-3.5" /></span>
               <input type="file" accept="image/*" className="sr-only" onChange={pickPhoto} aria-label="Change profile photo" />
@@ -253,9 +246,8 @@ export const Settings: React.FC = () => {
           </Row>
         </Section>
 
-        <DevStudentSwitcher />
       </main>
-    </div>
+    </AppShell>
   );
 };
 
