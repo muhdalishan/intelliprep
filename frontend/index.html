@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>IntelliPrep AI: exam prep from your own notes</title>
     <meta name="description" content="Turn your lecture notes and past papers into summaries, flashcards, quizzes and likely exam topics. Study alone or with your class." />
     <meta name="theme-color" content="#0d9488" />
@@ -51,14 +51,88 @@
       body { font-family: "Geist", "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
       ::selection { background: #99f6e4; color: #042f2e; }
 
-      /* Entrance motion for the existing animate-in classes (tabs, modals, panels) */
-      .animate-in { animation: ip-enter .35s cubic-bezier(.16, 1, .3, 1) both; }
+      /* ---- Interaction layer ------------------------------------------------------------
+         Every control answers the hand: a quick press (scale), a calm hover, a visible focus
+         ring for keyboards. Colours come from the existing palette; nothing here recolours. */
+      :root {
+        --ip-ease: cubic-bezier(.22, 1, .36, 1);      /* settles like a spring, no overshoot */
+        --ip-press: cubic-bezier(.3, 0, .5, 1);
+        --ip-ring: #14b8a6;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+      body { caret-color: #0d9488; accent-color: #0d9488; overscroll-behavior-y: none; }
+      input, textarea, select { caret-color: #0d9488; }
+
+      /* Press and hover feedback. :where() keeps it below Tailwind utilities, so anything a
+         component already sets (its own transition or active:scale) still wins. */
+      :where(button, [role="button"], a[href], summary, label[for], select) { touch-action: manipulation; }
+      :where(button, [role="button"], a[href], summary) {
+        transition-property: color, background-color, border-color, box-shadow, opacity, filter, scale, translate;
+        transition-duration: .2s;
+        transition-timing-function: var(--ip-ease);
+      }
+      :where(button, [role="button"], summary):not(:disabled):not([class*="active:scale"]):active { scale: .96; transition-duration: .08s; transition-timing-function: var(--ip-press); }
+      :where(a[href]):active { opacity: .7; transition-duration: .08s; }
+      @media (hover: hover) {
+        :where(button, [role="button"]):not(:disabled):hover { filter: brightness(1.04) saturate(1.04); }
+      }
+      :where(button, [role="button"]):disabled { cursor: not-allowed; }
+
+      /* Clickable cards (subject cards, saved items): lift on hover, sink on press. */
+      :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift) {
+        transition: box-shadow .25s var(--ip-ease), translate .25s var(--ip-ease), scale .12s var(--ip-press), border-color .2s var(--ip-ease);
+      }
+      @media (hover: hover) {
+        :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift):hover {
+          translate: 0 -2px;
+          box-shadow: 0 12px 28px -14px rgba(15, 23, 42, .22), 0 2px 6px -2px rgba(15, 23, 42, .06);
+        }
+      }
+      :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift):active { scale: .985; translate: 0 0; }
+
+      /* Fields: the border and ring ease in instead of snapping. */
+      :where(input, textarea, select) { transition: border-color .2s var(--ip-ease), box-shadow .2s var(--ip-ease), background-color .2s var(--ip-ease); }
+
+      /* Keyboard focus, always visible (mouse clicks don't show it). */
+      :where(button, a[href], input, textarea, select, summary, [role="button"], [tabindex]):focus-visible {
+        outline: 2px solid var(--ip-ring);
+        outline-offset: 2px;
+      }
+
+      /* Touch screens: grow small controls' tap area to about 44px without changing their look. */
+      @media (pointer: coarse) {
+        :where(button, [role="button"]):not([class*="absolute"]):not([class*="fixed"]):not([class*="sticky"]) { position: relative; }
+        :where(button, [role="button"])::after { content: ""; position: absolute; inset: -7px; }
+      }
+
+      /* Panels, tabs and sheets open with a short settle; pages cross-fade. */
+      .animate-in { animation: ip-enter .32s var(--ip-ease) both; }
       @keyframes ip-enter { from { opacity: 0; transform: translateY(6px) scale(.99); } }
-      .lift { transition: transform .2s cubic-bezier(.16, 1, .3, 1), box-shadow .2s ease; }
-      .lift:hover { transform: translateY(-3px); }
+      .ip-page { animation: ip-page .28s var(--ip-ease) both; }
+      @keyframes ip-page { from { opacity: 0; } }  /* opacity only: a transform would trap fixed bars */
+      /* The assistant grows out of its button, like an iOS sheet: scale, rise and un-blur. */
+      .ip-sheet { transform-origin: bottom right; animation: ip-sheet .38s var(--ip-ease) both; }
+      @keyframes ip-sheet { from { opacity: 0; transform: translateY(14px) scale(.9); filter: blur(6px); } }
+
+      /* Scrollbars, thin and quiet, from the same greys. */
+      * { scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, .35) transparent; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .35); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+      ::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, .55); }
+      ::-webkit-scrollbar-track { background: transparent; }
+
+      /* Notched phones: bars clear the home indicator. */
+      .ip-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+      /* Very wide screens: tab content keeps a readable width instead of stretching. */
+      .ip-content > * { width: 100%; max-width: 1440px; margin-inline: auto; }
+
       @media (prefers-reduced-motion: reduce) {
-        .animate-in { animation: none; }
-        .lift:hover { transform: none; }
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+        :where(button, [role="button"], summary):active { scale: 1; }
+        :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift):hover { translate: none; }
       }
 
       /* Dark mode: give light-only utility classes a dark counterpart.

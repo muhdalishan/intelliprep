@@ -106,6 +106,27 @@ export const NovaAssistant: React.FC = () => {
   const currentSubjectId = location.pathname.match(/^\/subject\/([^/?]+)/)?.[1] ?? null;
   const [isOpen, setIsOpen] = useState(false);
 
+  // The button steps aside while you scroll down through content, and comes back when you
+  // scroll up or stop, so it never sits on top of what you are reading for long.
+  const [tucked, setTucked] = useState(false);
+  useEffect(() => {
+    const last = new WeakMap<EventTarget, number>();
+    let settle = 0;
+    const onScroll = (event: Event) => {
+      const target = event.target === document ? document.scrollingElement : event.target as HTMLElement;
+      if (!target || !("scrollTop" in target)) return;
+      const top = (target as HTMLElement).scrollTop;
+      const previous = last.get(target) ?? 0;
+      last.set(target, top);
+      if (Math.abs(top - previous) < 4) return;
+      setTucked(top > previous && top > 80);
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => setTucked(false), 1200);
+    };
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => { document.removeEventListener("scroll", onScroll, { capture: true }); window.clearTimeout(settle); };
+  }, []);
+
   // Names of subjects on the account, for "Helping with …" and what-I-did receipts.
   const [accountNames, setAccountNames] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -276,7 +297,7 @@ export const NovaAssistant: React.FC = () => {
     <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
       {isOpen && (
         <div
-          className="mb-4 flex max-md:fixed max-md:inset-x-3 max-md:bottom-[9.5rem] max-md:w-auto h-[min(600px,calc(100dvh-12rem))] md:h-[min(600px,calc(100dvh-8rem))] md:w-[400px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-2xl animate-in dark:border-slate-800/80 dark:bg-slate-900"
+          className="mb-4 flex max-md:fixed max-md:inset-x-3 max-md:bottom-[9.5rem] max-md:w-auto h-[min(600px,calc(100dvh-12rem))] md:h-[min(600px,calc(100dvh-8rem))] md:w-[400px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-2xl ip-sheet dark:border-slate-800/80 dark:bg-slate-900"
           role="dialog"
           aria-label={`${name}, your study assistant`}
         >
@@ -434,7 +455,7 @@ export const NovaAssistant: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-none border border-slate-200/80 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-800">
                       {[0, 150, 300].map(delay => (
-                        <div key={delay} className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500" style={{ animationDelay: `${delay}ms` }} />
+                        <div key={delay} className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" style={{ animationDelay: `${delay}ms` }} />
                       ))}
                     </div>
                   </div>
@@ -483,7 +504,7 @@ export const NovaAssistant: React.FC = () => {
       )}
 
       {/* Launcher */}
-      <div className="group relative">
+      <div className={cn("group relative transition-[transform,opacity] duration-300 ease-[cubic-bezier(.22,1,.36,1)]", tucked && !isOpen && "pointer-events-none translate-y-24 opacity-0")}>
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(

@@ -954,7 +954,7 @@ export const SubjectWorkspace: React.FC = () => {
         {/* 4. Content area. Phones scroll every screen and leave room for the bottom bar. */}
         <div className={cn(
           "flex-1 min-h-0 relative w-full flex flex-col overflow-y-auto",
-          activeTab === 'studyroom' ? "" : "p-4 md:p-8",
+          activeTab === 'studyroom' ? "" : "ip-content p-4 md:p-8",
           "pb-40 md:pb-28"
         )}>
 
@@ -1963,7 +1963,7 @@ export const SubjectWorkspace: React.FC = () => {
 
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 md:hidden" aria-label="Subject sections">
+      <nav className="ip-safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 md:hidden" aria-label="Subject sections">
         {sections.map(section => (
           <button
             key={section.id}
