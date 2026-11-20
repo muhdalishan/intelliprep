@@ -19,6 +19,16 @@ const Section: React.FC<{ icon: React.ElementType; title: string; description?: 
   </section>
 );
 
+type TabId = 'profile' | 'goal' | 'appearance' | 'nova' | 'notifications' | 'account';
+const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'goal', label: 'Study goal', icon: Target },
+  { id: 'appearance', label: 'Appearance', icon: Sun },
+  { id: 'nova', label: 'Nova', icon: AudioLines },
+  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'account', label: 'Account and data', icon: ShieldAlert },
+];
+
 const Row: React.FC<{ label: React.ReactNode; hint?: string; children: React.ReactNode }> = ({ label, hint, children }) => (
   <div className="flex flex-col gap-2 border-t border-slate-100 pt-4 first:border-t-0 first:pt-0 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
     <div>
@@ -49,6 +59,7 @@ const Toggle: React.FC<{ checked: boolean; onChange: (value: boolean) => void; d
 const speechSupported = typeof window !== 'undefined' && Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
 
 export const Settings: React.FC = () => {
+  const [tab, setTab] = useState<TabId>('profile');
   const [name, setName] = useState(() => localStorage.getItem('userName') || '');
   const [photo, setPhoto] = useState(() => localStorage.getItem('profilePic') || '');
   const [saved, setSaved] = useState(false);
@@ -146,9 +157,32 @@ export const Settings: React.FC = () => {
   };
 
   return (
-    <AppShell title="Settings">
-      <main className="mx-auto max-w-2xl px-4 py-8 pb-32 sm:px-8">
+    <AppShell title="Settings" bodyClassName="flex flex-col overflow-hidden md:flex-row">
+      {/* Categories stay put on the left; only the chosen category scrolls on the right. */}
+      <nav className="shrink-0 border-b border-gray-200 dark:border-white/[.07] md:w-60 md:border-b-0 md:border-r" aria-label="Settings">
+        <p className="hidden px-5 pb-2 pt-6 text-xs font-medium text-gray-500 md:block">Settings</p>
+        <div className="flex gap-1 overflow-x-auto p-2 no-scrollbar md:flex-col md:px-3 md:pt-0">
+          {TABS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              aria-current={tab === item.id ? 'page' : undefined}
+              className={cn(
+                "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium transition-colors",
+                tab === item.id
+                  ? "bg-gray-100 text-gray-900 dark:bg-white/[.07] dark:text-white"
+                  : "text-gray-600 hover:bg-gray-100/70 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.04] dark:hover:text-gray-100"
+              )}
+            >
+              <item.icon className="h-4 w-4 shrink-0 opacity-80" /> {item.label}
+            </button>
+          ))}
+        </div>
+      </nav>
+      <main className="min-h-0 flex-1 overflow-y-auto">
+        <div key={tab} className="mx-auto max-w-2xl px-4 py-8 pb-32 animate-in sm:px-8">
 
+        {tab === 'profile' && (
         <Section icon={User} title="Profile" description="How you appear to your study groups.">
           <form onSubmit={saveProfile} className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <label className="relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-full bg-gray-200 text-2xl font-semibold text-gray-700 dark:bg-white/10 dark:text-gray-200">
@@ -166,7 +200,9 @@ export const Settings: React.FC = () => {
             </div>
           </form>
         </Section>
+        )}
 
+        {tab === 'goal' && (
         <Section icon={Target} title="Study goal">
           <Row label="Days a week I want to study" hint="Shown in each subject next to the days you actually studied.">
             <select
@@ -178,7 +214,9 @@ export const Settings: React.FC = () => {
             </select>
           </Row>
         </Section>
+        )}
 
+        {tab === 'appearance' && (
         <Section icon={dark ? Moon : Sun} title="Appearance">
           <Row label="Theme">
             <div className="flex rounded-xl border border-slate-200 p-1 dark:border-slate-700">
@@ -191,7 +229,9 @@ export const Settings: React.FC = () => {
             </div>
           </Row>
         </Section>
+        )}
 
+        {tab === 'nova' && (
         <Section icon={AudioLines} title="Nova, your study assistant" description={speechSupported ? undefined : 'Voice needs Chrome or Edge. You can still type to Nova.'}>
           <Row label="Assistant name" hint="You wake it by saying “Hey” and this name.">
             <Input value={novaName} maxLength={20} className="w-40"
@@ -205,7 +245,9 @@ export const Settings: React.FC = () => {
             <Toggle label="Speak replies" checked={voiceReplies} onChange={value => { setVoiceReplies(value); saveNova({ voice: value }); }} />
           </Row>
         </Section>
+        )}
 
+        {tab === 'notifications' && (
         <Section icon={Bell} title="Notifications">
           <Row label="Reminder pop-ups" hint="Show reminders as desktop notifications while IntelliPrep is open.">
             {notifications === 'granted'
@@ -233,7 +275,9 @@ export const Settings: React.FC = () => {
             <Toggle label="Weekly email" checked={false} disabled onChange={() => {}} />
           </Row>
         </Section>
+        )}
 
+        {tab === 'account' && (
         <Section icon={ShieldAlert} title="Account and data">
           <Row label={<>Change password<SoonBadge /></>} hint="Available when full accounts launch.">
             <Button size="sm" variant="secondary" disabled>Change</Button>
@@ -245,7 +289,9 @@ export const Settings: React.FC = () => {
             <Button size="sm" variant="secondary" onClick={clearDeviceData}>Clear</Button>
           </Row>
         </Section>
+        )}
 
+        </div>
       </main>
     </AppShell>
   );
