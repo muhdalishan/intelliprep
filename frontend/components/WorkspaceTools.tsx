@@ -151,6 +151,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onUpdateTasks, 
 
 const NOTE_SIZE = 176;
 
+// Sticky-note colours. Text on them is always dark, in either theme.
+const NOTE_COLORS = [
+  { value: 'bg-yellow-200', swatch: 'bg-yellow-300', name: 'yellow' },
+  { value: 'bg-orange-200', swatch: 'bg-orange-300', name: 'orange' },
+  { value: 'bg-pink-200', swatch: 'bg-pink-300', name: 'pink' },
+  { value: 'bg-violet-200', swatch: 'bg-violet-300', name: 'violet' },
+  { value: 'bg-blue-200', swatch: 'bg-blue-300', name: 'blue' },
+  { value: 'bg-green-200', swatch: 'bg-green-300', name: 'green' },
+  { value: 'bg-stone-100', swatch: 'bg-stone-200', name: 'paper' },
+];
+
 interface MoodBoardProps {
   notes: StickyNote[];
   onUpdateNotes: (notes: StickyNote[]) => void;
@@ -226,14 +237,26 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ notes, onUpdateNotes }) =>
           )}
           onPointerDown={(e) => handleMouseDown(e, note.id, Math.min(note.x, (boardRef.current?.clientWidth ?? Infinity) - NOTE_SIZE), Math.min(note.y, (boardRef.current?.clientHeight ?? Infinity) - NOTE_SIZE))}
         >
-          <div className="flex justify-between items-start mb-2 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-             <Move className="w-4 h-4 text-gray-600" />
+          <div className="mb-2 flex items-center justify-between gap-1 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+             <Move className="h-4 w-4 shrink-0 text-gray-700 dark:text-gray-700" />
+             {/* Note colour: tap a swatch */}
+             <div className="flex items-center gap-1" onPointerDown={(e) => e.stopPropagation()}>
+               {NOTE_COLORS.map(c => (
+                 <button
+                   key={c.value}
+                   onClick={(e) => { e.stopPropagation(); onUpdateNotes(notes.map(n => n.id === note.id ? { ...n, color: c.value } : n)); }}
+                   className={cn("h-3.5 w-3.5 rounded-full ring-1 ring-black/20 transition-transform hover:scale-110", c.swatch, note.color === c.value && "ring-2 ring-gray-900")}
+                   aria-label={`Make this note ${c.name}`}
+                   title={c.name}
+                 />
+               ))}
+             </div>
              <button
                 onClick={(e) => {
                     e.stopPropagation();
                     onUpdateNotes(notes.filter(n => n.id !== note.id));
                 }}
-                className="text-gray-600 hover:text-red-500"
+                className="shrink-0 text-gray-700 hover:text-red-600 dark:text-gray-700 dark:hover:text-red-600"
                 aria-label="Delete note"
                 onPointerDown={(e) => e.stopPropagation()}
              >
@@ -241,7 +264,7 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ notes, onUpdateNotes }) =>
              </button>
           </div>
           <textarea
-            className="flex-1 w-full min-h-0 bg-transparent resize-none outline-none text-sm text-gray-800 font-medium placeholder-gray-600/50 touch-auto"
+            className="flex-1 w-full min-h-0 bg-transparent resize-none outline-none text-sm font-medium text-gray-900 placeholder-gray-600/50 touch-auto dark:text-gray-900 dark:placeholder-gray-600/60"
             value={note.content}
             onChange={(e) => onUpdateNotes(notes.map(n => n.id === note.id ? { ...n, content: e.target.value } : n))}
             onPointerDown={(e) => e.stopPropagation()} // Allow typing and selecting without dragging
