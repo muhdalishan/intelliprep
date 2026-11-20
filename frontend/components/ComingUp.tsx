@@ -4,18 +4,22 @@ import { formatDue } from '../services/studyStore';
 import { CHANNEL_LABEL, ReminderChannel } from '../services/reminderService';
 import { DashboardData, fetchDashboard } from '../services/dashboardService';
 
-const Column: React.FC<{ icon: React.ElementType; title: string; children: React.ReactNode }> = ({ icon: Icon, title, children }) => (
-  <div className="min-w-0">
-    <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+const Panel: React.FC<{ icon: React.ElementType; title: string; children: React.ReactNode }> = ({ icon: Icon, title, children }) => (
+  <section className="min-w-0 rounded-xl border border-gray-200 p-4 transition-colors hover:border-gray-300 dark:border-white/[.07] dark:hover:border-white/[.12]">
+    <h3 className="mb-3 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
       <Icon className="h-3.5 w-3.5" /> {title}
-    </p>
+    </h3>
     {children}
-  </div>
+  </section>
+);
+
+const Empty: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p className="text-[13px] text-gray-400 dark:text-gray-500">{children}</p>
 );
 
 /**
- * What's next from the server: upcoming reminders, notes being made searchable, the shared
- * planner and top predictions. Hidden when the server can't be reached or there's nothing yet.
+ * The dashboard's side rail, from the server: upcoming reminders, notes being made searchable,
+ * the shared planner and top predictions. Hidden when the server can't be reached.
  */
 export const ComingUp: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -29,69 +33,98 @@ export const ComingUp: React.FC = () => {
   const weakTopics = data.weak_topics ?? 0;
   const lastQuiz = data.recent_quiz_scores?.[0];
   const taskTotal = tasks.todo + tasks.learning + tasks.practiced + tasks.mastered;
-  if (!reminders.length && !documents.length && !taskTotal && !predictions.length && !weakTopics && !lastQuiz) return null;
+  const stages = [
+    { label: 'To study', value: tasks.todo, tone: 'bg-gray-400' },
+    { label: 'Learning', value: tasks.learning, tone: 'bg-amber-500' },
+    { label: 'Practiced', value: tasks.practiced, tone: 'bg-blue-500' },
+    { label: 'Mastered', value: tasks.mastered, tone: 'bg-emerald-500' },
+  ];
 
   return (
-    <section className="grid grid-cols-1 gap-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 md:grid-cols-2 xl:grid-cols-4" aria-label="Coming up">
-      <Column icon={Bell} title="Coming up">
-        {reminders.length === 0 ? <p className="text-xs text-slate-400">No reminders set.</p> : (
-          <ul className="space-y-2">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1" aria-label="Coming up">
+      <Panel icon={Bell} title="Coming up">
+        {reminders.length === 0 ? <Empty>No reminders set. Ask Nova to remind you.</Empty> : (
+          <ul className="space-y-2.5">
             {reminders.slice(0, 3).map(r => (
-              <li key={r.id} className="text-sm">
-                <p className="truncate font-semibold text-slate-800 dark:text-slate-100">{r.message}</p>
-                <p className="text-[11px] text-slate-500">{formatDue(r.due_at)} · {CHANNEL_LABEL[r.channel as ReminderChannel] ?? r.channel}{r.subject_name ? ` · ${r.subject_name}` : ''}</p>
+              <li key={r.id} className="flex gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" />
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{r.message}</p>
+                  <p className="truncate text-xs text-gray-500">{formatDue(r.due_at)} · {CHANNEL_LABEL[r.channel as ReminderChannel] ?? r.channel}{r.subject_name ? ` · ${r.subject_name}` : ''}</p>
+                </div>
               </li>
             ))}
           </ul>
         )}
-      </Column>
+      </Panel>
 
-      <Column icon={FileText} title="Recent notes">
-        {documents.length === 0 ? <p className="text-xs text-slate-400">Nothing uploaded to your account yet.</p> : (
-          <ul className="space-y-1.5">
-            {documents.slice(0, 3).map(d => (
-              <li key={d.id} className="flex items-center gap-1.5 text-sm">
-                {d.status === 'completed' ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                  : d.status === 'failed' ? <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                  : <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary-500" />}
-                <span className="truncate text-slate-700 dark:text-slate-200">{d.filename}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Column>
-
-      <Column icon={Columns} title="Planner and practice">
-        {taskTotal === 0 ? <p className="text-xs text-slate-400">No planner tasks in shared subjects.</p> : (
-          <div className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
-            <p><strong>{tasks.todo}</strong> to study · <strong>{tasks.learning}</strong> learning</p>
-            <p><strong>{tasks.practiced}</strong> practiced · <strong>{tasks.mastered}</strong> mastered</p>
-          </div>
+      <Panel icon={Columns} title="Planner and practice">
+        {taskTotal === 0 ? <Empty>No planner tasks yet.</Empty> : (
+          <>
+            <div className="flex h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/[.06]" aria-hidden="true">
+              {stages.map(stage => stage.value > 0 && (
+                <span key={stage.label} className={stage.tone} style={{ width: `${(stage.value / taskTotal) * 100}%` }} />
+              ))}
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
+              {stages.map(stage => (
+                <div key={stage.label} className="flex items-center gap-1.5 text-xs">
+                  <span className={`h-1.5 w-1.5 rounded-full ${stage.tone}`} />
+                  <dt className="text-gray-500">{stage.label}</dt>
+                  <dd className="ml-auto font-medium tabular-nums text-gray-900 dark:text-gray-100">{stage.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
         )}
         {(weakTopics > 0 || lastQuiz) && (
-          <div className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-200">
-            {weakTopics > 0 && <p><strong>{weakTopics}</strong> weak {weakTopics === 1 ? 'topic' : 'topics'} to review</p>}
+          <div className="mt-3 space-y-1 border-t border-gray-200 pt-3 text-[13px] text-gray-700 dark:border-white/[.07] dark:text-gray-300">
+            {weakTopics > 0 && <p><span className="font-medium text-gray-900 dark:text-white">{weakTopics}</span> weak {weakTopics === 1 ? 'topic' : 'topics'} to review</p>}
             {lastQuiz && (
               <p className="truncate" title={`${lastQuiz.quiz_title} · ${lastQuiz.subject_name}`}>
-                Last quiz <strong>{lastQuiz.score}/{lastQuiz.total}</strong> <span className="text-[11px] text-slate-500">· {lastQuiz.subject_name}</span>
+                Last quiz <span className="font-medium tabular-nums text-gray-900 dark:text-white">{lastQuiz.score}/{lastQuiz.total}</span> <span className="text-xs text-gray-500">· {lastQuiz.subject_name}</span>
               </p>
             )}
           </div>
         )}
-      </Column>
+      </Panel>
 
-      <Column icon={BrainCircuit} title="Likely exam topics">
-        {predictions.length === 0 ? <p className="text-xs text-slate-400">Upload 3 or more past papers to see predictions.</p> : (
+      <Panel icon={BrainCircuit} title="Likely exam topics">
+        {predictions.length === 0 ? <Empty>Upload 3 or more past papers to see predictions.</Empty> : (
+          <ul className="space-y-3">
+            {predictions.slice(0, 4).map(p => {
+              const pct = Math.round(p.confidence * 100);
+              return (
+                <li key={`${p.subject_name}-${p.topic_name}`} title={`${p.topic_name} · ${p.subject_name} · ${pct}%`}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{p.topic_name}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-gray-500">{pct}%</span>
+                  </div>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/[.06]">
+                    <div className="h-full rounded-full bg-primary-500/80" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="mt-1 truncate text-[11px] text-gray-500">{p.subject_name}</p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Panel>
+
+      <Panel icon={FileText} title="Recent notes">
+        {documents.length === 0 ? <Empty>Nothing uploaded to your account yet.</Empty> : (
           <ul className="space-y-1.5">
-            {predictions.slice(0, 3).map(p => (
-              <li key={`${p.subject_name}-${p.topic_name}`} className="text-sm">
-                <span className="font-semibold text-slate-800 dark:text-slate-100">{p.topic_name}</span>
-                <span className="text-[11px] text-slate-500"> · {p.subject_name} · {Math.round(p.confidence * 100)}%</span>
+            {documents.slice(0, 4).map(d => (
+              <li key={d.id} className="flex items-center gap-2 text-[13px]">
+                {d.status === 'completed' ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                  : d.status === 'failed' ? <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                  : <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-primary-500" />}
+                <span className="truncate text-gray-700 dark:text-gray-300">{d.filename}</span>
               </li>
             ))}
           </ul>
         )}
-      </Column>
-    </section>
+      </Panel>
+    </div>
   );
 };

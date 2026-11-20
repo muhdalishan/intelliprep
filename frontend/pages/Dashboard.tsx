@@ -171,10 +171,10 @@ export const Dashboard: React.FC = () => {
   );
 
   const stats = [
-    { icon: Flame, tone: 'text-orange-500', label: streak ? 'Study streak' : 'Study today to start a streak', value: `${streak} day${streak === 1 ? '' : 's'}` },
-    { icon: Calendar, tone: 'text-blue-500', label: nextPaper ? `Until ${nextPaper.sub.name}` : 'Add exam dates to your subjects', value: nextPaper ? (nextPaper.days === 0 ? 'Today' : `${nextPaper.days} day${nextPaper.days === 1 ? '' : 's'}`) : '—' },
-    { icon: Award, tone: 'text-emerald-500', label: 'Flashcards mastered', value: `${masteredCards}` },
-    { icon: Target, tone: 'text-violet-500', label: 'Weak topics to review', value: `${weakTopicCount}` },
+    { icon: Flame, tone: 'text-orange-500', chip: 'bg-orange-500/10', go: undefined as undefined | (() => void), label: streak ? 'Study streak' : 'Study today to start a streak', value: `${streak} day${streak === 1 ? '' : 's'}` },
+    { icon: Calendar, tone: 'text-blue-500', chip: 'bg-blue-500/10', go: nextPaper ? () => navigate(`/subject/${nextPaper.sub.id}`) : undefined, label: nextPaper ? `Until ${nextPaper.sub.name}` : 'Add exam dates to your subjects', value: nextPaper ? (nextPaper.days === 0 ? 'Today' : `${nextPaper.days} day${nextPaper.days === 1 ? '' : 's'}`) : '—' },
+    { icon: Award, tone: 'text-emerald-500', chip: 'bg-emerald-500/10', go: allSubjects[0] ? () => navigate(`/subject/${allSubjects[0].id}?tab=flashcards`) : undefined, label: 'Flashcards mastered', value: `${masteredCards}` },
+    { icon: Target, tone: 'text-violet-500', chip: 'bg-violet-500/10', go: allSubjects[0] && weakTopicCount > 0 ? () => navigate(`/subject/${allSubjects[0].id}?tab=weak-topics`) : undefined, label: 'Weak topics to review', value: `${weakTopicCount}` },
   ];
 
   return (
@@ -192,109 +192,168 @@ export const Dashboard: React.FC = () => {
         </>
       }
     >
-      <main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 pb-32 sm:px-8">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Welcome back, {userName}</h1>
-          <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">What are we studying today? Pick a subject and jump back in.</p>
-          {searchBox('mt-4 sm:hidden')}
+      <main className="mx-auto w-full max-w-[1480px] px-4 py-7 pb-32 sm:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs text-gray-500">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h1 className="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">Welcome back, {userName}</h1>
+            <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">What are we studying today? Pick a subject and jump back in.</p>
+          </div>
+          {searchBox('w-full sm:hidden')}
         </div>
 
-        <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-gray-200 dark:border-white/[.07] lg:grid-cols-4">
-          {stats.map((stat, i) => (
-            <div key={i} className={cn(
-              "min-w-0 px-4 py-3.5",
-              i % 2 === 1 && "border-l border-gray-200 dark:border-white/[.07]",
-              i >= 2 && "border-t border-gray-200 dark:border-white/[.07] lg:border-t-0",
-              i === 2 && "lg:border-l"
-            )}>
-              <dt className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                <stat.icon className={cn("h-3.5 w-3.5 shrink-0", stat.tone)} />
-                <span className="line-clamp-2 sm:truncate">{stat.label}</span>
-              </dt>
-              <dd className="mt-1 truncate text-lg font-semibold tabular-nums text-gray-900 dark:text-white">{stat.value}</dd>
-            </div>
-          ))}
+        <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {stats.map((stat, i) => {
+            const body = (
+              <>
+                <dt className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md", stat.chip)}>
+                    <stat.icon className={cn("h-3.5 w-3.5", stat.tone)} />
+                  </span>
+                  <span className="line-clamp-2 sm:truncate">{stat.label}</span>
+                </dt>
+                <dd className="mt-3 truncate text-2xl font-semibold tabular-nums text-gray-900 dark:text-white">{stat.value}</dd>
+              </>
+            );
+            const cell = "min-w-0 rounded-xl border border-gray-200 p-4 text-left dark:border-white/[.07]";
+            return stat.go ? (
+              <button key={i} onClick={stat.go} className={cn(cell, "transition-colors hover:border-gray-300 hover:bg-gray-50 dark:hover:border-white/[.14] dark:hover:bg-white/[.03]")}>{body}</button>
+            ) : (
+              <div key={i} className={cell}>{body}</div>
+            );
+          })}
         </dl>
 
-        <ComingUp />
-
-        <section>
-          <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-[13px] font-semibold text-gray-900 dark:text-white">
-              Subjects <span className="ml-1 font-normal text-gray-500">{filtered.length}</span>
-            </h2>
-          </div>
-
-          {allSubjects.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 px-6 py-10 text-center dark:border-white/[.1]">
-              <GraduationCap className="mx-auto mb-3 h-7 w-7 text-primary-500" />
-              <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Welcome to IntelliPrep</h3>
-              <ol className="mx-auto mt-3 max-w-sm space-y-1.5 text-left text-[13px] text-gray-600 dark:text-gray-400">
-                <li>1. Add a subject, with its exam date.</li>
-                <li>2. Upload your lecture notes (PDF or text).</li>
-                <li>3. Make flashcards, a summary or a quiz from them.</li>
-              </ol>
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
-                <Button size="sm" icon={Plus} onClick={() => setShowAddModal(true)}>Add your first subject</Button>
-                <Button size="sm" variant="secondary" onClick={loadSampleSubjects}>Try with sample subjects</Button>
-              </div>
+        <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <section className="min-w-0">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-[15px] font-semibold text-gray-900 dark:text-white">
+                Your subjects <span className="ml-1 text-[13px] font-normal text-gray-500">{filtered.length}</span>
+              </h2>
+              <button onClick={() => setShowAddModal(true)} className="flex h-7 items-center gap-1 rounded-md px-2 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.06] dark:hover:text-white">
+                <Plus className="h-3.5 w-3.5" /> Add
+              </button>
             </div>
-          ) : filtered.length === 0 ? (
-            <p className="rounded-lg border border-gray-200 px-4 py-8 text-center text-[13px] text-gray-500 dark:border-white/[.07]">
-              No subjects match “{search}”.
-            </p>
-          ) : (
-            <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:divide-white/[.07] dark:border-white/[.07]">
-              {filtered.map(sub => {
-                const quiz = lastQuiz(sub.id);
-                const days = daysUntil(sub.examDate);
-                const when = days !== null && days >= 0
-                  ? (days === 0 ? 'Exam today' : `Exam in ${days} day${days === 1 ? '' : 's'}`)
-                  : sub.nextClass ? `Class ${sub.nextClass}` : 'No exam date';
-                return (
-                  <li key={sub.id}>
-                    <div
+
+            {allSubjects.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 px-6 py-12 text-center dark:border-white/[.1]">
+                <GraduationCap className="mx-auto mb-3 h-8 w-8 text-primary-500" />
+                <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white">Welcome to IntelliPrep</h3>
+                <ol className="mx-auto mt-3 max-w-sm space-y-1.5 text-left text-[13px] text-gray-600 dark:text-gray-400">
+                  <li>1. Add a subject, with its exam date.</li>
+                  <li>2. Upload your lecture notes (PDF or text).</li>
+                  <li>3. Make flashcards, a summary or a quiz from them.</li>
+                </ol>
+                <div className="mt-6 flex flex-wrap justify-center gap-2">
+                  <Button size="sm" icon={Plus} onClick={() => setShowAddModal(true)}>Add your first subject</Button>
+                  <Button size="sm" variant="secondary" onClick={loadSampleSubjects}>Try with sample subjects</Button>
+                </div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <p className="rounded-xl border border-gray-200 px-4 py-10 text-center text-[13px] text-gray-500 dark:border-white/[.07]">
+                No subjects match “{search}”.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                {filtered.map(sub => {
+                  const quiz = lastQuiz(sub.id);
+                  const pct = quiz && quiz.total ? Math.round((quiz.score / quiz.total) * 100) : 0;
+                  const days = daysUntil(sub.examDate);
+                  const shared = Boolean(sub.sharedIn && !sub.owned);
+                  const open = (tab?: string) => navigate(`/subject/${sub.id}${tab ? `?tab=${tab}` : ''}`);
+                  return (
+                    <article
+                      key={sub.id}
                       role="button"
                       tabIndex={0}
-                      onClick={() => navigate(`/subject/${sub.id}`)}
-                      onKeyDown={e => { if (e.key === 'Enter') navigate(`/subject/${sub.id}`); }}
-                      className="group flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-white/[.03]"
+                      onClick={() => open()}
+                      onKeyDown={e => { if (e.key === 'Enter') open(); }}
+                      className="group relative flex cursor-pointer flex-col rounded-xl border border-gray-200 bg-white p-4 transition-[border-color,background-color,box-shadow] hover:border-gray-300 hover:shadow-lg dark:border-white/[.07] dark:bg-white/[.015] dark:hover:border-white/[.14] dark:hover:bg-white/[.035]"
                     >
-                      <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", sub.color || "bg-primary-500")} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{sub.name}</p>
-                        <p className="truncate text-xs text-gray-500">
-                          {sub.teacher || 'No instructor added'}
-                          <span className="sm:hidden"> · {when}</span>
-                        </p>
-                      </div>
-                      {sub.sharedIn && !sub.owned && (
-                        <span className="hidden shrink-0 rounded border border-indigo-500/30 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:text-indigo-300 md:inline">
-                          Shared · {sub.sharedIn.join(', ')}
+                      <div className="flex items-start gap-3">
+                        <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-white", sub.color || "bg-primary-500")}>
+                          {sub.name.charAt(0).toUpperCase()}
                         </span>
-                      )}
-                      <span className="hidden w-28 shrink-0 text-right text-xs tabular-nums text-gray-500 md:block">
-                        {quiz ? `Last quiz ${quiz.score}/${quiz.total}` : 'No quiz yet'}
-                      </span>
-                      <span className="hidden w-28 shrink-0 text-right text-xs text-gray-500 sm:block">{when}</span>
-                      <span className="hidden w-16 shrink-0 text-right text-xs text-gray-500 lg:block">{sub.credits || 3} credits</span>
-                      {!(sub.sharedIn && !sub.owned) && (
-                        <button
-                          onClick={e => deleteSubject(sub.id, e)}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 dark:hover:text-red-400"
-                          aria-label={`Delete ${sub.name}`}
-                          title="Delete subject"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-[14px] font-semibold text-gray-900 dark:text-white">{sub.name}</h3>
+                          <p className="truncate text-xs text-gray-500">{sub.teacher || 'No instructor added'}</p>
+                        </div>
+                        {shared ? (
+                          <span className="shrink-0 rounded border border-indigo-500/30 px-1.5 py-0.5 text-[11px] text-indigo-600 dark:text-indigo-300" title={`Shared in ${sub.sharedIn!.join(', ')}`}>Shared</span>
+                        ) : (
+                          <button
+                            onClick={e => deleteSubject(sub.id, e)}
+                            className="-mr-1 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 dark:hover:text-red-400"
+                            aria-label={`Delete ${sub.name}`}
+                            title="Delete subject"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Last quiz</span>
+                          <span className="font-medium tabular-nums text-gray-700 dark:text-gray-300">{quiz ? `${quiz.score} / ${quiz.total}` : 'Not taken yet'}</span>
+                        </div>
+                        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/[.06]">
+                          <div className="h-full rounded-full bg-primary-500 transition-[width] duration-500" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <span className={cn(
+                          "flex items-center gap-1 rounded-md border px-1.5 py-0.5",
+                          days !== null && days >= 0 && days <= 14
+                            ? "border-orange-500/30 text-orange-600 dark:text-orange-400"
+                            : "border-gray-200 text-gray-500 dark:border-white/[.08]"
+                        )}>
+                          <Calendar className="h-3 w-3" />
+                          {days !== null && days >= 0 ? (days === 0 ? 'Exam today' : `Exam in ${days}d`) : 'No exam date'}
+                        </span>
+                        <span className="rounded-md border border-gray-200 px-1.5 py-0.5 text-gray-500 dark:border-white/[.08]">{sub.credits || 3} credits</span>
+                        {sub.nextClass && <span className="hidden rounded-md border border-gray-200 px-1.5 py-0.5 text-gray-500 dark:border-white/[.08] md:inline">{sub.nextClass}</span>}
+                      </div>
+
+                      <div className="mt-4 flex items-center gap-1 border-t border-gray-100 pt-3 dark:border-white/[.06]">
+                        {[
+                          { tab: 'upload', label: 'Notes', icon: BookOpen },
+                          { tab: 'flashcards', label: 'Flashcards', icon: Award },
+                          { tab: 'quiz', label: 'Quiz', icon: CheckCircle2 },
+                        ].map(action => (
+                          <button
+                            key={action.tab}
+                            onClick={e => { e.stopPropagation(); open(action.tab); }}
+                            className="flex h-7 items-center gap-1 rounded-md px-2 text-xs text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.06] dark:hover:text-white"
+                          >
+                            <action.icon className="h-3.5 w-3.5" /> {action.label}
+                          </button>
+                        ))}
+                        <span className="ml-auto flex items-center gap-1 text-xs font-medium text-gray-400 transition-colors group-hover:text-primary-500">
+                          Open <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 text-[13px] text-gray-500 transition-colors hover:border-primary-500/60 hover:bg-primary-500/[.04] hover:text-primary-600 dark:border-white/[.1] dark:hover:text-primary-400"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-current/20">
+                    <Plus className="h-4 w-4" />
+                  </span>
+                  Add a subject
+                </button>
+              </div>
+            )}
+          </section>
+
+          <aside className="min-w-0">
+            <ComingUp />
+          </aside>
+        </div>
       </main>
 
       {/* Add Subject Modal */}

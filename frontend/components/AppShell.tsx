@@ -38,7 +38,6 @@ const useSidebarSubjects = (): SidebarSubject[] => {
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/groups', label: 'Study groups', icon: Users },
-  { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
 const itemClass = (active: boolean) => cn(
@@ -117,6 +116,10 @@ const Sidebar: React.FC<SidebarProps> = ({ context, onNavigate }) => {
       </div>
 
       <div className="mt-3 space-y-2 border-t border-gray-200 pt-3 dark:border-white/[.07]">
+        <NavLink to="/settings" onClick={onNavigate} className={({ isActive }) => itemClass(isActive)}>
+          <Settings className="h-4 w-4 shrink-0 opacity-80" />
+          Settings
+        </NavLink>
         <DevStudentSwitcher className="w-full justify-center" />
         <div className="flex items-center gap-2 px-1">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-xs font-semibold text-gray-700 dark:bg-white/10 dark:text-gray-200">
