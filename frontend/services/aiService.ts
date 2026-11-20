@@ -8,6 +8,9 @@ const MAX_NOTES_CHARS = 60_000;
 
 const notes = (text: string) => text.slice(0, MAX_NOTES_CHARS);
 
+/** A typed topic; sent apart from the notes, and enough on its own when nothing is attached. */
+const topic = (focus?: string) => (focus?.trim() ? focus.trim().slice(0, 500) : undefined);
+
 /** Notes text cut to what the backend accepts in one request. */
 export const notesPayload = notes;
 
@@ -17,28 +20,28 @@ const errorMessage = (error: unknown) =>
     : "Can't reach the IntelliPrep server. Is the backend running?";
 
 /** Summarises notes; throws on failure (use when the result is saved). */
-export const summarise = async (text: string): Promise<string> => {
+export const summarise = async (text: string, focus?: string): Promise<string> => {
   const { summary } = await apiFetch<{ summary: string }>("/summary/generate", {
     method: "POST",
-    body: JSON.stringify({ text: notes(text) }),
+    body: JSON.stringify({ text: notes(text), focus: topic(focus) }),
   });
   return summary;
 };
 
-export const generateSummary = async (text: string): Promise<string> => {
+export const generateSummary = async (text: string, focus?: string): Promise<string> => {
   try {
-    return await summarise(text);
+    return await summarise(text, focus);
   } catch (error) {
     console.error("Summary failed:", error);
     return `Couldn't generate a summary. ${errorMessage(error)}`;
   }
 };
 
-export const generateFlashcards = async (text: string): Promise<Flashcard[]> => {
+export const generateFlashcards = async (text: string, focus?: string): Promise<Flashcard[]> => {
   try {
     const { cards } = await apiFetch<{ cards: { front: string; back: string }[] }>("/flashcards/generate", {
       method: "POST",
-      body: JSON.stringify({ text: notes(text), count: 8 }),
+      body: JSON.stringify({ text: notes(text), focus: topic(focus), count: 8 }),
     });
     return cards.map((card, index) => ({
       id: `gen-${Date.now()}-${index}`,
@@ -53,13 +56,13 @@ export const generateFlashcards = async (text: string): Promise<Flashcard[]> => 
   }
 };
 
-export const generateQuiz = async (text: string): Promise<QuizQuestion[]> => {
+export const generateQuiz = async (text: string, focus?: string): Promise<QuizQuestion[]> => {
   try {
     const { questions } = await apiFetch<{
       questions: { question: string; options: string[]; correct_index: number; explanation: string; topic: string }[];
     }>("/quiz/generate", {
       method: "POST",
-      body: JSON.stringify({ text: notes(text), count: 5 }),
+      body: JSON.stringify({ text: notes(text), focus: topic(focus), count: 5 }),
     });
     return questions.map((q, index) => ({
       id: `quiz-${Date.now()}-${index}`,
@@ -91,11 +94,11 @@ export interface GuessPaperResult {
   strategicAdvice: string;
 }
 
-export const generateGuessPaper = async (subjectName: string, materials?: string): Promise<GuessPaperResult> => {
+export const generateGuessPaper = async (subjectName: string, materials?: string, focus?: string): Promise<GuessPaperResult> => {
   try {
     return await apiFetch<GuessPaperResult>("/exam-guess/guess", {
       method: "POST",
-      body: JSON.stringify({ subject_name: subjectName, text: notes(materials ?? "") }),
+      body: JSON.stringify({ subject_name: subjectName, text: notes(materials ?? ""), focus: topic(focus) }),
     });
   } catch (error) {
     console.error("Exam guess failed:", error);

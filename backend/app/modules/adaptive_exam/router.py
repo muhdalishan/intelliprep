@@ -132,14 +132,15 @@ async def next_question(
     weak = [WeakTopic(w.topic, w.misses) for w in body.weak_topics]
     topic = focus_topic(weak, random.Random())  # noqa: S311 (choosing a topic, not security)
 
+    rule, material = llm.study_material(body.text, body.focus)
     seen = "\n".join(f"- {q[:300]}" for q in body.previous_questions)
     prompt = (
         f"Difficulty: {LEVEL_GUIDE[level]}\n"
-        + (f"Test this weak topic: {topic}\n" if topic else "Pick any topic from the notes.\n")
+        + (f"Test this weak topic: {topic}\n" if topic else "Pick any part of the material.\n")
         + (f"Questions already asked (don't repeat):\n{seen}\n" if seen else "")
-        + f"Write 2 candidate questions.\n\n{llm.as_notes(body.text)}"
+        + f"Write 2 candidate questions.\n\n{material}"
     )
-    result = await llm.generate_structured(INSTRUCTIONS, prompt, _Candidates)
+    result = await llm.generate_structured(INSTRUCTIONS + rule, prompt, _Candidates)
 
     seen_prints = {_fingerprint(q) for q in body.previous_questions}
     usable = [

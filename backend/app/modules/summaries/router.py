@@ -44,8 +44,8 @@ class SummaryResponse(BaseModel):
 async def generate_summary(
     body: NotesRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> SummaryResponse:
-    focus = f"Focus on: {body.focus}\n\n" if body.focus else ""
-    summary = await llm.generate_text(INSTRUCTIONS, focus + llm.as_notes(body.text))
+    rule, material = llm.study_material(body.text, body.focus)
+    summary = await llm.generate_text(INSTRUCTIONS + rule, material)
     return SummaryResponse(summary=summary)
 
 
