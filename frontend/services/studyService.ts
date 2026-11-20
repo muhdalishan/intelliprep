@@ -100,9 +100,9 @@ export interface AttemptResult {
   new_weak_topics: string[];
 }
 
-export const createQuiz = (subjectId: string, text: string, title: string, sourceDocumentIds: string[] = []) =>
+export const createQuiz = (subjectId: string, text: string, focus: string | undefined, title: string, sourceDocumentIds: string[] = []) =>
   apiFetch<SavedQuiz>("/quiz/quizzes", json("POST", {
-    subject_id: subjectId, text, count: 5, title: title.slice(0, 120), source_document_ids: sourceDocumentIds,
+    subject_id: subjectId, text: text.slice(0, 60_000), focus: focus?.trim() ? focus.trim().slice(0, 500) : undefined, count: 5, title: title.slice(0, 120), source_document_ids: sourceDocumentIds,
   }));
 
 export const listQuizzes = (subjectId: string) => apiFetch<QuizSummary[]>(`/quiz/quizzes?${q({ subject_id: subjectId })}`);

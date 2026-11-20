@@ -54,9 +54,9 @@ class FlashcardsResponse(BaseModel):
 async def generate_flashcards(
     body: FlashcardsRequest, _user: Annotated[CurrentUser, Depends(get_current_user)]
 ) -> FlashcardsResponse:
-    focus = f"Focus on: {body.focus}\n" if body.focus else ""
-    prompt = f"Make exactly {body.count} flashcards.\n{focus}\n{llm.as_notes(body.text)}"
-    deck = await llm.generate_structured(INSTRUCTIONS, prompt, _Deck)
+    rule, material = llm.study_material(body.text, body.focus)
+    prompt = f"Make exactly {body.count} flashcards.\n\n{material}"
+    deck = await llm.generate_structured(INSTRUCTIONS + rule, prompt, _Deck)
     cards = [c for c in deck.cards if c.front.strip() and c.back.strip()][: body.count]
     if not cards:
         raise llm.AIUnavailable("No flashcards could be made from this text. Try longer notes.")

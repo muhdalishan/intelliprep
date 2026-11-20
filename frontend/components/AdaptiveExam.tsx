@@ -28,12 +28,13 @@ const LevelMeter: React.FC<{ level: Level }> = ({ level }) => (
  * after the student answers.
  */
 export const AdaptiveExam: React.FC<{
-  sourceText: string;
+  /** Attached notes (may be empty) and a typed topic; at least one is set. */
+  material: { text: string; focus?: string };
   weakTopics: string[];
   onMissed: (topic: string, explanation: string) => void;
   onFinished: () => void;
   onExit: () => void;
-}> = ({ sourceText, weakTopics, onMissed, onFinished, onExit }) => {
+}> = ({ material, weakTopics, onMissed, onFinished, onExit }) => {
   const [history, setHistory] = useState<AdaptiveAnswer[]>([]);
   const [asked, setAsked] = useState<string[]>([]);
   const [current, setCurrent] = useState<AdaptiveQuestion | null>(null);
@@ -48,7 +49,7 @@ export const AdaptiveExam: React.FC<{
     setChosen(null);
     setResult(null);
     try {
-      const question = await nextAdaptiveQuestion(sourceText, nextHistory, weakTopics, nextAsked);
+      const question = await nextAdaptiveQuestion(material.text, material.focus, nextHistory, weakTopics, nextAsked);
       setCurrent(question);
       setAsked([...nextAsked, question.question.question]);
     } catch (error) {

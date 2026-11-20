@@ -52,9 +52,9 @@ class QuizResponse(BaseModel):
 
 
 async def _generate(body: QuizRequest) -> list[Question]:
-    focus = f"Focus on: {body.focus}\n" if body.focus else ""
-    prompt = f"Write exactly {body.count} questions.\n{focus}\n{llm.as_notes(body.text)}"
-    result = await llm.generate_structured(INSTRUCTIONS, prompt, _QuestionSet)
+    rule, material = llm.study_material(body.text, body.focus)
+    prompt = f"Write exactly {body.count} questions.\n\n{material}"
+    result = await llm.generate_structured(INSTRUCTIONS + rule, prompt, _QuestionSet)
     questions = [q for q in result.questions if is_well_formed(q)][: body.count]
     if not questions:
         raise llm.AIUnavailable("No questions could be made from this text. Try longer notes.")

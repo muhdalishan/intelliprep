@@ -41,6 +41,7 @@ export interface AdaptiveSummary {
 
 export const nextAdaptiveQuestion = (
   text: string,
+  focus: string | undefined,
   history: AdaptiveAnswer[],
   weakTopics: string[],
   previousQuestions: string[],
@@ -49,6 +50,7 @@ export const nextAdaptiveQuestion = (
     method: "POST",
     body: JSON.stringify({
       text: notesPayload(text),
+      focus: focus?.trim() ? focus.trim().slice(0, 500) : undefined,
       history,
       weak_topics: weakTopics.slice(0, 20).map(topic => ({ topic: topic.slice(0, 200), misses: 1 })),
       previous_questions: previousQuestions.slice(-60),

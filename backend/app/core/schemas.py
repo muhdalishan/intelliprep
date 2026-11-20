@@ -1,13 +1,25 @@
-from pydantic import BaseModel, Field
+from typing import Self
+
+from pydantic import BaseModel, Field, model_validator
 
 MAX_NOTES_CHARS = 60_000  # about 15k tokens; keeps one request's cost bounded
 
 
 class NotesRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=MAX_NOTES_CHARS, description="The student's notes")
+    """Notes to work from, a topic to focus on, or both (a topic alone is allowed)."""
+
+    text: str = Field(default="", max_length=MAX_NOTES_CHARS, description="The student's notes")
     focus: str | None = Field(
-        default=None, max_length=500, description="Optional topic to focus on"
+        default=None,
+        max_length=500,
+        description="Topic to focus on, or to teach when there are no notes",
     )
+
+    @model_validator(mode="after")
+    def _notes_or_topic(self) -> Self:
+        if not self.text.strip() and not (self.focus and self.focus.strip()):
+            raise ValueError("Attach notes or type a topic.")
+        return self
 
 
 class MultipleChoice(BaseModel):

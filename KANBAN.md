@@ -1,6 +1,6 @@
 # IntelliPrep AI · Kanban board
 
-**Updated 8 November 2026 · Sprint 1 of 7 (2–13 Nov) · Final demo after 5 February 2027**
+**Updated 20 November 2026 · Sprint 2 of 7 (16–27 Nov) · Final demo after 5 February 2027**
 
 Where every backlog item stands, from the [product backlog](docs/scrum/product-backlog.md) (199 points).
 Owners: **MB** Murtaza · **MA** Alishan · **You** both. Priority: **M** Must · **S** Should · **C** Could.
@@ -130,7 +130,6 @@ Mobile app · LMS integration · FSRS algorithm · offline review · instructor 
 - [ ] Uploaded files and diagram photos aren't kept yet, only their text and explanations (IP-20).
 - [ ] Background work runs inside the API process: a crash mid-job loses that job (IP-21).
 - [ ] Saved decks, quizzes, summaries, weak topics and past papers need a subject saved to the account; subjects kept only in the browser still use the browser versions.
-- [ ] Typing a topic with nothing attached sends the subject's sample notes with it, so generated cards and questions can drift from the topic.
 - [ ] Switching to Claude or Gemini isn't wired up yet; only OpenAI works. The docs say one setting; that comes when we add providers.
 - [ ] Every new subject starts with sample flashcards, quiz, tasks and notes.
 - [ ] Local database can time out after the laptop sleeps (start it with `pg_ctl ... -t 120`, see the Project Report).

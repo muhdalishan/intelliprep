@@ -36,6 +36,24 @@ def as_notes(text: str) -> str:
     return f"<notes>\n{text}\n</notes>"
 
 
+TOPIC_ONLY_RULE = (
+    "There are no notes this time: the student typed only a topic. Instead of using facts from "
+    "notes, teach that topic from standard, well-established university-level knowledge. Don't "
+    "invent course-specific details such as lecturer names, course codes, dates or page numbers."
+)
+
+
+def study_material(text: str, focus: str | None) -> tuple[str, str]:
+    """(extra instructions, input) for notes plus an optional topic, or a topic with no notes.
+
+    The topic is the student's own request, so it goes outside the <notes> tags.
+    """
+    topic = (focus or "").strip()
+    if text.strip():
+        return "", (f"Focus on: {topic}\n\n" if topic else "") + as_notes(text)
+    return f"\n\n{TOPIC_ONLY_RULE}", f"Topic: {topic}"
+
+
 @lru_cache
 def _client() -> openai.AsyncOpenAI:
     settings = get_settings()

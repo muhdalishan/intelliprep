@@ -154,7 +154,6 @@ Section 2: Practice applications
   };
 
   // State Management
-  const [summaryText, setSummaryText] = useState(() => getDefaultSyllabusNotes(subject?.name || 'Default'));
   const [generatedSummary, setGeneratedSummary] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -510,15 +509,25 @@ Section 2: Practice applications
     if (!file) return;
     const content = await addStudyFile(file);
     if (content === null) return;
-    setSummaryText(content);
     setSelectedDocs([file.name]);
     setActiveTab('summary'); // Direct immediately to study summary!
   };
 
-  // Set selected upload as active material
-  const handleSelectMaterial = (content: string) => {
-    setSummaryText(content);
+  // "Process AI" on a library file: attach it and open Summaries.
+  const handleSelectMaterial = (fileName: string) => {
+    setSelectedDocs([fileName]);
     setActiveTab('summary');
+  };
+
+  // What the AI works from: the attached files as notes, and the typed topic kept apart.
+  // With nothing attached, the topic alone is enough; no sample notes are sent.
+  const material = () => ({
+    text: selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n'),
+    focus: customTopic.trim() || undefined,
+  });
+  const hasMaterial = () => {
+    const { text, focus } = material();
+    return Boolean(text.trim() || focus);
   };
 
   // Library documents stored on the server that match the attached files (all of them, or none).
@@ -539,14 +548,15 @@ Section 2: Practice applications
   };
 
   // Account subjects: summaries of stored documents cite pages; anything else is summarised, then saved.
-  const saveAccountSummary = async (text: string) => {
+  const saveAccountSummary = async () => {
     const documentIds = await attachedDocumentIds();
+    const { text, focus } = material();
     try {
       if (documentIds) {
-        const saved = await summariseDocuments(storeId, documentIds, customTopic.trim() || undefined);
+        const saved = await summariseDocuments(storeId, documentIds, focus);
         setGeneratedSummary(saved.content);
       } else {
-        const content = await summarise(text);
+        const content = await summarise(text, focus);
         setGeneratedSummary(content);
         await saveSummary(storeId, sourceTitle('summary'), content);
       }
@@ -560,21 +570,15 @@ Section 2: Practice applications
 
   // AI Summary generation
   const handleGenerateSummary = async () => {
-    let textToSummarize = customTopic ? `[FOCUS TOPIC/INSTRUCTION: ${customTopic}]\n\n` : '';
-    if (selectedDocs.length > 0) {
-      textToSummarize += selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n');
-    } else {
-      textToSummarize += summaryText;
-    }
-
-    if (!textToSummarize.trim()) return;
+    if (!hasMaterial()) return;
     setIsGenerating(true);
     if (isAccountSubject) {
-      await saveAccountSummary(textToSummarize);
+      await saveAccountSummary();
       setIsGenerating(false);
       return;
     }
-    const result = await generateSummary(textToSummarize);
+    const { text, focus } = material();
+    const result = await generateSummary(text, focus);
     setGeneratedSummary(result);
     logStudyDay();
     setSummaryHistory(prev => [{
@@ -588,15 +592,10 @@ Section 2: Practice applications
 
   // AI Flashcard generation based on textbooks
   const handleGenerateFlashcards = async () => {
-    let textToSummarize = customTopic ? `[FOCUS TOPIC/INSTRUCTION: ${customTopic}]\n\n` : '';
-    if (selectedDocs.length > 0) {
-      textToSummarize += selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n');
-    } else {
-      textToSummarize += summaryText;
-    }
-
+    if (!hasMaterial()) return;
+    const { text, focus } = material();
     setIsGenerating(true);
-    const result = await generateFlashcards(textToSummarize);
+    const result = await generateFlashcards(text, focus);
     if (isAccountSubject) {
       if (result.length > 0) {
         try {
@@ -698,15 +697,6 @@ Section 2: Practice applications
     setShowQuizResult(false);
   };
 
-  // The notes a quiz is made from: attached documents (or the last summary) plus any typed topic.
-  const quizSourceText = () => {
-    const focus = customTopic ? `[FOCUS TOPIC/INSTRUCTION: ${customTopic}]\n\n` : '';
-    const body = selectedDocs.length > 0
-      ? selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n')
-      : summaryText;
-    return focus + body;
-  };
-
   const addMissedTopic = (topic: string, explanation: string) => {
     addWeak(topic, 'exam', explanation);
   };
@@ -726,17 +716,12 @@ Section 2: Practice applications
   };
 
   const handleGenerateQuiz = async () => {
-    let textToSummarize = customTopic ? `[FOCUS TOPIC/INSTRUCTION: ${customTopic}]\n\n` : '';
-    if (selectedDocs.length > 0) {
-      textToSummarize += selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n');
-    } else {
-      textToSummarize += summaryText;
-    }
-
+    if (!hasMaterial()) return;
+    const { text, focus } = material();
     setIsGenerating(true);
     if (isAccountSubject) {
       try {
-        const quiz = await createQuiz(storeId, notesPayload(textToSummarize), sourceTitle('quiz'), (await attachedDocumentIds()) ?? []);
+        const quiz = await createQuiz(storeId, notesPayload(text), focus, sourceTitle('quiz'), (await attachedDocumentIds()) ?? []);
         startSavedQuiz(quiz);
         setQuizVersion(v => v + 1);
       } catch (error) {
@@ -747,7 +732,7 @@ Section 2: Practice applications
       return;
     }
     try {
-      const gQuestions = await generateQuiz(textToSummarize);
+      const gQuestions = await generateQuiz(text, focus);
       if (gQuestions && gQuestions.length > 0) {
         setQuizQuestions(gQuestions);
         setQuizActive(true);
@@ -766,15 +751,10 @@ Section 2: Practice applications
 
   // Run AI Guess Engine
   const handleRunGuessEngine = async () => {
-    let textToSummarize = customTopic ? `[FOCUS TOPIC/INSTRUCTION: ${customTopic}]\n\n` : '';
-    if (selectedDocs.length > 0) {
-      textToSummarize += selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n');
-    } else {
-      textToSummarize += summaryText;
-    }
-
+    if (!hasMaterial()) return;
+    const { text, focus } = material();
     setIsGuessing(true);
-    const result = await generateGuessPaper(subject.name, textToSummarize);
+    const result = await generateGuessPaper(subject.name, text, focus);
     setGuessResults(result);
     logStudyDay();
     setGuessPaperHistory(prev => [{
@@ -1250,7 +1230,7 @@ Section 2: Practice applications
                       </div>
 
                       <div className="flex gap-1.5">
-                        <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => handleSelectMaterial(f.content)}>
+                        <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => handleSelectMaterial(f.name)}>
                           Process AI
                         </Button>
                         <button onClick={() => setLoadedFiles(loadedFiles.filter((_, i) => i !== fIdx))} className="text-gray-400 hover:text-red-500 p-1.5 rounded transition-colors bg-white border border-gray-200 shadow-sm">
@@ -1547,7 +1527,7 @@ Section 2: Practice applications
 
                   {adaptiveActive ? (
                     <AdaptiveExam
-                      sourceText={quizSourceText()}
+                      material={material()}
                       weakTopics={weakTopics.map(w => w.name)}
                       onMissed={addMissedTopic}
                       onFinished={logStudyDay}
@@ -1594,7 +1574,7 @@ Section 2: Practice applications
                       <div className="flex justify-center gap-3 pt-2">
                         <Button onClick={() => {
                           if (isAdaptiveMode) {
-                            if (!quizSourceText().trim()) {
+                            if (!hasMaterial()) {
                               notify('Attach your notes or type a topic below first, so the questions come from your material.', 'info');
                               return;
                             }
