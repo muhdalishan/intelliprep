@@ -252,19 +252,40 @@ const QuizPlayer: React.FC<{ questions: Extract<SharedResource, { kind: 'quiz' }
 const DeckViewer: React.FC<{ cards: { front: string; back: string }[] }> = ({ cards }) => {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const go = (step: number) => { setFlipped(false); setIndex(i => Math.min(cards.length - 1, Math.max(0, i + step))); };
+  // Space or Enter flips, arrows move between cards.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); setFlipped(f => !f); }
+      if (e.key === 'ArrowRight') go(1);
+      if (e.key === 'ArrowLeft') go(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards.length]);
   if (cards.length === 0) return <p className="p-6 text-center text-[13px] text-gray-500">This deck has no cards.</p>;
   const card = cards[index];
-  const go = (step: number) => { setFlipped(false); setIndex(i => Math.min(cards.length - 1, Math.max(0, i + step))); };
+  const face = "absolute inset-0 backface-hidden flex flex-col rounded-2xl border p-6";
   return (
     <div className="p-5">
       <button
         onClick={() => setFlipped(f => !f)}
-        className={cn("flex min-h-[220px] w-full flex-col items-center justify-center rounded-xl border p-6 text-center transition-colors", flipped ? "border-primary-500/40 bg-primary-500/[.06]" : "border-gray-200 hover:bg-gray-50 dark:border-white/[.08] dark:hover:bg-white/[.03]")}
+        className="perspective-1000 block h-64 w-full text-left sm:h-72"
         aria-label={flipped ? 'Show question' : 'Show answer'}
       >
-        <span className="mb-3 text-[11px] font-medium text-gray-500">{flipped ? 'Answer' : 'Question'}</span>
-        <span key={`${index}-${flipped}`} className="text-[15px] font-medium leading-relaxed text-gray-900 animate-in dark:text-white">{flipped ? card.back : card.front}</span>
-        <span className="mt-4 text-[11px] text-gray-400">Tap to {flipped ? 'see the question' : 'reveal the answer'}</span>
+        <div className={cn("relative h-full w-full transform-style-3d transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)]", flipped && "rotate-y-180")}>
+          <div className={cn(face, "border-gray-200 bg-white dark:border-white/[.08] dark:bg-gray-800")}>
+            <span className="text-xs font-medium text-gray-500">Question</span>
+            <span className="flex flex-1 items-center justify-center overflow-y-auto text-center text-[17px] font-medium leading-relaxed text-gray-900 dark:text-white">{card.front}</span>
+            <span className="text-center text-xs text-gray-400">Click or press Space to flip</span>
+          </div>
+          <div className={cn(face, "rotate-y-180 border-primary-500/30 bg-primary-50 dark:bg-[#10302d]")}>
+            <span className="text-xs font-medium text-primary-700 dark:text-primary-300">Answer</span>
+            <span className="flex flex-1 items-center justify-center overflow-y-auto text-center text-[16px] leading-relaxed text-gray-900 dark:text-gray-100">{card.back}</span>
+            <span className="text-center text-xs text-primary-700/70 dark:text-primary-300/70">Click to see the question</span>
+          </div>
+        </div>
       </button>
       <div className="mt-4 flex items-center justify-between">
         <button disabled={index === 0} onClick={() => go(-1)} className="flex h-8 items-center gap-1 rounded-md px-2.5 text-[13px] text-gray-600 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-white/[.06]"><ArrowLeft className="h-3.5 w-3.5" /> Previous</button>

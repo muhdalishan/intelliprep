@@ -177,32 +177,30 @@ export const SavedQuizList: React.FC<{
   };
 
   return (
-    <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
-      <h3 className="font-bold text-base mb-4 flex items-center gap-2">
-        <History className="w-4 h-4 text-pink-500" /> Saved quizzes
+    <section className="flex flex-col rounded-2xl border border-gray-200 bg-white text-left dark:border-white/[.07] dark:bg-white/[.015]">
+      <h3 className="flex items-baseline justify-between px-5 pb-2 pt-5 text-[15px] font-medium text-gray-900 dark:text-white">
+        Saved quizzes <span className="font-mono text-xs font-normal text-gray-500">{quizzes.length}</span>
       </h3>
-      <div className="max-h-[60vh] overflow-y-auto space-y-3">
+      <div className="max-h-[60vh] space-y-0.5 overflow-y-auto px-2 pb-2">
         {quizzes.length === 0 ? (
-          <div className="text-xs text-gray-400 text-center py-8">No quizzes saved for this subject yet. Generate one below.</div>
+          <div className="px-3 py-8 text-center text-[13px] text-gray-500">No saved quizzes yet. Make one below</div>
         ) : quizzes.map(quiz => (
-          <div key={quiz.id} className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-bold text-gray-800 dark:text-gray-200">{quiz.title}</p>
-                <p className="text-[10px] text-gray-400">
-                  {quiz.attempts === 0 ? 'Not taken yet' : <>Best <span className="font-bold text-primary-600">{quiz.best_score}/{quiz.question_count}</span> · last {quiz.last_score}/{quiz.question_count}</>} · {savedAt(quiz.created_at)}
-                </p>
-              </div>
-              <button onClick={() => remove(quiz)} className="shrink-0 p-1 text-gray-400 hover:text-red-500" aria-label={`Delete ${quiz.title}`}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+          <div key={quiz.id} className="group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-white/[.03]">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{quiz.title}</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                {quiz.attempts === 0 ? 'Not taken yet' : <>Best <span className="font-mono tabular-nums text-gray-800 dark:text-gray-200">{quiz.best_score}/{quiz.question_count}</span> · last <span className="font-mono tabular-nums">{quiz.last_score}/{quiz.question_count}</span></>} · {savedAt(quiz.created_at)}
+              </p>
             </div>
-            <Button size="sm" variant="secondary" className="mt-2 h-7 text-[10px] font-bold" isLoading={opening === quiz.id} onClick={() => open(quiz.id)}>
+            <Button size="sm" variant="secondary" isLoading={opening === quiz.id} onClick={() => open(quiz.id)}>
               {quiz.attempts === 0 ? 'Start' : 'Retake'}
             </Button>
+            <button onClick={() => remove(quiz)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:text-red-400" aria-label={`Delete ${quiz.title}`}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </div>
         ))}
       </div>
-    </Card>
+    </section>
   );
 };

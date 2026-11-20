@@ -233,19 +233,18 @@ export const SubjectWorkspace: React.FC = () => {
 
     return (
     <div className="w-full mt-auto animate-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white/90 dark:bg-gray-900/90 border border-gray-200 dark:border-gray-700 shadow-sm rounded-2xl p-1 relative">
+      <div className="relative rounded-2xl border border-gray-200 bg-white transition-colors focus-within:border-gray-300 dark:border-white/[.08] dark:bg-white/[.015] dark:focus-within:border-white/[.16]">
 
         {/* Header Title (Subtle) */}
-        <div className="px-4 pt-3 pb-1 flex justify-between items-center">
+        <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-4">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></span>
-            <h3 className="font-bold text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            <h3 className="text-[13px] font-medium text-gray-900 dark:text-gray-100">
               {title}
             </h3>
           </div>
           <div className="flex flex-wrap gap-1">
              {selectedDocs.map(doc => (
-                <span key={doc} className="bg-primary-50/80 dark:bg-primary-900/30 text-primary-600 dark:text-primary-300 border border-primary-200 dark:border-primary-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span key={doc} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-0.5 text-[11px] text-gray-700 dark:border-white/[.09] dark:text-gray-300">
                   <FileText className="w-2.5 h-2.5" />
                   <span className="max-w-[100px] truncate">{doc}</span>
                   <button onClick={() => setSelectedDocs(docs => docs.filter(d => d !== doc))} className="hover:text-red-500 transition-colors"><X className="w-2.5 h-2.5"/></button>
@@ -259,20 +258,20 @@ export const SubjectWorkspace: React.FC = () => {
           <textarea
             value={customTopic}
             onChange={(e) => setCustomTopic(e.target.value)}
-            placeholder="Type a custom topic or leave blank to only use attached documents..."
-            className="w-full bg-transparent border-0 resize-none outline-none text-sm p-4 min-h-[60px] text-gray-800 dark:text-gray-100 placeholder-gray-400"
+            placeholder="Type a topic, or leave it empty to use the attached notes"
+            className="min-h-[64px] w-full resize-none border-0 bg-transparent px-4 py-3 text-[14px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
           />
 
           <div className="flex flex-wrap justify-between items-center gap-2 px-3 pb-3">
             <div className="relative flex items-center gap-2">
-              <Button variant="ghost" size="sm" className="rounded-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950 px-4 h-9 shadow-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700" onClick={() => setShowDocSelector(!showDocSelector)}>
-                <Paperclip className="w-4 h-4 mr-2" />
-                <span className="font-bold text-xs">{selectedDocs.length > 0 ? `${selectedDocs.length} Attached` : 'Attach'}</span>
+              <Button variant="ghost" size="sm" className="h-8 rounded-lg px-2.5 text-[13px] text-gray-600 dark:text-gray-300" onClick={() => setShowDocSelector(!showDocSelector)}>
+                <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                <span>{selectedDocs.length > 0 ? `${selectedDocs.length} Attached` : 'Attach'}</span>
               </Button>
 
               <label>
-                <span className="cursor-pointer inline-flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950 px-4 h-9 shadow-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 font-bold text-xs transition-colors">
-                  <Upload className="w-4 h-4 mr-2 text-gray-400" />
+                <span className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg px-2.5 text-[13px] text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/[.06] dark:hover:text-white">
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
                   {isUploading ? 'Reading…' : 'Upload'}
                 </span>
                 <input type="file" accept=".pdf,.txt,.md,.csv" className="hidden" onChange={(e) => {
@@ -284,7 +283,7 @@ export const SubjectWorkspace: React.FC = () => {
               {showDocSelector && (
                 <div className="absolute bottom-full left-0 mb-2 w-[min(18rem,calc(100vw-3rem))] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-4 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
                   <div className="flex justify-between items-center mb-3">
-                     <h4 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Library Documents</h4>
+                     <h4 className="text-[13px] font-medium text-gray-900 dark:text-gray-100">Your notes</h4>
                      <button onClick={() => setShowDocSelector(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"><X className="w-4 h-4"/></button>
                   </div>
 
@@ -312,12 +311,12 @@ export const SubjectWorkspace: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 max-sm:w-full">
-              <span className="text-[10px] font-medium text-gray-400 hidden sm:inline-block tracking-wider uppercase">
-                {isReady ? 'Ready for AI' : 'Provide Input'}
+              <span className="hidden text-xs text-gray-500 sm:inline">
+                {isReady ? (selectedDocs.length ? `From ${selectedDocs.length} note${selectedDocs.length === 1 ? '' : 's'}` : 'From your topic') : 'Attach notes or type a topic'}
               </span>
               <Button
                 size="sm"
-                className={cn("rounded-full px-6 font-bold shadow-sm max-sm:w-full", !isReady && "opacity-50 cursor-not-allowed")}
+                className={cn("h-8 rounded-lg px-4 max-sm:w-full", !isReady && "cursor-not-allowed opacity-50")}
                 onClick={isReady ? onGenerate : undefined}
                 isLoading={isGenerating}
                 disabled={!isReady}
@@ -1386,37 +1385,41 @@ export const SubjectWorkspace: React.FC = () => {
                       onExit={() => setServerQuiz(null)}
                     />
                   ) : !quizActive ? (
-                    <Card className="flex-1 flex flex-col items-center justify-center text-center py-12 p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6 min-h-[300px]">
-                      <div className="w-14 h-14 rounded-full bg-primary-100 dark:bg-primary-950/40 text-primary-600 flex items-center justify-center mx-auto shadow-md">
-                        <CheckSquare className="w-8 h-8" />
+                    <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-white/[.07] dark:bg-white/[.015]">
+                      <h2 className="text-xl font-medium text-gray-900 dark:text-white">Practice</h2>
+                      <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">Questions come from your notes or the topic you type below. Anything you get wrong becomes a weak topic.</p>
+
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Kind of practice">
+                        {[
+                          { adaptive: false, title: 'Quick quiz', detail: '5 questions with explanations, saved so you can retake it', meta: '5 questions' },
+                          { adaptive: true, title: 'Adaptive exam', detail: 'Gets harder or easier as you answer, focused on your weak topics', meta: '10 questions' },
+                        ].map(mode => {
+                          const chosen = isAdaptiveMode === mode.adaptive;
+                          return (
+                            <button
+                              key={mode.title}
+                              role="radio"
+                              aria-checked={chosen}
+                              onClick={() => setIsAdaptiveMode(mode.adaptive)}
+                              className={cn(
+                                "rounded-xl border p-4 text-left transition-colors",
+                                chosen
+                                  ? "border-primary-500/60 bg-primary-500/[.06] ring-1 ring-primary-500/30"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-white/[.08] dark:hover:border-white/[.14] dark:hover:bg-white/[.03]"
+                              )}
+                            >
+                              <span className="flex items-center justify-between">
+                                <span className="text-[14px] font-medium text-gray-900 dark:text-white">{mode.title}</span>
+                                <span className={cn("h-4 w-4 rounded-full border", chosen ? "border-[5px] border-primary-500" : "border-gray-300 dark:border-white/25")} aria-hidden="true" />
+                              </span>
+                              <span className="mt-1 block text-[13px] text-gray-500 dark:text-gray-400">{mode.detail}</span>
+                              <span className="mt-3 block font-mono text-xs text-gray-500">{mode.meta}</span>
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      <div className="space-y-1">
-                        <h2 className="text-2xl font-extrabold mb-1 self-center text-gray-900 dark:text-white">Practice quiz</h2>
-                        <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                          Generate a randomized MCQ set review. Wrong items will auto-sync with your Weak Topic tracker review pane.
-                        </p>
-                      </div>
-
-                      {/* Adaptive toggle switch */}
-                      <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 p-4 rounded-xl max-w-sm mx-auto flex items-center justify-between">
-                        <div className="text-left leading-none">
-                          <span className="font-bold text-xs text-gray-800 dark:text-gray-200 block">Adaptive difficulty</span>
-                          <span className="text-[10px] text-gray-400 mt-1 block">10 questions that get harder or easier as you answer, focused on your weak topics.</span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isAdaptiveMode}
-                            aria-label="Adaptive difficulty"
-                            onChange={() => setIsAdaptiveMode(!isAdaptiveMode)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
-                        </label>
-                      </div>
-
-                      <div className="flex justify-center gap-3 pt-2">
+                      <div className="mt-5 flex items-center gap-3">
                         <Button onClick={() => {
                           if (isAdaptiveMode) {
                             if (!hasMaterial()) {
@@ -1440,10 +1443,11 @@ export const SubjectWorkspace: React.FC = () => {
                           setLastQuestionFeedback(null);
                           setShowQuizResult(false);
                         }}>
-                          {isAdaptiveMode ? 'Start adaptive exam' : 'Start MCQ Session'}
+                          {isAdaptiveMode ? 'Start adaptive exam' : 'Start quiz'}
                         </Button>
+                        <span className="text-xs text-gray-500">{isAccountSubject && !isAdaptiveMode ? 'Opens your latest saved quiz, or make one below' : 'Attach notes or type a topic below first'}</span>
                       </div>
-                    </Card>
+                    </section>
                   ) : showQuizResult ? (
                     <Card className="text-center p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6">
                       <div className="w-14 h-14 rounded-full bg-emerald-105 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
@@ -1563,7 +1567,7 @@ export const SubjectWorkspace: React.FC = () => {
               )}
                 </div>
                 <div className="shrink-0 mt-auto">
-                  {renderDualInputHeader("Practice Quiz", "Generate randomized MCQ set reviews", handleGenerateQuiz, isGenerating, "Generate MCQs")}
+                  {renderDualInputHeader("Practice Quiz", "Generate randomized MCQ set reviews", handleGenerateQuiz, isGenerating, "Make quiz")}
                 </div>
               </div>
 
