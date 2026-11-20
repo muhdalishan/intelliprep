@@ -7,8 +7,8 @@ import { StudyGroups } from '../components/StudyGroups';
 export const Groups: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
   return (
-    <AppShell title="Study groups" bodyClassName={groupId ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}>
-      <StudyGroups key={groupId ?? 'home'} groupId={groupId} />
+    <AppShell title="Study groups" bodyClassName="flex flex-col overflow-hidden">
+      <StudyGroups groupId={groupId} />
     </AppShell>
   );
 };

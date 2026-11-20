@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Check, Copy, Crown, Database, ImagePlus, Info, LogIn, LogOut, Mic, Paperclip, Plus,
+  ArrowLeft, BookOpen, Search, Check, Copy, Crown, Database, ImagePlus, Info, LogIn, LogOut, Mic, Paperclip, Plus,
   RefreshCw, SendHorizontal, Share2, Trash2, Upload, Users, X,
 } from 'lucide-react';
 import { Button, cn } from './UIComponents';
@@ -62,6 +62,7 @@ export const StudyGroups: React.FC<Props> = ({ subject, groupId }) => {
   const [form, setForm] = useState<'create' | 'join' | null>(null);
   const [newName, setNewName] = useState(subject ? `${subject.name} study group` : '');
   const [code, setCode] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<Pending[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -396,23 +397,25 @@ export const StudyGroups: React.FC<Props> = ({ subject, groupId }) => {
 
   return (
     <div className="flex h-full min-h-[560px] flex-1 overflow-hidden">
-      {/* Groups home: every group as a card, like the dashboard */}
-      {!groupId && (
-        <main className="mx-auto w-full max-w-[1480px] overflow-y-auto px-4 py-7 pb-32 sm:px-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Study groups</h1>
-              <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">Chat, share notes and quizzes, and plan shared subjects with your classmates.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="secondary" icon={LogIn} onClick={() => setForm(form === 'join' ? null : 'join')}>Join with code</Button>
-              <Button size="sm" icon={Plus} onClick={() => setForm(form === 'create' ? null : 'create')}>New group</Button>
+      {/* Groups list, always on the left like WhatsApp Web; on phones it shows until a group opens */}
+      <aside className={cn("w-full shrink-0 flex-col border-r border-gray-200 dark:border-white/[.07] md:flex md:w-80", groupId ? "hidden" : "flex")}>
+        <div className="space-y-3 border-b border-gray-200 p-3 dark:border-white/[.07]">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-[15px] font-semibold text-gray-900 dark:text-white">Groups</h2>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setForm(form === 'join' ? null : 'join')} title="Join with a code" aria-label="Join with a code"
+                className={cn("flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.06] dark:hover:text-white", form === 'join' && "bg-gray-100 text-gray-900 dark:bg-white/[.08] dark:text-white")}>
+                <LogIn className="h-4 w-4" />
+              </button>
+              <button onClick={() => setForm(form === 'create' ? null : 'create')} title="New group" aria-label="New group"
+                className={cn("flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.06] dark:hover:text-white", form === 'create' && "bg-gray-100 text-gray-900 dark:bg-white/[.08] dark:text-white")}>
+                <Plus className="h-4 w-4" />
+              </button>
             </div>
           </div>
-
-          {form && (
+          {form ? (
             <form
-              className="mt-5 flex max-w-xl flex-col gap-2 rounded-xl border border-gray-200 p-4 animate-in dark:border-white/[.08] sm:flex-row sm:items-center"
+              className="space-y-2 animate-in"
               onSubmit={async e => {
                 e.preventDefault();
                 const detail = form === 'create'
@@ -422,86 +425,77 @@ export const StudyGroups: React.FC<Props> = ({ subject, groupId }) => {
               }}
             >
               {form === 'create' ? (
-                <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} maxLength={80} placeholder="Group name, e.g. DS midterm crew" aria-label="Group name"
-                  className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-3 text-[13px] outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
+                <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} maxLength={80} placeholder="New group name" aria-label="Group name"
+                  className="h-9 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-[13px] outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
               ) : (
                 <input autoFocus value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={16} placeholder="Invite code, e.g. 7F3A9C21" aria-label="Invite code"
-                  className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-3 font-mono text-[13px] tracking-[0.08em] outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
+                  className="h-9 w-full rounded-lg border border-gray-200 bg-transparent px-3 font-mono text-[13px] tracking-[0.08em] outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
               )}
               <div className="flex gap-2">
-                <Button type="submit" size="md" disabled={busy || (form === 'create' ? !newName.trim() : code.trim().length < 4)}>
+                <Button type="submit" size="sm" className="flex-1" disabled={busy || (form === 'create' ? !newName.trim() : code.trim().length < 4)}>
                   {form === 'create' ? 'Create group' : 'Join group'}
                 </Button>
-                <Button type="button" size="md" variant="ghost" onClick={() => setForm(null)}>Cancel</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setForm(null)}>Cancel</Button>
               </div>
             </form>
+          ) : (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+              <input value={groupSearch} onChange={e => setGroupSearch(e.target.value)} placeholder="Search groups" aria-label="Search groups"
+                className="h-9 w-full rounded-lg bg-gray-100 pl-9 pr-3 text-[13px] text-gray-900 outline-none placeholder:text-gray-400 focus:ring-1 focus:ring-primary-500/50 dark:bg-white/[.05] dark:text-gray-100" />
+            </div>
           )}
+        </div>
 
-          <div className="mt-6">
-            {list === null && <p className="py-10 text-[13px] text-gray-500">Loading your groups…</p>}
-            {list?.length === 0 && (
-              <div className="rounded-xl border border-dashed border-gray-300 px-6 py-14 text-center dark:border-white/[.1]">
-                <Users className="mx-auto h-7 w-7 text-gray-400" />
-                <h3 className="mt-3 text-[15px] font-medium text-gray-900 dark:text-white">No groups yet</h3>
-                <p className="mx-auto mt-1 max-w-sm text-[13px] text-gray-500">Start one for your class and share the invite code, or join with a code from a classmate.</p>
-                <div className="mt-5 flex justify-center gap-2">
-                  <Button size="sm" icon={Plus} onClick={() => setForm('create')}>New group</Button>
-                  <Button size="sm" variant="secondary" icon={LogIn} onClick={() => setForm('join')}>Join with code</Button>
-                </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          {list === null && <p className="px-3 py-4 text-[13px] text-gray-500">Loading your groups…</p>}
+          {list?.length === 0 && (
+            <div className="px-4 py-10 text-center">
+              <Users className="mx-auto h-6 w-6 text-gray-400" />
+              <p className="mt-2 text-[13px] font-medium text-gray-800 dark:text-gray-200">No groups yet</p>
+              <p className="mt-1 text-xs text-gray-500">Start one for your class, or join with a code from a classmate.</p>
+              <div className="mt-4 flex justify-center gap-2">
+                <Button size="sm" icon={Plus} onClick={() => setForm('create')}>New group</Button>
+                <Button size="sm" variant="secondary" icon={LogIn} onClick={() => setForm('join')}>Join</Button>
               </div>
-            )}
-            {list && list.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {list.map(group => (
-                  <article
-                    key={group.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(`/groups/${group.id}`)}
-                    onKeyDown={e => { if (e.key === 'Enter') navigate(`/groups/${group.id}`); }}
-                    className="group flex cursor-pointer flex-col rounded-xl border border-gray-200 bg-white p-4 transition-[border-color,background-color,box-shadow] hover:border-gray-300 hover:shadow-lg dark:border-white/[.07] dark:bg-white/[.015] dark:hover:border-white/[.14] dark:hover:bg-white/[.035]"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-medium", TILE)}>{initials(group.name)}</span>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-[14px] font-medium text-gray-900 dark:text-white">{group.name}</h3>
-                        <p className="text-xs text-gray-500">{group.role === 'lead' ? 'You lead this group' : 'Member'}</p>
-                      </div>
-                    </div>
-                    <dl className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                      <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/[.03]">
-                        <dt className="text-gray-500">Members</dt>
-                        <dd className="mt-0.5 text-[15px] font-medium tabular-nums text-gray-900 dark:text-white">{group.member_count}</dd>
-                      </div>
-                      <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/[.03]">
-                        <dt className="text-gray-500">Shared subjects</dt>
-                        <dd className="mt-0.5 text-[15px] font-medium tabular-nums text-gray-900 dark:text-white">{group.subject_count}</dd>
-                      </div>
-                    </dl>
-                    <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 dark:border-white/[.06]">
-                      <button
-                        onClick={e => { e.stopPropagation(); copyCode(group.invite_code); }}
-                        className="flex h-7 items-center gap-1.5 rounded-md px-2 font-mono text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[.06]"
-                        title="Copy invite code"
-                      >
-                        <Copy className="h-3.5 w-3.5" /> {group.invite_code}
-                      </button>
-                      <span className="flex items-center gap-1 text-xs font-medium text-gray-400 transition-colors group-hover:text-primary-500">
-                        Open chat <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </span>
-                    </div>
-                  </article>
-                ))}
-                <button
-                  onClick={() => setForm('create')}
-                  className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 text-[13px] text-gray-500 transition-colors hover:border-primary-500/60 hover:bg-primary-500/[.04] hover:text-primary-600 dark:border-white/[.1] dark:hover:text-primary-400"
-                >
-                  <Plus className="h-5 w-5" /> New group
-                </button>
-              </div>
-            )}
-          </div>
-        </main>
+            </div>
+          )}
+          {list?.filter(g => g.name.toLowerCase().includes(groupSearch.trim().toLowerCase())).map(group => {
+            const active = group.id === groupId;
+            return (
+              <button
+                key={group.id}
+                onClick={() => navigate(`/groups/${group.id}`)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                  active ? "bg-gray-100 dark:bg-white/[.07]" : "hover:bg-gray-50 dark:hover:bg-white/[.03]"
+                )}
+                aria-current={active ? 'page' : undefined}
+              >
+                <span className={cn("relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-medium", TILE)}>
+                  {initials(group.name)}
+                  {active && <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-primary-500 ring-2 ring-white dark:ring-gray-900" aria-hidden="true" />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{group.name}</span>
+                    {group.role === 'lead' && <Crown className="h-3 w-3 shrink-0 text-gray-400" aria-label="You lead this group" />}
+                  </span>
+                  <span className="block truncate text-xs text-gray-500">{group.member_count} member{group.member_count === 1 ? '' : 's'} · {group.subject_count} shared subject{group.subject_count === 1 ? '' : 's'}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      {/* No group open (wide screens): a calm placeholder, like WhatsApp Web */}
+      {!groupId && (
+        <div className="hidden flex-1 flex-col items-center justify-center p-8 text-center md:flex">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 dark:bg-white/[.05]"><Users className="h-6 w-6 text-gray-400" /></span>
+          <p className="mt-4 text-[15px] font-medium text-gray-900 dark:text-white">Pick a group to open its chat</p>
+          <p className="mt-1 max-w-sm text-[13px] text-gray-500">Chat, share notes, quizzes and flashcards, and plan shared subjects with your classmates.</p>
+        </div>
       )}
 
       {/* One group: the chat, full width */}
@@ -516,7 +510,7 @@ export const StudyGroups: React.FC<Props> = ({ subject, groupId }) => {
         >
           <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-3 dark:border-white/[.07] sm:px-4">
             <div className="flex min-w-0 items-center gap-2.5">
-              <button onClick={() => navigate('/groups')} className="-ml-1 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[.06]" aria-label="Back to groups">
+              <button onClick={() => navigate('/groups')} className="-ml-1 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[.06] md:hidden" aria-label="Back to groups">
                 <ArrowLeft className="h-4 w-4" />
               </button>
               <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-medium", TILE)}>{initials(selected.name)}</span>
@@ -538,7 +532,7 @@ export const StudyGroups: React.FC<Props> = ({ subject, groupId }) => {
             </div>
           </header>
 
-          <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 pb-16 pt-4 sm:px-6">
+          <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 pb-6 pt-4 sm:px-6">
             <div ref={content} className="mx-auto min-h-full max-w-4xl">
             {messages.length === 0 && (
               <div className="flex h-full flex-col items-center justify-center text-center">
