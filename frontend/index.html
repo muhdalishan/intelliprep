@@ -131,7 +131,7 @@
       /* Panels, tabs and sheets open with a short settle; pages cross-fade. */
       .animate-in { animation: ip-enter .32s var(--ip-ease) both; }
       @keyframes ip-enter { from { opacity: 0; transform: translateY(6px) scale(.99); } }
-      .ip-page { animation: ip-page .28s var(--ip-ease) both; }
+      .ip-page { animation: ip-page .28s var(--ip-ease) backwards; }  /* no lasting layer once it has faded in */
       @keyframes ip-page { from { opacity: 0; } }  /* opacity only: a transform would trap fixed bars */
       /* The assistant grows out of its button, like an iOS sheet: scale, rise and un-blur. */
       .ip-sheet { transform-origin: bottom right; animation: ip-sheet .38s var(--ip-ease) both; }

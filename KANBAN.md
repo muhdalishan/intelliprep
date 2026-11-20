@@ -126,7 +126,7 @@ Mobile app · LMS integration · FSRS algorithm · offline review · instructor 
 ## 🐞 Known issues
 
 - [ ] Real sign-in (Supabase) is built but switches on only once the Supabase keys are set; see LAUNCH.md.
-- [ ] Uploaded files and diagram photos aren't kept yet, only their text and explanations (IP-20).
+- [ ] Uploaded lecture files and diagram photos aren't kept yet, only their text and explanations (IP-20). Files sent in group chats are kept (in the database, 10 MB each).
 - [ ] Background work runs inside the API process: a crash mid-job loses that job (IP-21).
 - [ ] New subjects are saved to the account; subjects made earlier in a browser (before accounts) keep their study data in that browser.
 - [ ] Switching to Claude or Gemini isn't wired up yet; only OpenAI works. The docs say one setting; that comes when we add providers.
