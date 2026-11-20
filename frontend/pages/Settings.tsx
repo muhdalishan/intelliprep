@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Moon, Sun, Bell, AudioLines, User, ShieldAlert, Target } from 'lucide-react';
 import { AppShell } from '../components/AppShell';
 import { useTheme } from '../services/theme';
@@ -7,7 +7,7 @@ import { NotificationPreferences, getPreferences, telegramLink, updatePreference
 import { confirmAction, notify } from '../components/Feedback';
 
 const Section: React.FC<{ icon: React.ElementType; title: string; description?: string; children: React.ReactNode }> = ({ icon: Icon, title, description, children }) => (
-  <section className="border-t border-gray-200 py-7 first:border-t-0 first:pt-0 dark:border-white/[.07]">
+  <section className="border-t border-gray-200 py-8 dark:border-white/[.07]">
     <div className="mb-4 flex items-start gap-2.5">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
       <div>
@@ -60,6 +60,26 @@ const speechSupported = typeof window !== 'undefined' && Boolean((window as any)
 
 export const Settings: React.FC = () => {
   const [tab, setTab] = useState<TabId>('profile');
+  // Every category is on one page; the list on the left jumps to one and follows your scroll.
+  const scroller = useRef<HTMLElement>(null);
+  const jump = (id: TabId) => {
+    setTab(id);
+    document.getElementById(`settings-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root) return;
+    const onScroll = () => {
+      const top = root.getBoundingClientRect().top;
+      let current: TabId = 'profile';
+      root.querySelectorAll<HTMLElement>('[data-section]').forEach(el => {
+        if (el.getBoundingClientRect().top - top < 120) current = el.dataset.section as TabId;
+      });
+      setTab(current);
+    };
+    root.addEventListener('scroll', onScroll, { passive: true });
+    return () => root.removeEventListener('scroll', onScroll);
+  }, []);
   const [name, setName] = useState(() => localStorage.getItem('userName') || '');
   const [photo, setPhoto] = useState(() => localStorage.getItem('profilePic') || '');
   const [saved, setSaved] = useState(false);
@@ -165,7 +185,7 @@ export const Settings: React.FC = () => {
           {TABS.map(item => (
             <button
               key={item.id}
-              onClick={() => setTab(item.id)}
+              onClick={() => jump(item.id)}
               aria-current={tab === item.id ? 'page' : undefined}
               className={cn(
                 "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium transition-colors",
@@ -179,10 +199,10 @@ export const Settings: React.FC = () => {
           ))}
         </div>
       </nav>
-      <main className="min-h-0 flex-1 overflow-y-auto">
-        <div key={tab} className="mx-auto max-w-2xl px-4 py-8 pb-32 animate-in sm:px-8">
+      <main ref={scroller} className="min-h-0 flex-1 overflow-y-auto scroll-smooth">
+        <div className="mx-auto max-w-2xl px-4 py-8 pb-[60vh] sm:px-8">
 
-        {tab === 'profile' && (
+        <div id="settings-profile" data-section="profile" className="scroll-mt-6 [&:first-child>section]:border-t-0 [&:first-child>section]:pt-0">
         <Section icon={User} title="Profile" description="How you appear to your study groups.">
           <form onSubmit={saveProfile} className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <label className="relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-full bg-gray-200 text-2xl font-semibold text-gray-700 dark:bg-white/10 dark:text-gray-200">
@@ -200,9 +220,9 @@ export const Settings: React.FC = () => {
             </div>
           </form>
         </Section>
-        )}
+        </div>
 
-        {tab === 'goal' && (
+        <div id="settings-goal" data-section="goal" className="scroll-mt-6 [&:first-child>section]:border-t-0 [&:first-child>section]:pt-0">
         <Section icon={Target} title="Study goal">
           <Row label="Days a week I want to study" hint="Shown in each subject next to the days you actually studied.">
             <select
@@ -214,9 +234,9 @@ export const Settings: React.FC = () => {
             </select>
           </Row>
         </Section>
-        )}
+        </div>
 
-        {tab === 'appearance' && (
+        <div id="settings-appearance" data-section="appearance" className="scroll-mt-6 [&:first-child>section]:border-t-0 [&:first-child>section]:pt-0">
         <Section icon={dark ? Moon : Sun} title="Appearance">
           <Row label="Theme">
             <div className="flex rounded-xl border border-slate-200 p-1 dark:border-slate-700">
@@ -229,9 +249,9 @@ export const Settings: React.FC = () => {
             </div>
           </Row>
         </Section>
-        )}
+        </div>
 
-        {tab === 'nova' && (
+        <div id="settings-nova" data-section="nova" className="scroll-mt-6 [&:first-child>section]:border-t-0 [&:first-child>section]:pt-0">
         <Section icon={AudioLines} title="Nova, your study assistant" description={speechSupported ? undefined : 'Voice needs Chrome or Edge. You can still type to Nova.'}>
           <Row label="Assistant name" hint="You wake it by saying “Hey” and this name.">
             <Input value={novaName} maxLength={20} className="w-40"
@@ -245,9 +265,9 @@ export const Settings: React.FC = () => {
             <Toggle label="Speak replies" checked={voiceReplies} onChange={value => { setVoiceReplies(value); saveNova({ voice: value }); }} />
           </Row>
         </Section>
-        )}
+        </div>
 
-        {tab === 'notifications' && (
+        <div id="settings-notifications" data-section="notifications" className="scroll-mt-6 [&:first-child>section]:border-t-0 [&:first-child>section]:pt-0">
         <Section icon={Bell} title="Notifications">
           <Row label="Reminder pop-ups" hint="Show reminders as desktop notifications while IntelliPrep is open.">
             {notifications === 'granted'
@@ -275,9 +295,9 @@ export const Settings: React.FC = () => {
             <Toggle label="Weekly email" checked={false} disabled onChange={() => {}} />
           </Row>
         </Section>
-        )}
+        </div>
 
-        {tab === 'account' && (
+        <div id="settings-account" data-section="account" className="scroll-mt-6 [&:first-child>section]:border-t-0 [&:first-child>section]:pt-0">
         <Section icon={ShieldAlert} title="Account and data">
           <Row label={<>Change password<SoonBadge /></>} hint="Available when full accounts launch.">
             <Button size="sm" variant="secondary" disabled>Change</Button>
@@ -289,7 +309,7 @@ export const Settings: React.FC = () => {
             <Button size="sm" variant="secondary" onClick={clearDeviceData}>Clear</Button>
           </Row>
         </Section>
-        )}
+        </div>
 
         </div>
       </main>
