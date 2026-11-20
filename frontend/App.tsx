@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
 import { SubjectWorkspace } from './pages/SubjectWorkspace';
@@ -39,7 +39,7 @@ const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 const App: React.FC = () => {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <div className="antialiased text-gray-900 dark:text-gray-100 min-h-screen">
         <PageTransition>
         <Routes>
@@ -55,6 +55,7 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+          <Route path="/groups/:groupId" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/about" element={<About />} />
           <Route path="/privacy" element={<Privacy />} />
@@ -65,7 +66,7 @@ const App: React.FC = () => {
         <Assistants />
         <FeedbackHost />
       </div>
-    </HashRouter>
+    </BrowserRouter>
   );
 };
 

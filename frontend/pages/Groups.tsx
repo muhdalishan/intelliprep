@@ -1,12 +1,14 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import { AppShell } from '../components/AppShell';
 import { StudyGroups } from '../components/StudyGroups';
 
-/** All of the student's study groups, across subjects. */
-export const Groups: React.FC = () => (
-  <AppShell title="Study groups" bodyClassName="overflow-y-auto">
-    <main className="mx-auto h-full w-full max-w-[1400px] max-md:h-auto max-md:pb-32">
-      <StudyGroups />
-    </main>
-  </AppShell>
-);
+/** Study groups: the groups page, or one group's chat at /groups/:groupId. */
+export const Groups: React.FC = () => {
+  const { groupId } = useParams<{ groupId: string }>();
+  return (
+    <AppShell title="Study groups" bodyClassName={groupId ? 'flex flex-col overflow-hidden' : 'overflow-y-auto'}>
+      <StudyGroups key={groupId ?? 'home'} groupId={groupId} />
+    </AppShell>
+  );
+};

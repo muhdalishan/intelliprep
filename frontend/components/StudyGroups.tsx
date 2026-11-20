@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, BookOpen, Check, Copy, Crown, Database, ImagePlus, Info, LogIn, LogOut, Mic, Paperclip, Plus,
+  ArrowLeft, ArrowRight, BookOpen, Check, Copy, Crown, Database, ImagePlus, Info, LogIn, LogOut, Mic, Paperclip, Plus,
   RefreshCw, SendHorizontal, Share2, Trash2, Upload, Users, X,
 } from 'lucide-react';
 import { Button, cn } from './UIComponents';
@@ -16,6 +16,8 @@ import { FileCard, formatSize, KIND_STYLE, mediaKind, MediaViewer, MessageMedia,
 import { clock, MAX_VOICE_SECONDS, useVoiceRecorder } from '../hooks/useVoiceRecorder';
 
 interface Props {
+  /** The open group, from the address /groups/:groupId. None shows the groups page. */
+  groupId?: string;
   /** The subject the student is in; the Groups page passes none. */
   subject?: Subject;
 }
@@ -47,7 +49,7 @@ const Avatar: React.FC<{ name: string; id: string; size?: 'sm' | 'md' }> = ({ na
 interface Pending { id: string; file: File; preview: string | null }
 
 /** Study groups as a group chat: groups on the left, the conversation with files in the middle, details on the right. */
-export const StudyGroups: React.FC<Props> = ({ subject }) => {
+export const StudyGroups: React.FC<Props> = ({ subject, groupId }) => {
   const navigate = useNavigate();
   const subjectId = subject?.id ?? '';
   const [list, setList] = useState<GroupSummary[] | null>(null);
@@ -104,11 +106,11 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
     }
   };
 
-  // Open the first group straight away on wide screens, so the page is never a blank form.
+  // The address decides which group is open.
   useEffect(() => {
-    if (!selected && list && list.length > 0 && window.matchMedia('(min-width: 768px)').matches) open(list[0].id);
+    if (groupId) { open(groupId); setShowInfo(false); } else { setSelected(null); setMessages([]); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [list]);
+  }, [groupId]);
 
   // New messages every few seconds while a group is open.
   useEffect(() => {
@@ -384,6 +386,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
           await run(() => groups.leaveGroup(selected.id));
           setSelected(null); setShowInfo(false);
           refreshList();
+          navigate('/groups');
         }}
       >
         <LogOut className="h-3.5 w-3.5" /> Leave group
@@ -393,90 +396,118 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
 
   return (
     <div className="flex h-full min-h-[560px] flex-1 overflow-hidden">
-      {/* Groups */}
-      <aside className={cn("w-full shrink-0 flex-col border-r border-gray-200 dark:border-white/[.07] md:flex md:w-72", selected ? "hidden" : "flex")}>
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 px-4 dark:border-white/[.07]">
-          <h2 className="text-[13px] font-semibold text-gray-900 dark:text-white">Groups</h2>
-          <div className="flex items-center gap-1">
-            <button onClick={() => setForm(form === 'join' ? null : 'join')} className={cn("flex h-7 items-center gap-1 rounded-md px-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[.06]", form === 'join' && "bg-gray-100 dark:bg-white/[.08]")}>
-              <LogIn className="h-3.5 w-3.5" /> Join
-            </button>
-            <button onClick={() => setForm(form === 'create' ? null : 'create')} className={cn("flex h-7 items-center gap-1 rounded-md px-2 text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[.06]", form === 'create' && "bg-gray-100 dark:bg-white/[.08]")}>
-              <Plus className="h-3.5 w-3.5" /> New
-            </button>
-          </div>
-        </div>
-
-        {form && (
-          <form
-            className="space-y-2 border-b border-gray-200 p-3 animate-in dark:border-white/[.07]"
-            onSubmit={async e => {
-              e.preventDefault();
-              if (form === 'create') {
-                const detail = await run(() => groups.createGroup(newName.trim()));
-                if (detail) { afterChange(detail); setMessages([]); setForm(null); }
-              } else {
-                const detail = await run(() => groups.joinGroup(code.trim()));
-                if (detail) { setCode(''); afterChange(detail); setMessages(await groups.listMessages(detail.id).catch(() => [])); setForm(null); }
-              }
-            }}
-          >
-            {form === 'create' ? (
-              <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} maxLength={80} placeholder="Group name" aria-label="Group name"
-                className="h-8 w-full rounded-md border border-gray-200 bg-transparent px-2.5 text-[13px] outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
-            ) : (
-              <input autoFocus value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={16} placeholder="Invite code, e.g. 7F3A9C21" aria-label="Invite code"
-                className="h-8 w-full rounded-md border border-gray-200 bg-transparent px-2.5 font-mono text-[13px] tracking-widest outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
-            )}
-            <Button type="submit" size="sm" className="w-full" disabled={busy || (form === 'create' ? !newName.trim() : code.trim().length < 4)}>
-              {form === 'create' ? 'Create group' : 'Join group'}
-            </Button>
-          </form>
-        )}
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          {list === null && <p className="px-2 py-3 text-xs text-gray-400">Loading your groups…</p>}
-          {list?.length === 0 && (
-            <div className="px-3 py-8 text-center">
-              <Users className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" />
-              <p className="mt-2 text-[13px] font-medium text-gray-700 dark:text-gray-300">No groups yet</p>
-              <p className="mt-1 text-xs text-gray-500">Start one for your class, or join with a code from a classmate.</p>
-              <div className="mt-3 flex justify-center gap-2">
-                <Button size="sm" icon={Plus} onClick={() => setForm('create')}>New group</Button>
-                <Button size="sm" variant="secondary" icon={LogIn} onClick={() => setForm('join')}>Join</Button>
-              </div>
+      {/* Groups home: every group as a card, like the dashboard */}
+      {!groupId && (
+        <main className="mx-auto w-full max-w-[1480px] overflow-y-auto px-4 py-7 pb-32 sm:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Study groups</h1>
+              <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">Chat, share notes and quizzes, and plan shared subjects with your classmates.</p>
             </div>
-          )}
-          {list?.map(group => (
-            <button
-              key={group.id}
-              onClick={() => { open(group.id); setShowInfo(false); }}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
-                selected?.id === group.id ? "bg-gray-100 dark:bg-white/[.06] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" : "hover:bg-gray-50 dark:hover:bg-white/[.03]"
-              )}
-            >
-              <span className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-medium", TILE)}>{initials(group.name)}{selected?.id === group.id && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white dark:ring-gray-900" aria-hidden="true" />}</span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">
-                  <span className="truncate">{group.name}</span>
-                  {group.role === 'lead' && <Crown className="h-3 w-3 shrink-0 text-gray-400" aria-label="You lead this group" />}
-                </span>
-                <span className="block truncate text-xs text-gray-500">{group.member_count} member{group.member_count === 1 ? '' : 's'} · {group.subject_count} subject{group.subject_count === 1 ? '' : 's'}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </aside>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="secondary" icon={LogIn} onClick={() => setForm(form === 'join' ? null : 'join')}>Join with code</Button>
+              <Button size="sm" icon={Plus} onClick={() => setForm(form === 'create' ? null : 'create')}>New group</Button>
+            </div>
+          </div>
 
-      {/* Conversation */}
-      {!selected ? (
-        <div className="hidden flex-1 flex-col items-center justify-center p-8 text-center md:flex">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 dark:bg-white/[.06]"><Users className="h-5 w-5 text-gray-400" /></span>
-          <p className="mt-3 text-[15px] font-semibold text-gray-900 dark:text-white">Pick a group to start chatting</p>
-          <p className="mt-1 max-w-sm text-[13px] text-gray-500">{subject ? `Share ${subject.name} into a group` : 'Share a subject into a group'} so everyone can see its documents, plan together and swap notes, photos and files here.</p>
-        </div>
-      ) : (
+          {form && (
+            <form
+              className="mt-5 flex max-w-xl flex-col gap-2 rounded-xl border border-gray-200 p-4 animate-in dark:border-white/[.08] sm:flex-row sm:items-center"
+              onSubmit={async e => {
+                e.preventDefault();
+                const detail = form === 'create'
+                  ? await run(() => groups.createGroup(newName.trim()))
+                  : await run(() => groups.joinGroup(code.trim()));
+                if (detail) { setCode(''); setForm(null); refreshList(); navigate(`/groups/${detail.id}`); }
+              }}
+            >
+              {form === 'create' ? (
+                <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} maxLength={80} placeholder="Group name, e.g. DS midterm crew" aria-label="Group name"
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-3 text-[13px] outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
+              ) : (
+                <input autoFocus value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={16} placeholder="Invite code, e.g. 7F3A9C21" aria-label="Invite code"
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 bg-transparent px-3 font-mono text-[13px] tracking-[0.08em] outline-none focus:border-primary-500/70 dark:border-white/[.09]" />
+              )}
+              <div className="flex gap-2">
+                <Button type="submit" size="md" disabled={busy || (form === 'create' ? !newName.trim() : code.trim().length < 4)}>
+                  {form === 'create' ? 'Create group' : 'Join group'}
+                </Button>
+                <Button type="button" size="md" variant="ghost" onClick={() => setForm(null)}>Cancel</Button>
+              </div>
+            </form>
+          )}
+
+          <div className="mt-6">
+            {list === null && <p className="py-10 text-[13px] text-gray-500">Loading your groups…</p>}
+            {list?.length === 0 && (
+              <div className="rounded-xl border border-dashed border-gray-300 px-6 py-14 text-center dark:border-white/[.1]">
+                <Users className="mx-auto h-7 w-7 text-gray-400" />
+                <h3 className="mt-3 text-[15px] font-medium text-gray-900 dark:text-white">No groups yet</h3>
+                <p className="mx-auto mt-1 max-w-sm text-[13px] text-gray-500">Start one for your class and share the invite code, or join with a code from a classmate.</p>
+                <div className="mt-5 flex justify-center gap-2">
+                  <Button size="sm" icon={Plus} onClick={() => setForm('create')}>New group</Button>
+                  <Button size="sm" variant="secondary" icon={LogIn} onClick={() => setForm('join')}>Join with code</Button>
+                </div>
+              </div>
+            )}
+            {list && list.length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {list.map(group => (
+                  <article
+                    key={group.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/groups/${group.id}`)}
+                    onKeyDown={e => { if (e.key === 'Enter') navigate(`/groups/${group.id}`); }}
+                    className="group flex cursor-pointer flex-col rounded-xl border border-gray-200 bg-white p-4 transition-[border-color,background-color,box-shadow] hover:border-gray-300 hover:shadow-lg dark:border-white/[.07] dark:bg-white/[.015] dark:hover:border-white/[.14] dark:hover:bg-white/[.035]"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-medium", TILE)}>{initials(group.name)}</span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-[14px] font-medium text-gray-900 dark:text-white">{group.name}</h3>
+                        <p className="text-xs text-gray-500">{group.role === 'lead' ? 'You lead this group' : 'Member'}</p>
+                      </div>
+                    </div>
+                    <dl className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/[.03]">
+                        <dt className="text-gray-500">Members</dt>
+                        <dd className="mt-0.5 text-[15px] font-medium tabular-nums text-gray-900 dark:text-white">{group.member_count}</dd>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-white/[.03]">
+                        <dt className="text-gray-500">Shared subjects</dt>
+                        <dd className="mt-0.5 text-[15px] font-medium tabular-nums text-gray-900 dark:text-white">{group.subject_count}</dd>
+                      </div>
+                    </dl>
+                    <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 dark:border-white/[.06]">
+                      <button
+                        onClick={e => { e.stopPropagation(); copyCode(group.invite_code); }}
+                        className="flex h-7 items-center gap-1.5 rounded-md px-2 font-mono text-xs text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[.06]"
+                        title="Copy invite code"
+                      >
+                        <Copy className="h-3.5 w-3.5" /> {group.invite_code}
+                      </button>
+                      <span className="flex items-center gap-1 text-xs font-medium text-gray-400 transition-colors group-hover:text-primary-500">
+                        Open chat <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                    </div>
+                  </article>
+                ))}
+                <button
+                  onClick={() => setForm('create')}
+                  className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 text-[13px] text-gray-500 transition-colors hover:border-primary-500/60 hover:bg-primary-500/[.04] hover:text-primary-600 dark:border-white/[.1] dark:hover:text-primary-400"
+                >
+                  <Plus className="h-5 w-5" /> New group
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
+      )}
+
+      {/* One group: the chat, full width */}
+      {groupId && !selected ? (
+        <div className="flex flex-1 items-center justify-center text-[13px] text-gray-500">Opening group…</div>
+      ) : selected && (
         <section
           className="relative flex min-w-0 flex-1 flex-col"
           onDragOver={e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true); } }}
@@ -485,7 +516,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
         >
           <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-3 dark:border-white/[.07] sm:px-4">
             <div className="flex min-w-0 items-center gap-2.5">
-              <button onClick={() => setSelected(null)} className="-ml-1 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[.06] md:hidden" aria-label="Back to groups">
+              <button onClick={() => navigate('/groups')} className="-ml-1 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[.06]" aria-label="Back to groups">
                 <ArrowLeft className="h-4 w-4" />
               </button>
               <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-medium", TILE)}>{initials(selected.name)}</span>
@@ -508,7 +539,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
           </header>
 
           <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 pb-16 pt-4 sm:px-6">
-            <div ref={content} className="min-h-full">
+            <div ref={content} className="mx-auto min-h-full max-w-4xl">
             {messages.length === 0 && (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl text-base font-medium", TILE)}>{initials(selected.name)}</span>
@@ -563,7 +594,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
           </div>
 
           {/* Composer */}
-          <div className="shrink-0 px-3 pb-3 sm:px-6 sm:pb-4">
+          <div className="mx-auto w-full max-w-4xl shrink-0 px-3 pb-3 sm:px-6 sm:pb-4">
             <div className="rounded-xl border border-gray-200 bg-white transition-colors focus-within:border-gray-300 dark:border-white/[.09] dark:bg-white/[.02] dark:focus-within:border-white/[.18]">
               {pending.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto border-b border-gray-100 p-2 dark:border-white/[.06]">
