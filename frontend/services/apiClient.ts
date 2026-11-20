@@ -46,3 +46,18 @@ export const apiFetch = async <T>(path: string, init: RequestInit = {}): Promise
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 };
+
+/** Downloads a protected file (e.g. a chat attachment) as a Blob, with the same sign-in as apiFetch. */
+export const apiBlob = async (path: string): Promise<Blob> => {
+  const token = await accessToken();
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : devStudentHeader(),
+    });
+  } catch {
+    throw new ApiError(0, "Can't reach the IntelliPrep server.", 'offline');
+  }
+  if (!response.ok) throw new ApiError(response.status, response.status === 404 ? 'File not found.' : 'Could not open the file.');
+  return response.blob();
+};

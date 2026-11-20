@@ -1,4 +1,4 @@
-import { apiFetch } from "./apiClient";
+import { apiBlob, apiFetch } from "./apiClient";
 
 export interface GroupSummary {
   id: string;
@@ -34,12 +34,20 @@ export interface GroupDetail {
   subjects: SharedSubject[];
 }
 
+export interface GroupAttachment {
+  id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+}
+
 export interface GroupMessage {
   id: number;
   user_id: string;
   author: string;
   body: string;
   created_at: string;
+  attachments: GroupAttachment[];
 }
 
 const post = <T>(path: string, body?: unknown) =>
@@ -61,6 +69,17 @@ export const listMessages = (groupId: string, after = 0) =>
   apiFetch<GroupMessage[]>(`/groups/${groupId}/messages?after=${after}`);
 export const postMessage = (groupId: string, body: string) =>
   post<GroupMessage>(`/groups/${groupId}/messages`, { body });
+
+/** Sends up to six files (10 MB each) with an optional caption. */
+export const postFiles = (groupId: string, files: File[], body: string) => {
+  const form = new FormData();
+  files.forEach(file => form.append("files", file));
+  form.append("body", body);
+  return apiFetch<GroupMessage>(`/groups/${groupId}/messages/files`, { method: "POST", body: form });
+};
+export const deleteMessage = (groupId: string, messageId: number) =>
+  apiFetch<void>(`/groups/${groupId}/messages/${messageId}`, { method: "DELETE" });
+export const fileBlob = (groupId: string, fileId: string) => apiBlob(`/groups/${groupId}/files/${fileId}`);
 
 /** Subjects saved only in this browser have short local ids; shared subjects need account ids. */
 export const isAccountSubjectId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);
