@@ -5,7 +5,7 @@ import { CHANNEL_LABEL, ReminderChannel } from '../services/reminderService';
 import { DashboardData, fetchDashboard } from '../services/dashboardService';
 
 const Panel: React.FC<{ icon: React.ElementType; title: string; children: React.ReactNode }> = ({ icon: Icon, title, children }) => (
-  <section className="min-w-0 rounded-xl border border-gray-200 p-4 transition-colors hover:border-gray-300 dark:border-white/[.07] dark:hover:border-white/[.12]">
+  <section className="min-w-0 rounded-2xl border border-gray-200 p-5 transition-colors hover:border-gray-300 dark:border-white/[.07] dark:hover:border-white/[.12]">
     <h3 className="mb-3 flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
       <Icon className="h-3.5 w-3.5" /> {title}
     </h3>
@@ -41,23 +41,7 @@ export const ComingUp: React.FC = () => {
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1" aria-label="Coming up">
-      <Panel icon={Bell} title="Coming up">
-        {reminders.length === 0 ? <Empty>No reminders set. Ask Nova to remind you.</Empty> : (
-          <ul className="space-y-2.5">
-            {reminders.slice(0, 3).map(r => (
-              <li key={r.id} className="flex gap-2.5">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary-500" />
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{r.message}</p>
-                  <p className="truncate text-xs text-gray-500">{formatDue(r.due_at)} · {CHANNEL_LABEL[r.channel as ReminderChannel] ?? r.channel}{r.subject_name ? ` · ${r.subject_name}` : ''}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Planner, predictions and notes">
       <Panel icon={Columns} title="Planner and practice">
         {taskTotal === 0 ? <Empty>No planner tasks yet.</Empty> : (
           <>
