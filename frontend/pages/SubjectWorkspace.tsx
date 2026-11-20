@@ -33,7 +33,7 @@ import { RemindersPanel } from '../components/RemindersPanel';
 import { confirmAction, notify } from '../components/Feedback';
 import {
   ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare,
-  Columns, Layout, GraduationCap, Bell, ChevronLeft, ChevronRight, RotateCw,
+  Columns, ListTodo, Layout, GraduationCap, Bell, ChevronLeft, ChevronRight, RotateCw,
   Play, Send, Image as ImageIcon, Flame, MessageSquare, AlertTriangle,
   CheckCircle2, Plus, Clock, HelpCircle, X, BrainCircuit, Activity, Trash2, Volume2,
   Users, Compass, BookOpen, PenTool, FileUp, Calendar, Hash, Shield, Share2, LogOut, PlusCircle,
@@ -88,6 +88,12 @@ export const SubjectWorkspace: React.FC = () => {
     if (tab) setActiveTab(tab);
   }, [searchParams]);
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
+  // Planner: a list on phones by default, a board on wider screens; the choice is remembered.
+  const [planView, setPlanView] = useState<'list' | 'board'>(() => {
+    try { const saved = localStorage.getItem('ip_plan_view'); if (saved === 'list' || saved === 'board') return saved; } catch { /* storage blocked */ }
+    return window.matchMedia('(max-width: 767px)').matches ? 'list' : 'board';
+  });
+  const [newTaskTitle, setNewTaskTitle] = useState('');
 
   const userName = localStorage.getItem('userName') || 'Scholar';
   const profilePic = localStorage.getItem('profilePic') || '';
@@ -1853,25 +1859,54 @@ export const SubjectWorkspace: React.FC = () => {
 
           {/* TAB 4.10: KANBAN BOARD */}
           {activeTab === 'kanban' && (
-            <div className="flex min-h-full flex-col space-y-4 text-left animate-in fade-in duration-300">
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:px-6 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shrink-0">
+            <div className="flex min-h-full flex-col gap-5 text-left">
+              <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h3 className="font-extrabold text-sm text-gray-800 dark:text-white">Planner</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Drag tasks between columns, or use the arrows on a task.</p>
-                  {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
+                  <h2 className="text-xl font-medium text-gray-900 dark:text-white">Planner</h2>
+                  <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">
+                    {planTasks.filter(t => t.status === 'mastered').length} of {planTasks.length} mastered
+                    {isAccountSubject && <span> · {sharedBoard.error ?? 'shared with your study groups'}</span>}
+                  </p>
                 </div>
-                <Button size="sm" icon={Plus} onClick={() => {
-                  const title = prompt("Enter target study task title:");
-                  if (title && title.trim()) {
-                    setPlanTasks([...planTasks, { id: Date.now().toString(), title: title.trim(), status: 'todo' }]);
-                  }
-                }}>
-                  Add task
-                </Button>
+                <div className="flex rounded-lg border border-gray-200 p-0.5 dark:border-white/[.08]" role="tablist" aria-label="Planner view">
+                  {(['list', 'board'] as const).map(v => (
+                    <button
+                      key={v}
+                      role="tab"
+                      aria-selected={planView === v}
+                      onClick={() => { setPlanView(v); try { localStorage.setItem('ip_plan_view', v); } catch { /* storage blocked */ } }}
+                      className={cn("flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-medium capitalize transition-colors",
+                        planView === v ? "bg-gray-100 text-gray-900 dark:bg-white/[.08] dark:text-white" : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200")}
+                    >
+                      {v === 'list' ? <ListTodo className="h-3.5 w-3.5" /> : <Columns className="h-3.5 w-3.5" />} {v}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex-1 min-h-[420px]">
-                <KanbanBoard tasks={planTasks} onUpdateTasks={setPlanTasks} />
+              <form
+                className="flex gap-2"
+                onSubmit={e => {
+                  e.preventDefault();
+                  const title = newTaskTitle.trim();
+                  if (!title) return;
+                  setPlanTasks([...planTasks, { id: Date.now().toString(), title, status: 'todo' }]);
+                  setNewTaskTitle('');
+                }}
+              >
+                <input
+                  value={newTaskTitle}
+                  onChange={e => setNewTaskTitle(e.target.value)}
+                  placeholder="Add a task, e.g. Revise AVL rotations"
+                  aria-label="New task"
+                  maxLength={200}
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3.5 text-[14px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary-500/70 dark:border-white/[.08] dark:bg-white/[.02] dark:text-gray-100"
+                />
+                <Button type="submit" icon={Plus} className="h-10 rounded-xl" disabled={!newTaskTitle.trim()}>Add</Button>
+              </form>
+
+              <div className="min-h-[420px] flex-1">
+                <KanbanBoard tasks={planTasks} onUpdateTasks={setPlanTasks} view={planView} />
               </div>
             </div>
           )}
