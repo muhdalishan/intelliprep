@@ -17,20 +17,20 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button: React.FC<ButtonProps> = ({ 
   children, variant = 'primary', size = 'md', className, isLoading, icon: Icon, ...props 
 }) => {
-  const baseStyles = "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyles = "inline-flex items-center justify-center rounded-md font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/60 focus-visible:ring-offset-1 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-lg shadow-primary-500/30",
-    secondary: "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700",
-    danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-500",
-    ghost: "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800",
+    primary: "bg-primary-600 text-white hover:bg-primary-500",
+    secondary: "bg-white dark:bg-white/[.03] text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-white/[.09] hover:bg-gray-50 dark:hover:bg-white/[.06]",
+    danger: "bg-red-600 text-white hover:bg-red-500",
+    ghost: "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-white/[.06]",
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2",
-    lg: "px-6 py-3 text-lg",
-    icon: "p-2"
+    sm: "h-7 px-2.5 text-xs",
+    md: "h-8 px-3.5 text-[13px]",
+    lg: "h-10 px-5 text-sm",
+    icon: "h-8 w-8"
   };
 
   return (
@@ -41,7 +41,7 @@ export const Button: React.FC<ButtonProps> = ({
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
       ) : Icon ? (
-        <Icon className="mr-2 h-4 w-4" />
+        <Icon className="mr-1.5 h-3.5 w-3.5" />
       ) : null}
       {children}
     </button>
@@ -50,7 +50,7 @@ export const Button: React.FC<ButtonProps> = ({
 
 export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, children, ...props }) => {
   return (
-    <div className={cn("glass-panel rounded-2xl p-6 shadow-sm", className)} {...props}>
+    <div className={cn("rounded-xl border border-gray-200 bg-white p-6 dark:border-white/[.07] dark:bg-gray-900", className)} {...props}>
       {children}
     </div>
   );
@@ -60,7 +60,7 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ c
   return (
     <input 
       className={cn(
-        "w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 px-4 py-2 text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all", 
+        "w-full rounded-md border border-gray-200 dark:border-white/[.09] bg-white dark:bg-white/[.03] px-3 py-1.5 text-[13px] text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:border-primary-500/70 focus:ring-2 focus:ring-primary-500/15 outline-none transition-colors", 
         className
       )} 
       {...props} 
@@ -70,7 +70,7 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = ({ c
 
 export const ProgressBar: React.FC<{ value: number; className?: string }> = ({ value, className }) => {
   return (
-    <div className={cn("h-2.5 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden", className)}>
+    <div className={cn("h-1.5 w-full rounded-full bg-gray-200 dark:bg-white/[.08] overflow-hidden", className)}>
       <div 
         className="h-full rounded-full bg-primary-500 transition-all duration-500 ease-out" 
         style={{ width: `${value}%` }}
