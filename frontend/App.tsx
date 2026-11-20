@@ -31,10 +31,17 @@ const Assistants: React.FC = () => {
   return <NovaAssistant />;
 };
 
+// Each page fades in when you move between pages (not between tabs of the same page).
+const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { pathname } = useLocation();
+  return <div key={pathname} className="ip-page">{children}</div>;
+};
+
 const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="antialiased text-gray-900 dark:text-gray-100 min-h-screen">
+        <PageTransition>
         <Routes>
           <Route path="/" element={<Auth />} />
           <Route path="/dashboard" element={
@@ -54,6 +61,7 @@ const App: React.FC = () => {
           <Route path="/terms" element={<Terms />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </PageTransition>
         <Assistants />
         <FeedbackHost />
       </div>

@@ -229,7 +229,7 @@ export const Settings: React.FC = () => {
               : <span className="text-xs text-slate-500">Not set up on this server yet</span>}
           </Row>
           <Row label="Quiet hours" hint="Telegram and email reminders wait until quiet hours end. In-app reminders still show.">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               <input type="time" aria-label="Quiet from" value={quietStart} onChange={e => setQuietStart(e.target.value)} disabled={!prefs} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900" />
               <span className="text-slate-400">to</span>
               <input type="time" aria-label="Quiet until" value={quietEnd} onChange={e => setQuietEnd(e.target.value)} disabled={!prefs} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900" />

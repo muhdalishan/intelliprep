@@ -14,6 +14,7 @@ import { daysUntil, readSubjectList, studyStreak } from '../services/studyStore'
 import { deleteAccountSubject, isAccountSubjectId, listAccountSubjects, saveSubjectToAccount, toSubject } from '../services/workspaceService';
 import { ApiError } from '../services/apiClient';
 import { realAccounts, signOut } from '../services/authService';
+import { DashboardData, fetchDashboard } from '../services/dashboardService';
 import { notify } from '../components/Feedback';
 
 type SharedSubjectCard = Subject & { owned?: boolean; sharedIn?: string[] };
@@ -137,8 +138,10 @@ export const Dashboard: React.FC = () => {
     setAccountSubjects(current => current.filter(s => s.id !== subjectToDelete));
   };
 
-  // Real numbers from what the student has done in this browser.
-  const streak = studyStreak();
+  // Real numbers: subjects kept in this browser count here, account subjects on the server.
+  const [server, setServer] = useState<DashboardData | null>(null);
+  useEffect(() => { fetchDashboard().then(setServer).catch(() => setServer(null)); }, []);
+  const streak = Math.max(studyStreak(), server?.streak_days ?? 0);
   const upcoming = allSubjects
     .map(sub => ({ sub, days: daysUntil(sub.examDate) }))
     .filter((item): item is { sub: SharedSubjectCard; days: number } => item.days !== null && item.days >= 0)
@@ -146,7 +149,7 @@ export const Dashboard: React.FC = () => {
   const nextPaper = upcoming[0];
   const masteredCards = allSubjects.reduce(
     (total, sub) => total + readSubjectList<{ mastered: boolean }>('cards', sub.id).filter(card => card.mastered).length, 0);
-  const weakTopicCount = allSubjects.reduce((total, sub) => total + readSubjectList('weak', sub.id).length, 0);
+  const weakTopicCount = allSubjects.reduce((total, sub) => total + readSubjectList('weak', sub.id).length, 0) + (server?.weak_topics ?? 0);
   const lastQuiz = (subjectId: string) => readSubjectList<{ score: number; total: number }>('quizzes', subjectId)[0];
 
   const loadSampleSubjects = () => setSubjects(MOCK_SUBJECTS);
@@ -157,7 +160,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#fafbff] dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-all duration-300 relative overflow-x-hidden selection:bg-primary-200/50">
+    <div className="min-h-screen bg-[#fafbff] dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-all duration-300 relative overflow-x-clip selection:bg-primary-200/50">
 
       {/* Premium Background Ambient Glow Elements */}
       <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-primary-100/30 dark:bg-primary-950/10 blur-[130px] pointer-events-none" />
@@ -405,7 +408,7 @@ export const Dashboard: React.FC = () => {
               <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <Plus className="w-5 h-5 text-primary-500" /> New subject
               </h2>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1" aria-label="Close">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>

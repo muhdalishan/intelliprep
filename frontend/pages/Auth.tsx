@@ -23,6 +23,14 @@ export const Auth: React.FC = () => {
   const [isFlipped, setIsFlipped] = useState(false); // For 3D card preview
 
   const [busy, setBusy] = useState(false);
+  // The header turns into a frosted bar once the page scrolls under it.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
   const { signedIn } = useAuth();
   // Opened the link in a reset-password email: ask for the new password.
@@ -253,7 +261,7 @@ export const Auth: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 selection:bg-primary-500/30 overflow-x-hidden relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 selection:bg-primary-500/30 overflow-x-clip relative">
 
       {/* Background Gradients matching image */}
       <div className="absolute top-0 inset-x-0 h-[800px] pointer-events-none -z-10 bg-gradient-to-br from-teal-50/50 via-white to-primary-50 dark:from-slate-950 dark:via-slate-950 dark:to-primary-950/20" />
@@ -261,7 +269,7 @@ export const Auth: React.FC = () => {
       <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-teal-100/40 dark:bg-teal-950/20 blur-[130px] pointer-events-none -z-10" />
 
       {/* 1. Header component */}
-      <header className="bg-transparent sticky top-0 z-40 transition-colors">
+      <header className={`sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-300 ${scrolled ? "border-slate-200/60 bg-white/75 backdrop-blur-xl backdrop-saturate-150 dark:border-slate-800/60 dark:bg-slate-950/70" : "border-transparent bg-transparent"}`}>
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
