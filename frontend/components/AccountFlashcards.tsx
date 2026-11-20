@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Flame, HelpCircle, Layers, Trash2 } from 'lucide-react';
 import { Button, Card, cn } from './UIComponents';
 import { confirmAction, notify } from './Feedback';
-import { Deck, deleteDeck, DueCard, dueCards, listDecks, Rating, reviewCard, savedAt } from '../services/studyService';
+import { Deck, deckCards, deleteDeck, DueCard, dueCards, listDecks, Rating, reviewCard, savedAt } from '../services/studyService';
+import { ResourceViewer } from './GroupResources';
 
 const RATINGS: { rating: Rating; label: string; hint: string; className: string }[] = [
   { rating: 'again', label: 'Again', hint: 'Forgot it', className: 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:hover:bg-red-950/30' },
@@ -26,6 +27,12 @@ export const AccountFlashcards: React.FC<{
 }> = ({ subjectId, refreshKey, input, onFlagWeak, onReviewed }) => {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [deckId, setDeckId] = useState<string | undefined>();
+  // Flip through a whole deck, due or not.
+  const [studying, setStudying] = useState<{ title: string; cards: { front: string; back: string }[] } | null>(null);
+  const study = async (deck: Deck) => {
+    try { setStudying({ title: deck.title, cards: await deckCards(deck.id) }); }
+    catch { notify("Couldn't open that deck.", 'error'); }
+  };
   const [queue, setQueue] = useState<DueCard[]>([]);
   const [dueTotal, setDueTotal] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -201,14 +208,18 @@ export const AccountFlashcards: React.FC<{
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <Button size="sm" variant="secondary" className="mt-2 h-7 text-[10px] font-bold" disabled={deck.due_count === 0} onClick={() => setDeckId(deck.id)}>
-                  {deck.due_count === 0 ? 'Nothing due' : `Review ${deck.due_count} due`}
-                </Button>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={() => study(deck)}>Study deck</Button>
+                  <Button size="sm" variant="secondary" disabled={deck.due_count === 0} onClick={() => setDeckId(deck.id)}>
+                    {deck.due_count === 0 ? 'Nothing due' : `Review ${deck.due_count} due`}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
         </Card>
       </div>
+      {studying && <ResourceViewer resource={{ kind: 'deck', title: studying.title, subject: '', cards: studying.cards }} from="your decks" onClose={() => setStudying(null)} />}
     </div>
   );
 };

@@ -198,6 +198,26 @@ async def list_decks(db: UserDb, subject_id: UUID | None = None) -> list[Deck]:
     return [Deck(**row) for row in rows.mappings()]
 
 
+class DeckCard(BaseModel):
+    id: UUID
+    front: str
+    back: str
+    mastered: bool
+
+
+@router.get("/decks/{deck_id}/cards")
+async def deck_cards(deck_id: UUID, db: UserDb) -> list[DeckCard]:
+    """Every card in one of your decks, to flip through whether or not it is due."""
+    rows = await db.execute(
+        text(
+            "select id, term as front, definition as back, repetitions >= 3 as mastered "
+            "from flashcards where deck_id = :id order by created_at"
+        ),
+        {"id": deck_id},
+    )
+    return [DeckCard(**row) for row in rows.mappings()]
+
+
 @router.delete("/decks/{deck_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deck(deck_id: UUID, db: UserDb) -> None:
     deleted = (

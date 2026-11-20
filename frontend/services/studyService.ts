@@ -48,6 +48,9 @@ export const saveDeck = (subjectId: string, title: string, cards: { front: strin
 
 export const listDecks = (subjectId: string) => apiFetch<Deck[]>(`/flashcards/decks?${q({ subject_id: subjectId })}`);
 
+/** Every card in a deck, due or not, to flip through. */
+export const deckCards = (deckId: string) => apiFetch<{ id: string; front: string; back: string; mastered: boolean }[]>(`/flashcards/decks/${deckId}/cards`);
+
 export const deleteDeck = (deckId: string) => apiFetch<void>(`/flashcards/decks/${deckId}`, json("DELETE"));
 
 export const dueCards = (subjectId: string, deckId?: string) =>
