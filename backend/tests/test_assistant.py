@@ -90,3 +90,13 @@ def test_drops_actions_it_cannot_carry_out(decide, headers, bad, message) -> Non
 
 def test_rejects_empty_message(headers) -> None:
     assert send(headers, "").status_code == 422
+
+
+def test_typed_questions_get_full_answers_and_spoken_ones_short(decide, headers) -> None:
+    from app.modules.assistant.router import SPOKEN, TYPED
+
+    calls = decide(_Decision(reply="A stack is LIFO.", actions=[]))
+    send(headers, "explain stacks")
+    send(headers, "explain stacks", voice=True)
+    assert TYPED in calls[0]["instructions"] and SPOKEN not in calls[0]["instructions"]
+    assert SPOKEN in calls[1]["instructions"] and TYPED not in calls[1]["instructions"]

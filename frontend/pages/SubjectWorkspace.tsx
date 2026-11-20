@@ -1881,7 +1881,7 @@ export const SubjectWorkspace: React.FC = () => {
                               detail: { message: `Can you explain this weak area with a simple example: ${wt.name}` },
                             }));
                           }}>
-                            Ask the tutor
+                            Ask Nova
                           </Button>
 
                           <button

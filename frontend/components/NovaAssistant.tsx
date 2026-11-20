@@ -1,13 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Mic, MicOff, X, Settings2, Volume2, VolumeX, Send, Bell, StickyNote, ListTodo, ArrowUpRight, AudioLines, AlertTriangle,
+  Mic, MicOff, X, Settings2, Volume2, VolumeX, Send, Bell, StickyNote, ListTodo, ArrowUpRight, AudioLines,
+  AlertTriangle, BookOpen, HelpCircle, Lightbulb, GraduationCap, Trash2, MessageSquare,
 } from 'lucide-react';
 import { cn } from './UIComponents';
 import { speechSupported, useVoice } from '../hooks/useVoice';
 import { AssistantAction, AssistantTurn, loadSubjects, runActions, sendCommand } from '../services/assistantService';
 import { allReminders, formatDue, markReminderFired } from '../services/studyStore';
 import { fetchInbox, markSeen } from '../services/reminderService';
+import { listAccountSubjects } from '../services/workspaceService';
+
+// The one assistant: a study tutor you type or talk to, who can also set reminders, save notes,
+// add tasks and open sections. Typed questions get full tutor answers; spoken ones get short
+// answers read aloud.
 
 const SECTION_NAMES: Record<string, string> = {
   dashboard: 'your dashboard', overview: 'Overview', upload: 'Documents', summary: 'Summaries', flashcards: 'Flashcards',
@@ -21,8 +27,19 @@ interface Receipt {
   warning?: boolean;
 }
 
-const describe = (actions: AssistantAction[], currentSubjectId: string | null): Receipt[] => {
-  const names = Object.fromEntries(loadSubjects().map(s => [s.id, s.name]));
+interface Message extends AssistantTurn {
+  receipts?: Receipt[];
+}
+
+const SUGGESTIONS = [
+  { text: 'Explain a hard topic with an example', icon: Lightbulb },
+  { text: 'Give me a quick 3-question quiz', icon: HelpCircle },
+  { text: 'Help me plan revision for my exam', icon: GraduationCap },
+  { text: 'Remind me to revise tomorrow at 9', icon: Bell },
+];
+
+const describe = (actions: AssistantAction[], currentSubjectId: string | null, accountNames: Record<string, string>): Receipt[] => {
+  const names = { ...accountNames, ...Object.fromEntries(loadSubjects().map(s => [s.id, s.name])) };
   return actions.map(action => {
     const subject = names[action.subject_id ?? currentSubjectId ?? ''] ?? 'this subject';
     switch (action.type) {
@@ -38,7 +55,32 @@ const describe = (actions: AssistantAction[], currentSubjectId: string | null): 
   });
 };
 
-// A short rising tone when Nova starts listening after hearing its name.
+/** Renders answers: paragraphs, "-" / "1." lists and **bold**. */
+const FormattedReply: React.FC<{ text: string }> = ({ text }) => {
+  const inline = (line: string) =>
+    line.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+      part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : <React.Fragment key={i}>{part}</React.Fragment>
+    );
+  const blocks = text.trim().split(/\n{2,}/);
+  return (
+    <div className="space-y-2">
+      {blocks.map((block, b) => {
+        const lines = block.split('\n').filter(l => l.trim());
+        const isList = lines.length > 0 && lines.every(l => /^\s*([-*•]|\d+[.)])\s+/.test(l));
+        if (isList) {
+          const ordered = /^\s*\d/.test(lines[0]);
+          const items = lines.map((l, i) => <li key={i}>{inline(l.replace(/^\s*([-*•]|\d+[.)])\s+/, ''))}</li>);
+          return ordered
+            ? <ol key={b} className="list-decimal space-y-1 pl-4">{items}</ol>
+            : <ul key={b} className="list-disc space-y-1 pl-4">{items}</ul>;
+        }
+        return <p key={b}>{lines.map((l, i) => <React.Fragment key={i}>{i > 0 && <br />}{inline(l.replace(/^#+\s*/, ''))}</React.Fragment>)}</p>;
+      })}
+    </div>
+  );
+};
+
+// A short rising tone when the assistant starts listening after hearing its name.
 const chime = () => {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -62,35 +104,35 @@ export const NovaAssistant: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentSubjectId = location.pathname.match(/^\/subject\/([^/?]+)/)?.[1] ?? null;
-
   const [isOpen, setIsOpen] = useState(false);
 
-  // Only one assistant panel is open at a time.
+  // Names of subjects on the account, for "Helping with …" and what-I-did receipts.
+  const [accountNames, setAccountNames] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (isOpen) window.dispatchEvent(new CustomEvent('assistant-opened', { detail: 'nova' }));
+    if (!isOpen) return;
+    listAccountSubjects()
+      .then(list => setAccountNames(Object.fromEntries(list.map(s => [s.id, s.name]))))
+      .catch(() => {});
   }, [isOpen]);
-  useEffect(() => {
-    const onOther = (e: Event) => { if ((e as CustomEvent).detail !== 'nova') setIsOpen(false); };
-    window.addEventListener('assistant-opened', onOther);
-    return () => window.removeEventListener('assistant-opened', onOther);
-  }, []);
+  const subjectName = currentSubjectId
+    ? loadSubjects().find(s => s.id === currentSubjectId)?.name ?? accountNames[currentSubjectId]
+    : undefined;
   const [name, setName] = useState(() => localStorage.getItem('nova_name') || 'Nova');
   const [wakeEnabled, setWakeEnabled] = useState(() => localStorage.getItem('nova_wake') === 'true' && speechSupported);
   const [muted, setMuted] = useState(() => localStorage.getItem('nova_muted') === 'true');
   const [showSettings, setShowSettings] = useState(false);
   const [thinking, setThinking] = useState(false);
-  const [turns, setTurns] = useState<AssistantTurn[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [typed, setTyped] = useState('');
-  // The name is used to wake Nova, so it must never be empty while the field is being edited.
+  // The name is used to wake the assistant, so it must never be empty while the field is being edited.
   const assistantName = name.trim() || 'Nova';
 
   useEffect(() => { localStorage.setItem('nova_name', name); }, [name]);
   useEffect(() => { localStorage.setItem('nova_wake', String(wakeEnabled)); }, [wakeEnabled]);
   useEffect(() => { localStorage.setItem('nova_muted', String(muted)); }, [muted]);
 
-  // The Settings page changes Nova's name, wake word and voice; follow along.
+  // The Settings page changes the name, wake word and voice; follow along.
   useEffect(() => {
     const sync = () => {
       setName(localStorage.getItem('nova_name') || 'Nova');
@@ -101,42 +143,63 @@ export const NovaAssistant: React.FC = () => {
     return () => window.removeEventListener('nova-settings', sync);
   }, []);
 
-  const turnsRef = useRef(turns);
-  turnsRef.current = turns;
+  // Other screens (e.g. Weak topics) open the assistant with a question ready to send.
+  useEffect(() => {
+    const open = (event: Event) => {
+      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
+      setIsOpen(true);
+      setShowSettings(false);
+      if (message) setTyped(message);
+    };
+    window.addEventListener('open-tutor', open);
+    return () => window.removeEventListener('open-tutor', open);
+  }, []);
+
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const accountNamesRef = useRef(accountNames);
+  accountNamesRef.current = accountNames;
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
   const speakRef = useRef<(text: string, muted: boolean) => void>(() => {});
   const doneRef = useRef<() => void>(() => {});
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const handleCommand = useCallback(async (text: string) => {
+  useEffect(() => {
+    if (isOpen) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, thinking, isOpen]);
+
+  const handleCommand = useCallback(async (text: string, spoken: boolean) => {
     setIsOpen(true);
+    setShowSettings(false);
     setThinking(true);
     setNotice(null);
-    setReceipts([]);
-    setTurns(t => [...t, { role: 'user', text }]);
+    setMessages(m => [...m, { role: 'user', text }]);
 
-    const result = await sendCommand(text, assistantName, currentSubjectId, turnsRef.current);
+    const history = messagesRef.current.map(({ role, text }) => ({ role, text }));
+    const result = await sendCommand(text, assistantName, currentSubjectId, history, spoken);
     let destination: string | null = null;
     try {
       destination = await runActions(result.actions, currentSubjectId);
     } catch (error) {
       result.skipped.push(error instanceof Error ? error.message : "Something couldn't be saved.");
     }
-    setReceipts([
-      ...describe(result.actions, currentSubjectId),
+    const receipts = [
+      ...describe(result.actions, currentSubjectId, accountNamesRef.current),
       ...result.skipped.map(text => ({ icon: AlertTriangle, text, warning: true })),
-    ]);
+    ];
     if (result.actions.some(a => a.type === 'set_reminder')) askNotificationPermission();
-    setTurns(t => [...t, { role: 'assistant', text: result.reply }].slice(-12));
+    setMessages(m => [...m, { role: 'assistant', text: result.reply, receipts }].slice(-40));
     setThinking(false);
     if (destination) navigate(destination);
-    speakRef.current(result.reply, mutedRef.current);
+    // Spoken to: answer out loud (unless muted), then go back to listening for the wake word.
+    if (spoken) speakRef.current(result.reply, mutedRef.current);
   }, [assistantName, currentSubjectId, navigate]);
 
   const voice = useVoice({
     name: assistantName,
     wakeEnabled,
-    onCommand: handleCommand,
+    onCommand: text => handleCommand(text, true),
     onError: message => {
       setNotice(message);
       setWakeEnabled(false);
@@ -188,71 +251,80 @@ export const NovaAssistant: React.FC = () => {
     return () => window.clearInterval(timer);
   }, [name]);
 
-  const submitTyped = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = typed.trim();
+  const send = (raw: string) => {
+    const text = raw.trim();
     if (!text || thinking) return;
     setTyped('');
+    window.speechSynthesis?.cancel();
     // "Hey Nova, ..." typed out still works; the rest keeps its original wording and punctuation.
     const greeting = new RegExp(`^\\s*(?:(?:hey|hi|ok|okay|hello)\\s+)?${assistantName}\\b[\\s,:.!-]*`, 'i');
-    handleCommand(text.replace(greeting, '').trim() || text);
+    handleCommand(text.replace(greeting, '').trim() || text, false);
   };
 
+  const listening = voice.state === 'listening';
   const status = thinking
     ? 'Thinking…'
-    : voice.state === 'listening'
-      ? 'Listening…'
+    : listening
+      ? (voice.heard ? `“${voice.heard}”` : 'Listening… speak now')
       : voice.state === 'speaking'
         ? 'Speaking…'
         : wakeEnabled
-          ? `Say “Hey ${name}” anytime`
-          : speechSupported
-            ? 'Tap the orb and talk'
-            : 'Voice needs Chrome or Edge. Type below.';
-
-  const listening = voice.state === 'listening';
-  const lastTurns = turns.slice(-4);
+          ? `Say “Hey ${name}” anytime, or type`
+          : subjectName ? `Helping with ${subjectName}` : 'Type or tap the mic to talk';
 
   return (
-    <div className="fixed bottom-20 right-[4.75rem] z-50 flex flex-col items-end sm:right-24 md:bottom-6">
+    <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
       {isOpen && (
-        <div className="mb-4 flex max-md:fixed max-md:inset-x-3 max-md:bottom-[9.5rem] max-md:w-auto h-[min(580px,calc(100dvh-12rem))] md:h-[min(580px,calc(100dvh-8rem))] md:w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 text-white shadow-2xl animate-in" role="dialog" aria-label={`${name} assistant`}>
+        <div
+          className="mb-4 flex max-md:fixed max-md:inset-x-3 max-md:bottom-[9.5rem] max-md:w-auto h-[min(600px,calc(100dvh-12rem))] md:h-[min(600px,calc(100dvh-8rem))] md:w-[400px] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50 shadow-2xl animate-in dark:border-slate-800/80 dark:bg-slate-900"
+          role="dialog"
+          aria-label={`${name}, your study assistant`}
+        >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 shadow-lg shadow-emerald-500/30", listening && "bg-red-500 shadow-red-500/40")}>
-                <AudioLines size={18} />
+          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3 text-white shadow-md">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className={cn(
+                "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-inner",
+                listening ? "bg-red-500" : "bg-gradient-to-tr from-emerald-600 to-teal-600"
+              )}>
+                <AudioLines size={19} />
+                {wakeEnabled && <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-emerald-400" />}
               </div>
-              <div>
-                <h3 className="text-sm font-black tracking-wide">{name}</h3>
-                <p className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
-                  <span className={cn("h-1.5 w-1.5 rounded-full", wakeEnabled ? "bg-emerald-400" : "bg-slate-600")} />
-                  {wakeEnabled ? 'Wake word on' : 'Wake word off'}
-                </p>
+              <div className="min-w-0">
+                <h3 className="flex items-center gap-1.5 text-sm font-black tracking-wide">
+                  {name}
+                  <span className="rounded-full border border-emerald-400/30 bg-emerald-400/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">AI</span>
+                </h3>
+                <p className="truncate text-[10px] font-medium text-slate-400" aria-live="polite">{status}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button onClick={() => setMuted(!muted)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" title={muted ? 'Speak replies' : 'Mute replies'}>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {messages.length > 0 && !showSettings && (
+                <button onClick={() => { setMessages([]); setNotice(null); }} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" title="New chat" aria-label="New chat">
+                  <Trash2 size={14} />
+                </button>
+              )}
+              <button onClick={() => setMuted(!muted)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" title={muted ? 'Speak spoken replies' : 'Mute spoken replies'} aria-label={muted ? 'Unmute' : 'Mute'}>
                 {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
               </button>
-              <button onClick={() => setShowSettings(!showSettings)} className={cn("flex h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20", showSettings && "bg-white/25")} title="Settings">
+              <button onClick={() => setShowSettings(!showSettings)} className={cn("flex h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20", showSettings && "bg-white/25")} title="Assistant settings" aria-label="Assistant settings">
                 <Settings2 size={15} />
               </button>
-              <button onClick={() => setIsOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" title="Close">
+              <button onClick={() => setIsOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 hover:bg-white/20" title="Close" aria-label="Close">
                 <X size={16} />
               </button>
             </div>
           </div>
 
           {showSettings ? (
-            <div className="flex-1 space-y-5 overflow-y-auto p-5 text-sm">
+            <div className="flex-1 space-y-5 overflow-y-auto p-5 text-sm text-slate-800 dark:text-slate-100">
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Assistant name</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Assistant name</span>
                 <input
                   value={name}
                   onChange={e => setName(e.target.value.replace(/[^a-zA-Z ]/g, '').slice(0, 20) || '')}
                   onBlur={() => !name.trim() && setName('Nova')}
-                  className="mt-1.5 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white outline-none focus:border-emerald-500"
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-emerald-500 dark:border-slate-700 dark:bg-slate-800"
                 />
                 <span className="mt-1 block text-[11px] text-slate-500">Short, clear names work best, e.g. Nova, Atlas, Echo.</span>
               </label>
@@ -266,100 +338,145 @@ export const NovaAssistant: React.FC = () => {
                 />
                 <span>
                   <span className="block font-semibold">Listen for “Hey {name}”</span>
-                  <span className="mt-0.5 block text-[11px] leading-relaxed text-slate-400">
+                  <span className="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                     Keeps the microphone on while IntelliPrep is open. Chrome sends speech to Google to turn it into text.
                   </span>
                 </span>
               </label>
-              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-[11px] leading-relaxed text-slate-400">
-                Try: “Hey {name}, remind me to revise hashing tomorrow at 9”, “take a note: Dijkstra needs non-negative weights”,
-                “add practise AVL rotations to my plan”, or “open my flashcards”.
+              <div className="rounded-xl border border-slate-200 bg-white p-3 text-[11px] leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+                Ask anything you’re studying, or try: “remind me to revise hashing tomorrow at 9”, “take a note: Dijkstra needs
+                non-negative weights”, “add practise AVL rotations to my plan”, or “open my flashcards”.
               </div>
-              <button onClick={() => setShowSettings(false)} className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold hover:bg-emerald-500">Done</button>
+              <button onClick={() => setShowSettings(false)} className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white hover:bg-emerald-500">Done</button>
             </div>
           ) : (
             <>
-              {/* Orb */}
-              <div className="relative flex flex-col items-center px-6 pb-4 pt-7 text-center">
-                <div className="pointer-events-none absolute inset-x-0 top-6 flex justify-center">
-                  {listening && (
-                    <>
-                      <div className="absolute h-36 w-36 animate-ping rounded-full border border-red-400/30" />
-                      <div className="absolute h-44 w-44 animate-ping rounded-full border border-red-400/15 [animation-delay:200ms]" />
-                    </>
-                  )}
-                  {wakeEnabled && voice.state === 'waiting' && (
-                    <div className="absolute h-32 w-32 animate-pulse rounded-full bg-emerald-500/10" />
-                  )}
-                </div>
-                <button
-                  onClick={listening ? voice.done : voice.listen}
-                  disabled={thinking}
-                  className={cn(
-                    "relative z-10 flex h-24 w-24 items-center justify-center rounded-full border text-white shadow-2xl transition-all hover:scale-105 active:scale-95",
-                    listening
-                      ? "border-red-400 bg-gradient-to-tr from-red-500 to-rose-600 shadow-red-500/40"
-                      : thinking
-                        ? "cursor-wait border-slate-700 bg-slate-800 text-slate-400"
-                        : "border-emerald-400/30 bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-700 shadow-emerald-500/30"
-                  )}
-                  aria-label={listening ? 'Stop listening' : `Talk to ${name}`}
-                >
-                  {thinking ? (
-                    <span className="flex gap-1">
-                      {[0, 150, 300].map(delay => <span key={delay} className="h-6 w-1.5 animate-pulse rounded-full bg-emerald-400" style={{ animationDelay: `${delay}ms` }} />)}
-                    </span>
-                  ) : listening ? <MicOff size={32} /> : <Mic size={32} />}
-                </button>
-                <p className="z-10 mt-4 text-xs font-semibold text-slate-300">{status}</p>
-                {listening && voice.heard && <p className="z-10 mt-1 line-clamp-2 text-[11px] italic text-slate-500">“{voice.heard}”</p>}
-              </div>
-
-              {/* Conversation and what Nova did */}
-              <div className="flex-1 space-y-2.5 overflow-y-auto px-4 pb-3">
+              <div className="flex-1 space-y-4 overflow-y-auto p-4">
                 {notice && (
-                  <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                     <Bell size={14} className="mt-0.5 shrink-0" /> {notice}
                   </div>
                 )}
-                {lastTurns.length === 0 && !notice && (
-                  <p className="pt-2 text-center text-[11px] leading-relaxed text-slate-500">
-                    Ask a study question, or tell {name} to set a reminder, take a note, add a task or open a section.
-                  </p>
-                )}
-                {lastTurns.map((turn, index) => (
-                  <div key={index} className={cn("flex", turn.role === 'user' ? "justify-end" : "justify-start")}>
-                    <div className={cn(
-                      "max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed",
-                      turn.role === 'user' ? "rounded-tr-none bg-emerald-600 text-white" : "rounded-tl-none bg-slate-800 text-slate-100"
-                    )}>
-                      {turn.text}
+
+                {messages.length === 0 && (
+                  <div className="flex flex-col items-center px-2 pt-4 text-center">
+                    <button
+                      onClick={listening ? voice.done : voice.listen}
+                      disabled={thinking}
+                      className={cn(
+                        "relative flex h-20 w-20 items-center justify-center rounded-full text-white shadow-xl transition-all hover:scale-105 active:scale-95",
+                        listening
+                          ? "bg-gradient-to-tr from-red-500 to-rose-600 shadow-red-500/40"
+                          : "bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-700 shadow-emerald-500/30"
+                      )}
+                      aria-label={listening ? 'Stop listening' : `Talk to ${name}`}
+                    >
+                      {listening && <span className="absolute inset-0 animate-ping rounded-full border border-red-400/40" />}
+                      {listening ? <MicOff size={28} /> : <Mic size={28} />}
+                    </button>
+                    <h4 className="mt-4 text-sm font-black text-slate-800 dark:text-slate-100">Hi, I’m {name}</h4>
+                    <p className="mx-auto mt-1.5 max-w-[280px] text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      Ask me anything you’re studying, step by step. I can also set reminders, save notes, add tasks and open sections.
+                      Type below, or tap the mic and talk.
+                    </p>
+                    <div className="mt-5 grid w-full grid-cols-2 gap-2 text-left">
+                      {SUGGESTIONS.map(sug => (
+                        <button
+                          key={sug.text}
+                          onClick={() => send(sug.text)}
+                          className="flex items-start gap-2 rounded-xl border border-slate-200/80 bg-white p-2.5 text-[11px] font-medium text-slate-700 shadow-sm transition-all hover:border-emerald-200 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300"
+                        >
+                          <sug.icon size={15} className="mt-0.5 shrink-0 text-emerald-500" />
+                          <span className="leading-tight">{sug.text}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ))}
-                {receipts.map((receipt, index) => (
-                  <div key={index} className={cn(
-                    "flex items-start gap-2 rounded-xl border px-3 py-2 text-[11px]",
-                    receipt.warning ? "border-amber-500/30 bg-amber-500/10 text-amber-200" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                  )}>
-                    <receipt.icon size={14} className="mt-0.5 shrink-0" />
-                    <span>{receipt.text}</span>
+                )}
+
+                {messages.map((msg, idx) => (
+                  <div key={idx} className="space-y-2">
+                    <div className={cn("flex w-full", msg.role === 'user' ? "justify-end" : "justify-start")}>
+                      <div className="flex max-w-[88%] items-start gap-2.5">
+                        {msg.role !== 'user' && (
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+                            <AudioLines size={12} />
+                          </div>
+                        )}
+                        <div className={cn(
+                          "break-words border px-4 py-2.5 text-xs leading-relaxed shadow-sm",
+                          msg.role === 'user'
+                            ? "whitespace-pre-wrap rounded-2xl rounded-tr-none border-emerald-500/35 bg-emerald-600 text-white"
+                            : "rounded-2xl rounded-tl-none border-slate-200/80 bg-white text-slate-800 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                        )}>
+                          {msg.role === 'user' ? msg.text : <FormattedReply text={msg.text} />}
+                        </div>
+                      </div>
+                    </div>
+                    {msg.receipts?.map((receipt, i) => (
+                      <div key={i} className={cn(
+                        "ml-8 flex items-start gap-2 rounded-xl border px-3 py-2 text-[11px]",
+                        receipt.warning
+                          ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200"
+                      )}>
+                        <receipt.icon size={14} className="mt-0.5 shrink-0" />
+                        <span>{receipt.text}</span>
+                      </div>
+                    ))}
                   </div>
                 ))}
+
+                {thinking && (
+                  <div className="flex w-full items-start justify-start gap-2.5">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm">
+                      <AudioLines size={12} />
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-none border border-slate-200/80 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-800">
+                      {[0, 150, 300].map(delay => (
+                        <div key={delay} className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-500" style={{ animationDelay: `${delay}ms` }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div ref={bottomRef} />
               </div>
 
-              {/* Type instead */}
-              <form onSubmit={submitTyped} className="flex items-center gap-2 border-t border-slate-800 p-3">
-                <input
-                  value={typed}
-                  onChange={e => setTyped(e.target.value)}
-                  placeholder={`Type to ${name}…`}
-                  className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-xs text-white outline-none placeholder:text-slate-500 focus:border-emerald-500"
-                />
-                <button type="submit" disabled={!typed.trim() || thinking} className="rounded-xl bg-emerald-600 p-2.5 hover:bg-emerald-500 disabled:opacity-40" aria-label="Send">
-                  <Send size={14} />
-                </button>
-              </form>
+              {/* Type, or tap the mic to talk */}
+              <div className="border-t border-slate-200/80 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                <form onSubmit={e => { e.preventDefault(); send(typed); }} className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={typed}
+                    onChange={e => setTyped(e.target.value)}
+                    placeholder={listening ? 'Listening… speak now' : `Ask ${name} anything…`}
+                    aria-label={`Message ${name}`}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-4 pr-3 text-xs text-slate-800 outline-none transition-all focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={listening ? voice.done : voice.listen}
+                    disabled={thinking}
+                    className={cn("shrink-0 rounded-xl border p-2.5 shadow-sm transition-all active:scale-95 disabled:opacity-40",
+                      listening
+                        ? "animate-pulse border-red-600 bg-red-500 text-white"
+                        : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    )}
+                    title={listening ? 'Stop listening' : 'Talk'}
+                    aria-label={listening ? 'Stop listening' : `Talk to ${name}`}
+                  >
+                    {listening ? <MicOff size={14} /> : <Mic size={14} />}
+                  </button>
+                  <button
+                    type="submit"
+                    aria-label="Send"
+                    disabled={thinking || !typed.trim()}
+                    className="shrink-0 rounded-xl bg-emerald-600 p-2.5 text-white shadow-md transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:shadow-none"
+                  >
+                    <Send size={14} />
+                  </button>
+                </form>
+              </div>
             </>
           )}
         </div>
@@ -371,17 +488,17 @@ export const NovaAssistant: React.FC = () => {
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
             "relative z-10 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full text-white shadow-xl transition-all duration-300 hover:scale-110 active:scale-95",
-            listening ? "bg-gradient-to-tr from-red-500 to-rose-600" : "bg-gradient-to-tr from-slate-800 to-slate-950 ring-1 ring-emerald-500/40"
+            listening ? "bg-gradient-to-tr from-red-500 to-rose-600" : "bg-gradient-to-tr from-emerald-600 via-teal-600 to-emerald-700"
           )}
-          title={`Talk to ${name}`}
-          aria-label={`Talk to ${name}`}
+          title={isOpen ? `Close ${name}` : `Ask ${name}`}
+          aria-label={isOpen ? `Close ${name}` : `Ask ${name}`}
         >
-          <AudioLines size={22} className={listening ? '' : 'text-emerald-400'} />
-          {wakeEnabled && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-emerald-400" />}
+          {isOpen ? <X size={22} /> : listening ? <Mic size={22} /> : <MessageSquare size={22} className="fill-white" />}
+          {wakeEnabled && !isOpen && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-300" />}
         </button>
         {!isOpen && (
           <div className="pointer-events-none absolute right-16 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-xl bg-slate-900 p-2 px-3 text-[10px] font-bold text-white opacity-0 shadow-md transition-opacity duration-200 group-hover:opacity-100">
-            {wakeEnabled ? `Say “Hey ${name}”` : `Talk to ${name}`}
+            {wakeEnabled ? `Ask ${name}, or say “Hey ${name}”` : `Ask ${name}`}
           </div>
         )}
       </div>

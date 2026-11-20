@@ -6,7 +6,6 @@ import { SubjectWorkspace } from './pages/SubjectWorkspace';
 import { Groups } from './pages/Groups';
 import { Settings } from './pages/Settings';
 import { About, NotFound, Privacy, Terms } from './pages/InfoPages';
-import { JarvisChat } from './components/JarvisChat';
 import { NovaAssistant } from './components/NovaAssistant';
 import { FeedbackHost } from './components/Feedback';
 import { useAuth } from './services/authService';
@@ -23,18 +22,13 @@ const SubjectRoute: React.FC = () => {
   return <SubjectWorkspace key={id} />;
 };
 
-// The tutor chat and Nova belong to the signed-in app, not the landing page.
+// The assistant belongs to the signed-in app, not the landing page.
 const Assistants: React.FC = () => {
   const { pathname } = useLocation();
   const { signedIn: isAuth } = useAuth();
   const publicPages = ['/', '/about', '/privacy', '/terms'];
   if (!isAuth || publicPages.includes(pathname)) return null;
-  return (
-    <>
-      <NovaAssistant />
-      <JarvisChat />
-    </>
-  );
+  return <NovaAssistant />;
 };
 
 const App: React.FC = () => {

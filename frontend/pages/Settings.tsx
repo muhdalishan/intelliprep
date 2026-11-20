@@ -199,7 +199,7 @@ export const Settings: React.FC = () => {
           </Row>
         </Section>
 
-        <Section icon={AudioLines} title="Nova, your voice assistant" description={speechSupported ? undefined : 'Voice needs Chrome or Edge. You can still type to Nova.'}>
+        <Section icon={AudioLines} title="Nova, your study assistant" description={speechSupported ? undefined : 'Voice needs Chrome or Edge. You can still type to Nova.'}>
           <Row label="Assistant name" hint="You wake it by saying “Hey” and this name.">
             <Input value={novaName} maxLength={20} className="w-40"
               onChange={e => setNovaName(e.target.value.replace(/[^a-zA-Z ]/g, ''))}
@@ -208,7 +208,7 @@ export const Settings: React.FC = () => {
           <Row label={`Listen for “Hey ${novaName || 'Nova'}”`} hint="Keeps the microphone on while IntelliPrep is open. Chrome sends speech to Google to turn it into text.">
             <Toggle label="Wake word" checked={wake} disabled={!speechSupported} onChange={value => { setWake(value); saveNova({ wake: value }); }} />
           </Row>
-          <Row label="Speak replies out loud">
+          <Row label="Speak replies out loud" hint="When you talk to Nova, it answers out loud. Typed questions get written answers.">
             <Toggle label="Speak replies" checked={voiceReplies} onChange={value => { setVoiceReplies(value); saveNova({ voice: value }); }} />
           </Row>
         </Section>

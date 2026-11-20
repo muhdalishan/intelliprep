@@ -1,7 +1,7 @@
 import { Subject } from "../types";
 import { apiFetch, ApiError } from "./apiClient";
 import { addNote, addReminder, addTask, STORE_EVENT } from "./studyStore";
-import { createNote, createTask, isAccountSubjectId } from "./workspaceService";
+import { createNote, createTask, isAccountSubjectId, listAccountSubjects } from "./workspaceService";
 import { createReminder } from "./reminderService";
 
 export type ActionType = "add_note" | "set_reminder" | "add_task" | "open_section";
@@ -41,11 +41,19 @@ export const loadSubjects = (): Subject[] => {
   }
 };
 
+/** Subjects in this browser plus those on the account (a new device has only the latter). */
+const knownSubjects = async () => {
+  const local = loadSubjects().map(s => ({ id: s.id, name: s.name }));
+  const remote = await listAccountSubjects().catch(() => []);
+  return [...local, ...remote.filter(r => !local.some(l => l.id === r.id)).map(r => ({ id: r.id, name: r.name }))].slice(0, 50);
+};
+
 export const sendCommand = async (
   message: string,
   assistantName: string,
   currentSubjectId: string | null,
   history: AssistantTurn[],
+  voice = false,
 ): Promise<CommandResult> => {
   try {
     return await apiFetch<CommandResult>("/assistant/command", {
@@ -54,9 +62,10 @@ export const sendCommand = async (
         message,
         assistant_name: assistantName,
         now: localNow(),
-        subjects: loadSubjects().map(s => ({ id: s.id, name: s.name })),
+        subjects: await knownSubjects(),
         current_subject_id: currentSubjectId,
-        history: history.slice(-8),
+        history: history.slice(-8).map(t => ({ role: t.role, text: t.text.slice(0, 4000) })),
+        voice,
       }),
     });
   } catch (error) {

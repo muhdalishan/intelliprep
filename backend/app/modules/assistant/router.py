@@ -1,10 +1,10 @@
-"""The voice assistant ("Hey Nova"): understands a spoken command and returns what to do.
+"""The study assistant ("Hey Nova"): one assistant for typed and spoken messages.
 
-The model replies in one or two spoken sentences and lists actions (save a note, set a reminder,
-add a task, open a section). The app carries the actions out; while study data still lives in
-the browser, the server only decides and validates them.
+It answers study questions like a tutor (in full when typed, in a few sentences when spoken) and
+lists actions (save a note, set a reminder, add a task, open a section). The app carries the
+actions out; the server only decides and validates them.
 
-Backlog: IP-141, IP-142 (docs/scrum/product-backlog.md)
+Backlog: IP-140, IP-141, IP-142 (docs/scrum/product-backlog.md)
 """
 
 from datetime import datetime
@@ -69,6 +69,7 @@ class CommandRequest(BaseModel):
     subjects: list[SubjectRef] = Field(default_factory=list, max_length=50)
     current_subject_id: str | None = Field(default=None, max_length=64)
     history: list[Turn] = Field(default_factory=list, max_length=12)
+    voice: bool = Field(default=False, description="Spoken to: the reply is read aloud")
 
 
 class CommandResponse(BaseModel):
@@ -78,10 +79,20 @@ class CommandResponse(BaseModel):
     """Actions the model proposed that couldn't be carried out, in plain words."""
 
 
-def _instructions(name: str) -> str:
-    return f"""You are {name}, a university student's personal study assistant, like a calm,
-capable Jarvis. You hear the student through voice, so reply in one or two short spoken sentences:
-no lists, no markdown, no emoji.
+SPOKEN = """The student is talking to you out loud and your reply is read aloud: one to three
+short spoken sentences, no lists, no markdown, no emoji. Ask a follow-up question when it helps."""
+
+TYPED = """The student typed this. For study questions, answer like a patient, encouraging
+teacher: explain step by step, give an example or a memory hook for hard ideas, and check
+understanding with a quick question when useful. Use short paragraphs, '-' bullets, numbered
+steps and **bold** for key terms; no headings, no emoji. For requests that are only actions,
+reply in one sentence."""
+
+
+def _instructions(name: str, voice: bool) -> str:
+    return f"""You are {name}, a university student's personal study assistant and tutor, for
+students in Pakistan preparing for exams.
+{SPOKEN if voice else TYPED}
 
 You can do things for the student by adding actions:
 - add_note: save a note (title + content) to a subject's board.
@@ -94,7 +105,7 @@ You can do things for the student by adding actions:
 Use subject_id only from the subject list. If the student doesn't name a subject, use the current
 subject; if there is none and one is needed, ask which subject. When you do something, confirm it
 briefly in the reply ("Done, I'll remind you tomorrow at 9."). Never claim to do anything that isn't
-in actions. If the student just asks a study question, answer it briefly with no actions.
+in actions. If the student just asks a study question, answer it with no actions.
 Fill fields an action doesn't use with null."""
 
 
@@ -150,7 +161,9 @@ async def command(
         f"{context}\n\nRecent conversation:\n{conversation or '(none)'}\n\nStudent: {body.message}"
     )
 
-    decision = await llm.generate_structured(_instructions(body.assistant_name), prompt, _Decision)
+    decision = await llm.generate_structured(
+        _instructions(body.assistant_name, body.voice), prompt, _Decision
+    )
 
     try:
         now = datetime.fromisoformat(body.now.split(" ")[0])
