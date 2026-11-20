@@ -49,6 +49,9 @@ export const toSubject = (remote: AccountSubject): Subject & { owned: boolean; s
 
 export const listAccountSubjects = () => apiFetch<AccountSubject[]>("/workspace/subjects");
 
+/** Deletes a subject you own from your account, with everything saved under it. */
+export const deleteAccountSubject = (subjectId: string) => apiFetch<void>(`/workspace/subjects/${subjectId}`, { method: "DELETE" });
+
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
   body: body === undefined ? undefined : JSON.stringify(body),

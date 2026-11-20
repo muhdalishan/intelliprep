@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import Depends
 from sqlalchemy import text
@@ -20,7 +21,15 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
         from app.db.local_dev import start_local_database
 
         url = start_local_database()
-    engine = create_async_engine(url, pool_pre_ping=True)
+    connect_args = {}
+    if ":6543" in url:
+        # Supabase's transaction pooler (port 6543) can't keep prepared statements between
+        # transactions. The session pooler (port 5432) needs nothing special.
+        connect_args = {
+            "statement_cache_size": 0,
+            "prepared_statement_name_func": lambda: f"__ip_{uuid4().hex}__",
+        }
+    engine = create_async_engine(url, pool_pre_ping=True, connect_args=connect_args)
     return async_sessionmaker(engine, expire_on_commit=False)
 
 

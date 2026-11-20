@@ -124,6 +124,23 @@ async def create_subject(body: SubjectIn, db: UserDb) -> SubjectOut:
     return SubjectOut(**row, owned=True, shared_in=[])
 
 
+@router.delete("/subjects/{subject_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_subject(subject_id: UUID, db: UserDb) -> None:
+    """Deletes a subject the caller owns, with everything saved under it (decks, quizzes,
+    summaries, documents, past papers, planner). Row-level security stops anyone else."""
+    deleted = (
+        await db.execute(
+            text(
+                "delete from subjects where id = :id and user_id = (select auth.uid()) "
+                "returning 1"
+            ),
+            {"id": subject_id},
+        )
+    ).first()
+    if deleted is None:
+        raise _not_found("Subject")
+
+
 # Shared planner --------------------------------------------------------------
 
 

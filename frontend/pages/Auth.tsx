@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { arrivedFromEmail, needsNewPassword, realAccounts, sendPasswordReset, setNewPassword, signIn, signUp, useAuth } from '../services/authService';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, Button, Input, SoonBadge } from '../components/UIComponents';
 import {
@@ -21,20 +22,63 @@ export const Auth: React.FC = () => {
   const [activeScreen, setActiveScreen] = useState<'screen1' | 'screen2' | 'screen3'>('screen1');
   const [isFlipped, setIsFlipped] = useState(false); // For 3D card preview
 
-  const handleAuth = (e: React.FormEvent) => {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const { signedIn } = useAuth();
+  // Opened the link in a reset-password email: ask for the new password.
+  const [settingPassword, setSettingPassword] = useState(needsNewPassword);
+  const newPassword = settingPassword || !isLogin;
+
+  // Back from a confirmation or reset email: go straight in, or ask for the new password.
+  useEffect(() => {
+    if (!signedIn) return;
+    if (settingPassword) { setIsLogin(true); setShowAuthModal(true); return; }
+    if (arrivedFromEmail()) navigate('/dashboard');
+  }, [signedIn, settingPassword, navigate]);
+
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('isAuthenticated', 'true');
-    if (email) localStorage.setItem('userEmail', email.trim());
-    if (!isLogin && userName) {
-      localStorage.setItem('userName', userName);
-    } else if (isLogin && !localStorage.getItem('userName')) {
-      localStorage.setItem('userName', 'Scholar');
+    setBusy(true);
+    setMessage(null);
+    setSoonNotice(null);
+    try {
+      if (settingPassword) {
+        const result = await setNewPassword(password);
+        if (!result.ok) { setMessage({ kind: 'error', text: result.error ?? 'Something went wrong. Try again.' }); return; }
+        setSettingPassword(false);
+        navigate('/dashboard');
+        return;
+      }
+      const result = isLogin ? await signIn(email, password) : await signUp(userName, email, password);
+      if (!result.ok) { setMessage({ kind: 'error', text: result.error ?? 'Something went wrong. Try again.' }); return; }
+      if (result.needsConfirmation) {
+        setMessage({ kind: 'info', text: `We sent a confirmation link to ${email.trim()}. Open it, then sign in.` });
+        setIsLogin(true);
+        setPassword('');
+        return;
+      }
+      navigate('/dashboard');
+    } finally {
+      setBusy(false);
     }
-    navigate('/dashboard');
+  };
+
+  const handleForgotPassword = async () => {
+    setSoonNotice(null);
+    if (!realAccounts) { setSoonNotice('Password reset by email works once accounts are connected.'); return; }
+    if (!email.trim()) { setMessage({ kind: 'error', text: 'Type your email above, then press Forgot password again.' }); return; }
+    setBusy(true);
+    const result = await sendPasswordReset(email);
+    setBusy(false);
+    setMessage(result.ok
+      ? { kind: 'info', text: `If ${email.trim()} has an account, a reset link is on its way.` }
+      : { kind: 'error', text: result.error ?? 'Something went wrong. Try again.' });
   };
 
   const triggerAuth = (loginMode: boolean) => {
+    if (signedIn && !settingPassword) { navigate('/dashboard'); return; }
     setIsLogin(loginMode);
+    setMessage(null);
     setSoonNotice(null);
     setShowAuthModal(true);
   };
@@ -564,11 +608,12 @@ export const Auth: React.FC = () => {
             {/* Brand details matching Image 5 */}
             <div className="space-y-1 mb-6">
               <h3 className="text-xl font-extrabold text-slate-950 dark:text-white tracking-tight">
-                {isLogin ? 'Sign in to IntelliPrep AI' : 'Join IntelliPrep AI'}
+                {settingPassword ? 'Choose a new password' : isLogin ? 'Sign in to IntelliPrep AI' : 'Join IntelliPrep AI'}
               </h3>
               <div className="w-16 h-1 bg-[#14b8a6]/70 rounded-full"></div>
             </div>
 
+            {!settingPassword && (<>
             {/* Continue with Google button */}
             <button
               type="button"
@@ -600,10 +645,22 @@ export const Auth: React.FC = () => {
               </div>
               <span className="relative bg-white dark:bg-slate-900 px-3 text-[10px] text-slate-400 font-bold uppercase tracking-widest">or</span>
             </div>
+            </>)}
+
+            {message && (
+              <p
+                role={message.kind === 'error' ? 'alert' : 'status'}
+                className={message.kind === 'error'
+                  ? 'mb-4 rounded-xl bg-red-50 px-3 py-2 text-center text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-200'
+                  : 'mb-4 rounded-xl bg-teal-50 px-3 py-2 text-center text-[11px] font-semibold text-teal-800 dark:bg-teal-900/30 dark:text-teal-200'}
+              >
+                {message.text}
+              </p>
+            )}
 
             {/* Email / Password Form */}
             <form onSubmit={handleAuth} className="space-y-4">
-              {!isLogin && (
+              {!isLogin && !settingPassword && (
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Your Full Name</label>
                   <Input
@@ -617,24 +674,32 @@ export const Auth: React.FC = () => {
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Email</label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-2.5 px-3.5 rounded-xl text-slate-850 dark:text-white outline-none focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all"
-                />
-              </div>
+              {!settingPassword && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Email</label>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs py-2.5 px-3.5 rounded-xl text-slate-850 dark:text-white outline-none focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all"
+                  />
+                </div>
+              )}
 
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Password</label>
-                  <button type="button" onClick={() => setSoonNotice('Password reset by email is coming soon, along with full accounts.')} className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 transition-colors">Forgot password?</button>
+                  <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">{settingPassword ? 'New password' : 'Password'}</label>
+                  {isLogin && !settingPassword && (
+                    <button type="button" onClick={handleForgotPassword} disabled={busy} className="text-[10px] font-semibold text-slate-500 hover:text-slate-700 transition-colors">Forgot password?</button>
+                  )}
                 </div>
                 <Input
                   type="password"
+                  autoComplete={newPassword ? 'new-password' : 'current-password'}
+                  minLength={newPassword ? 8 : undefined}
+                  placeholder={newPassword ? 'At least 8 characters' : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -644,20 +709,23 @@ export const Auth: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs font-black py-3 rounded-xl tracking-wide uppercase shadow-md active:scale-95 transition-all text-center mt-3 cursor-pointer"
+                disabled={busy}
+                className="w-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs font-black py-3 rounded-xl tracking-wide uppercase shadow-md active:scale-95 transition-all text-center mt-3 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
               >
-                {isLogin ? 'Sign In' : 'Create Account'}
+                {busy ? 'Please wait…' : settingPassword ? 'Save password' : isLogin ? 'Sign In' : 'Create Account'}
               </button>
 
-              <div className="text-center pt-3 text-xs border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white transition-colors font-bold"
-                >
-                  {isLogin ? "No account? Create one" : "Already registered? Sign in"}
-                </button>
-              </div>
+              {!settingPassword && (
+                <div className="text-center pt-3 text-xs border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => { setIsLogin(!isLogin); setMessage(null); }}
+                    className="text-slate-500 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white transition-colors font-bold"
+                  >
+                    {isLogin ? "No account? Create one" : "Already registered? Sign in"}
+                  </button>
+                </div>
+              )}
             </form>
 
           </div>

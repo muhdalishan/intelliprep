@@ -45,6 +45,21 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.environment == "production"
 
+    def missing_for_deploy(self) -> list[str]:
+        """Settings a staging or production server can't run safely without."""
+        if self.environment == "local":
+            return []
+        required = {
+            "SUPABASE_URL": self.supabase_url,
+            "SIGNING_SECRET": self.signing_secret,
+            "DATABASE_URL": "" if "localhost" in self.database_url else self.database_url,
+        }
+        if self.llm_provider == "openai":
+            required["OPENAI_API_KEY"] = self.openai_api_key
+        if any("localhost" in origin for origin in self.cors_origins) and self.is_production:
+            required["CORS_ORIGINS (your site's address, not localhost)"] = ""
+        return [name for name, value in required.items() if not value]
+
     @property
     def local_dev_auth(self) -> bool:
         """Local development without a Supabase project: requests run as a fixed dev user."""
