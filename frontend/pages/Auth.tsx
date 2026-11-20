@@ -184,8 +184,8 @@ export const Auth: React.FC = () => {
       )
     },
     {
-      title: "Nova, your voice assistant",
-      description: "Say “Hey Nova” to set reminders, save notes, add tasks or ask a quick question, hands-free.",
+      title: "Nova, your study assistant",
+      description: "One assistant to type or talk to: step-by-step explanations, quick quizzes, and reminders, notes and tasks. Say “Hey Nova” to go hands-free.",
       illustration: (
         <div className="h-32 w-full border-b border-violet-100 dark:border-violet-800/80 bg-violet-50/40 dark:bg-violet-950/20 flex items-center justify-center overflow-hidden relative group-hover:bg-violet-100/60 dark:group-hover:bg-violet-900/30 transition-colors">
           <div className="flex gap-2 transform transition-transform duration-500 group-hover:scale-105">

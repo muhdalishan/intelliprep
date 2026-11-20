@@ -85,7 +85,7 @@ Nothing below needs new code; it needs accounts and clicks. Until these are done
 | IP-91 | Shared planner, board and chat in groups | MB | 8 | group Q&A across members' notes |
 | IP-100 | Planner API (used by shared subjects) | MA | 3 | personal planners off the browser |
 | IP-101 | Board API (used by shared subjects) | MA | 2 | personal boards off the browser |
-| IP-140 | Study Tutor text chat | MA | 5 | answer from the built search, with citations |
+| IP-140 | Study Tutor text chat (now part of Nova: one assistant) | MA | 5 | answer from the built search, with citations |
 
 ---
 
