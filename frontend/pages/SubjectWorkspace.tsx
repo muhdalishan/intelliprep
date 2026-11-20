@@ -4,7 +4,6 @@ import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote } fro
 import { Button, Card, cn, Input, ProgressBar, Badge, SoonBadge } from '../components/UIComponents';
 import { AppShell, ContextItem } from '../components/AppShell';
 import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
-import { StudyGroups } from '../components/StudyGroups';
 import { useSharedBoard } from '../hooks/useSharedBoard';
 import { usePersistentState } from '../hooks/usePersistentState';
 import { isAccountSubjectId, listAccountSubjects, toSubject } from '../services/workspaceService';
@@ -84,6 +83,8 @@ export const SubjectWorkspace: React.FC = () => {
   // Nova can open a section by linking to ?tab=...
   useEffect(() => {
     const tab = searchParams.get('tab') as TabType | null;
+    // Groups moved out of subjects; an old link to that tab goes to the Groups page.
+    if (tab === 'studyroom') { navigate('/groups', { replace: true }); return; }
     if (tab) setActiveTab(tab);
   }, [searchParams]);
   const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
@@ -338,7 +339,6 @@ export const SubjectWorkspace: React.FC = () => {
     { id: 'practice', label: 'Practice', icon: CheckSquare, tabs: [{ id: 'quiz', label: 'Quiz' }, { id: 'exam', label: 'Timed exam' }, { id: 'weak-topics', label: 'Weak topics' }] },
     { id: 'predictions', label: 'Exam predictions', icon: BrainCircuit, tabs: [{ id: 'guess-engine', label: 'Predictions' }] },
     { id: 'plan', label: 'Plan', icon: Columns, tabs: [{ id: 'kanban', label: 'Tasks' }, { id: 'reminders', label: 'Reminders' }, { id: 'moodboard', label: 'Board' }] },
-    { id: 'group', label: 'Group', icon: Users, tabs: [{ id: 'studyroom', label: 'Study groups' }] },
   ];
   const activeSection = sections.find(section => section.tabs.some(tab => tab.id === activeTab)) ?? sections[0];
   const openSection = (section: typeof sections[number]) => {
@@ -895,7 +895,7 @@ export const SubjectWorkspace: React.FC = () => {
         {/* 4. Content area. Phones scroll every screen and leave room for the bottom bar. */}
         <div className={cn(
           "flex-1 min-h-0 relative w-full flex flex-col overflow-y-auto",
-          activeTab === 'studyroom' ? "" : "ip-content p-4 md:p-8",
+          "ip-content p-4 md:p-8",
           "pb-40 lg:pb-28"
         )}>
 
@@ -1845,11 +1845,6 @@ export const SubjectWorkspace: React.FC = () => {
               )}
 
             </div>
-          )}
-
-          {/* TAB 4.9: STUDY GROUPS (shared subjects, planner and chat; access rules on the server) */}
-          {activeTab === 'studyroom' && (
-            <StudyGroups subject={subject} />
           )}
 
           {/* TAB 4.10: KANBAN BOARD */}

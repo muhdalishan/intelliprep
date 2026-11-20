@@ -24,12 +24,12 @@ export const DevStudentSwitcher: React.FC<{ className?: string }> = ({ className
   return (
     <label
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border border-dashed border-amber-400 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200",
+        "flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] text-gray-500 transition-colors hover:bg-gray-200/50 dark:text-gray-400 dark:hover:bg-white/[.04]",
         className
       )}
       title="Local test mode: switch student to try collaboration on one computer"
     >
-      <FlaskConical className="h-3.5 w-3.5" />
+      <FlaskConical className="h-4 w-4 shrink-0 opacity-80" />
       Testing as
       <select
         value={session.current.key}
@@ -37,7 +37,7 @@ export const DevStudentSwitcher: React.FC<{ className?: string }> = ({ className
           localStorage.setItem(DEV_STUDENT_KEY, e.target.value);
           window.location.reload();
         }}
-        className="cursor-pointer bg-transparent font-bold outline-none"
+        className="min-w-0 flex-1 cursor-pointer truncate bg-transparent font-medium text-gray-700 outline-none dark:text-gray-200"
       >
         {session.students.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
       </select>

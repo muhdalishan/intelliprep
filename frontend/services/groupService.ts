@@ -48,6 +48,25 @@ export interface GroupMessage {
   body: string;
   created_at: string;
   attachments: GroupAttachment[];
+  resource?: SharedResource | null;
+}
+
+export type ResourceKind = "document" | "quiz" | "deck" | "summary";
+
+/** A copy of something shared from a subject, as it was when shared. */
+export type SharedResource =
+  | { kind: "quiz"; title: string; subject: string; questions: { question: string; options: string[]; correct_index: number; explanation: string; topic: string }[] }
+  | { kind: "deck"; title: string; subject: string; cards: { front: string; back: string }[] }
+  | { kind: "summary"; title: string; subject: string; content: string; cites_pages: boolean }
+  | { kind: "document"; title: string; subject: string; pages: number | null };
+
+export interface Shareable {
+  kind: ResourceKind;
+  id: string;
+  title: string;
+  subject_name: string;
+  detail: string;
+  created_at: string;
 }
 
 const post = <T>(path: string, body?: unknown) =>
@@ -80,6 +99,10 @@ export const postFiles = (groupId: string, files: File[], body: string) => {
 export const deleteMessage = (groupId: string, messageId: number) =>
   apiFetch<void>(`/groups/${groupId}/messages/${messageId}`, { method: "DELETE" });
 export const fileBlob = (groupId: string, fileId: string) => apiBlob(`/groups/${groupId}/files/${fileId}`);
+
+export const listShareables = (groupId: string) => apiFetch<Shareable[]>(`/groups/${groupId}/shareables`);
+export const shareResource = (groupId: string, kind: ResourceKind, id: string, comment = "") =>
+  post<GroupMessage>(`/groups/${groupId}/messages/share`, { kind, id, comment });
 
 /** Subjects saved only in this browser have short local ids; shared subjects need account ids. */
 export const isAccountSubjectId = (id: string) => /^[0-9a-f-]{36}$/i.test(id);

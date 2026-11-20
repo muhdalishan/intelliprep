@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.security import CurrentUser, get_current_user
-from app.db.session import get_user_db, user_session
+from app.db.session import get_sessionmaker, get_user_db, user_session
 from app.main import app
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
@@ -27,17 +27,23 @@ def client(pg_uri):
             yield session
 
     app.dependency_overrides[get_user_db] = test_db
+    app.dependency_overrides[get_sessionmaker] = lambda: factory
     yield TestClient(app)
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def students(db, make_token):
+    ids = {}
+
     def headers(name):
         uid = db.new_user(name)
+        ids[name] = uid
         return {"Authorization": f"Bearer {make_token(sub=str(uid))}"}
 
-    return headers("Alice"), headers("Bob"), headers("Carol")
+    people = headers("Alice"), headers("Bob"), headers("Carol")
+    db.ids = ids
+    return people
 
 
 def test_members_share_and_open_files(client, students) -> None:
@@ -105,3 +111,68 @@ def test_unsafe_or_oversized_files_are_refused(client, students) -> None:
         headers=carol,
     )
     assert outsider.status_code in (403, 404)
+
+
+def test_share_a_deck_and_a_summary_into_the_chat(client, students) -> None:
+    alice, bob, _ = students
+    group = client.post("/api/groups", json={"name": "Algo"}, headers=alice).json()
+    client.post("/api/groups/join", json={"invite_code": group["invite_code"]}, headers=bob)
+    gid = group["id"]
+    sid = client.post("/api/workspace/subjects", json={"name": "Algorithms"}, headers=alice).json()["id"]
+    deck = client.post(
+        "/api/flashcards/decks",
+        json={"subject_id": sid, "title": "Sorting", "cards": [{"front": "Merge sort?", "back": "O(n log n)"}]},
+        headers=alice,
+    ).json()
+    summary = client.post(
+        "/api/summary/saved",
+        json={"subject_id": sid, "title": "Graphs", "content": "# Graphs\n- BFS uses a queue"},
+        headers=alice,
+    ).json()
+
+    items = client.get(f"/api/groups/{gid}/shareables", headers=alice).json()
+    assert {(i["kind"], i["title"]) for i in items} == {("deck", "Sorting"), ("summary", "Graphs")}
+    assert client.get(f"/api/groups/{gid}/shareables", headers=bob).json() == []
+
+    shared = client.post(
+        f"/api/groups/{gid}/messages/share",
+        json={"kind": "deck", "id": deck["id"], "comment": "For Monday"},
+        headers=alice,
+    )
+    assert shared.status_code == 201, shared.text
+    assert shared.json()["resource"]["cards"] == [{"front": "Merge sort?", "back": "O(n log n)"}]
+    client.post(f"/api/groups/{gid}/messages/share", json={"kind": "summary", "id": summary["id"]}, headers=alice)
+
+    # Bob sees both snapshots, but can't share Alice's things himself.
+    seen = client.get(f"/api/groups/{gid}/messages", headers=bob).json()
+    assert [m["resource"]["kind"] for m in seen] == ["deck", "summary"]
+    assert seen[1]["resource"]["content"].startswith("# Graphs")
+    stolen = client.post(f"/api/groups/{gid}/messages/share", json={"kind": "deck", "id": deck["id"]}, headers=bob)
+    assert stolen.status_code == 404
+
+
+def test_share_a_quiz_with_its_answers(client, students, db) -> None:
+    alice, bob, _ = students
+    gid = client.post("/api/groups", json={"name": "Nets"}, headers=alice).json()
+    client.post("/api/groups/join", json={"invite_code": gid["invite_code"]}, headers=bob)
+    sid = client.post("/api/workspace/subjects", json={"name": "Networks"}, headers=alice).json()["id"]
+    uid = db.ids["Alice"]
+    quiz = db.conn.execute(
+        "insert into quizzes (user_id, subject_id, title, question_count) values (%s, %s, 'TCP', 1) returning id",
+        (uid, sid),
+    ).fetchone()["id"]
+    db.conn.execute(
+        "insert into quiz_questions (quiz_id, user_id, position, question, options, correct_index, explanation, topic) "
+        "values (%s, %s, 1, 'First step?', '[\"SYN\",\"ACK\",\"FIN\",\"RST\"]', 0, 'The client sends SYN.', 'TCP')",
+        (quiz, uid),
+    )
+    shared = client.post(
+        f"/api/groups/{gid['id']}/messages/share", json={"kind": "quiz", "id": str(quiz)}, headers=alice
+    )
+    assert shared.status_code == 201, shared.text
+    [question] = shared.json()["resource"]["questions"]
+    assert question["options"][question["correct_index"]] == "SYN"
+    # Bob can't share Alice's quiz, so its answers stay hers.
+    assert client.post(
+        f"/api/groups/{gid['id']}/messages/share", json={"kind": "quiz", "id": str(quiz)}, headers=bob
+    ).status_code == 404

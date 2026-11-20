@@ -134,7 +134,8 @@ async def upload_document(
     background: BackgroundTasks,
 ) -> StoredDocument:
     filename = (file.filename or "document").strip()[:200] or "document"
-    kind, pages, empty_pages = await _pages_of(await _read_upload(file), filename)
+    data = await _read_upload(file)
+    kind, pages, empty_pages = await _pages_of(data, filename)
     if not any(page.strip() for page in pages):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -172,6 +173,19 @@ async def upload_document(
                 )
                 .mappings()
                 .one()
+            )
+            # Keep the original too, so it can be shared into a group as the file itself.
+            await db.execute(
+                text(
+                    "insert into document_files (document_id, content_type, size_bytes, data) "
+                    "values (:id, :type, :size, :data)"
+                ),
+                {
+                    "id": document_id,
+                    "type": "application/pdf" if kind == "pdf" else "text/plain",
+                    "size": len(data),
+                    "data": data,
+                },
             )
     background.add_task(index_document, sessions, document_id, user.id, subject_id, pages)
     return StoredDocument(**row, owned=True)

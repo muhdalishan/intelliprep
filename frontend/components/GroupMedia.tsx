@@ -26,16 +26,16 @@ export const mediaKind = (type: string, name = ''): MediaKind => {
 };
 
 export const KIND_STYLE: Record<MediaKind, { icon: React.ElementType; tone: string; label: string }> = {
-  image: { icon: FileImage, tone: 'text-sky-500 bg-sky-500/10', label: 'Image' },
-  video: { icon: FileVideo, tone: 'text-violet-500 bg-violet-500/10', label: 'Video' },
-  audio: { icon: FileAudio, tone: 'text-pink-500 bg-pink-500/10', label: 'Audio' },
-  pdf: { icon: FileText, tone: 'text-red-500 bg-red-500/10', label: 'PDF' },
-  doc: { icon: FileText, tone: 'text-blue-500 bg-blue-500/10', label: 'Word' },
-  sheet: { icon: FileSpreadsheet, tone: 'text-emerald-500 bg-emerald-500/10', label: 'Spreadsheet' },
-  slides: { icon: Presentation, tone: 'text-orange-500 bg-orange-500/10', label: 'Slides' },
-  text: { icon: FileText, tone: 'text-gray-500 bg-gray-500/10', label: 'Text' },
-  archive: { icon: FileArchive, tone: 'text-amber-500 bg-amber-500/10', label: 'Zip' },
-  file: { icon: FileIcon, tone: 'text-gray-500 bg-gray-500/10', label: 'File' },
+  image: { icon: FileImage, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Image' },
+  video: { icon: FileVideo, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Video' },
+  audio: { icon: FileAudio, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Audio' },
+  pdf: { icon: FileText, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'PDF' },
+  doc: { icon: FileText, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Word' },
+  sheet: { icon: FileSpreadsheet, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Spreadsheet' },
+  slides: { icon: Presentation, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Slides' },
+  text: { icon: FileText, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Text' },
+  archive: { icon: FileArchive, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'Zip' },
+  file: { icon: FileIcon, tone: 'text-gray-500 bg-gray-100 dark:bg-white/[.06] dark:text-gray-400', label: 'File' },
 };
 
 export const formatSize = (bytes: number) =>
@@ -113,7 +113,7 @@ const Thumb: React.FC<{ groupId: string; file: GroupAttachment; onOpen: () => vo
   const { url, failed } = useFileUrl(groupId, file, true);
   return (
     <button onClick={onOpen} className={cn("group/thumb relative block overflow-hidden rounded-lg bg-black/5 dark:bg-white/5", className)} aria-label={`Open ${file.filename}`}>
-      {url ? <img src={url} alt={file.filename} className="h-full w-full object-cover transition-transform duration-300 group-hover/thumb:scale-[1.03]" />
+      {url ? <img src={url} alt={file.filename} className="h-full w-full object-cover transition-opacity duration-150 group-hover/thumb:opacity-90" />
         : <span className="flex h-full w-full items-center justify-center">{failed ? <FileImage className="h-5 w-5 text-gray-400" /> : <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}</span>}
       <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100">
         <Maximize2 className="h-3.5 w-3.5" />
@@ -130,7 +130,7 @@ const VideoTile: React.FC<{ groupId: string; file: GroupAttachment }> = ({ group
   ) : (
     <button onClick={() => setPlay(true)} className="relative flex aspect-video w-full max-w-sm items-center justify-center overflow-hidden rounded-lg bg-gray-900 text-white">
       {play ? <Loader2 className="h-6 w-6 animate-spin" /> : (
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 backdrop-blur transition-transform hover:scale-105">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
           <Play className="ml-0.5 h-5 w-5 fill-white" />
         </span>
       )}
@@ -151,7 +151,7 @@ const AudioTile: React.FC<{ groupId: string; file: GroupAttachment; mine: boolea
           <p className={cn("text-[11px]", mine ? "text-white/70" : "text-gray-500")}>{formatSize(file.size_bytes)}</p>
         </div>
         {!play && (
-          <button onClick={() => setPlay(true)} className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", mine ? "bg-white text-primary-700" : "bg-primary-600 text-white")} aria-label={`Play ${file.filename}`}>
+          <button onClick={() => setPlay(true)} className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors hover:bg-gray-700 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white")} aria-label={`Play ${file.filename}`}>
             <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />
           </button>
         )}

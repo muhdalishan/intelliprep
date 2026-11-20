@@ -17,7 +17,7 @@ import { listAccountSubjects } from '../services/workspaceService';
 
 const SECTION_NAMES: Record<string, string> = {
   dashboard: 'your dashboard', overview: 'Overview', upload: 'Documents', summary: 'Summaries', flashcards: 'Flashcards',
-  diagrams: 'Diagrams', quiz: 'Quiz', exam: 'Timed Exam', 'weak-topics': 'Weak Topics', 'guess-engine': 'Exam Guess', studyroom: 'Study Group',
+  diagrams: 'Diagrams', quiz: 'Quiz', exam: 'Timed Exam', 'weak-topics': 'Weak Topics', 'guess-engine': 'Exam Guess', studyroom: 'Study groups',
   kanban: 'Planner', moodboard: 'Moodboard', reminders: 'Reminders',
 };
 
@@ -103,29 +103,17 @@ const askNotificationPermission = () => {
 export const NovaAssistant: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  // Chat screens have their own message box at the bottom; sit above it instead of on its Send button.
+  const [composer, setComposer] = useState<false | 'above' | 'beside-panel'>(false);
+  const aboveComposer = composer !== false;
+  useEffect(() => {
+    const onComposer = (e: Event) => setComposer((e as CustomEvent<false | 'above' | 'beside-panel'>).detail || false);
+    window.addEventListener('chat-composer', onComposer);
+    return () => window.removeEventListener('chat-composer', onComposer);
+  }, []);
   const currentSubjectId = location.pathname.match(/^\/subject\/([^/?]+)/)?.[1] ?? null;
   const [isOpen, setIsOpen] = useState(false);
 
-  // The button steps aside while you scroll down through content, and comes back when you
-  // scroll up or stop, so it never sits on top of what you are reading for long.
-  const [tucked, setTucked] = useState(false);
-  useEffect(() => {
-    const last = new WeakMap<EventTarget, number>();
-    let settle = 0;
-    const onScroll = (event: Event) => {
-      const target = event.target === document ? document.scrollingElement : event.target as HTMLElement;
-      if (!target || !("scrollTop" in target)) return;
-      const top = (target as HTMLElement).scrollTop;
-      const previous = last.get(target) ?? 0;
-      last.set(target, top);
-      if (Math.abs(top - previous) < 4) return;
-      setTucked(top > previous && top > 80);
-      window.clearTimeout(settle);
-      settle = window.setTimeout(() => setTucked(false), 1200);
-    };
-    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-    return () => { document.removeEventListener("scroll", onScroll, { capture: true }); window.clearTimeout(settle); };
-  }, []);
 
   // Names of subjects on the account, for "Helping with …" and what-I-did receipts.
   const [accountNames, setAccountNames] = useState<Record<string, string>>({});
@@ -294,7 +282,7 @@ export const NovaAssistant: React.FC = () => {
           : subjectName ? `Helping with ${subjectName}` : 'Type or tap the mic to talk';
 
   return (
-    <div className="fixed bottom-20 right-4 z-50 flex flex-col items-end sm:right-5 lg:bottom-5">
+    <div className={cn("fixed right-4 z-50 flex flex-col items-end sm:right-5", aboveComposer ? "bottom-36 lg:bottom-28" : "bottom-20 lg:bottom-5", composer === 'beside-panel' && "xl:right-[21.5rem]")}>
       {isOpen && (
         <div
           className="mb-3 flex max-md:fixed max-md:inset-x-3 max-md:bottom-[8.5rem] max-md:w-auto h-[min(620px,calc(100dvh-11rem))] md:h-[min(620px,calc(100dvh-6rem))] md:w-[400px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl ip-sheet dark:border-white/[.08] dark:bg-gray-900"
@@ -471,7 +459,7 @@ export const NovaAssistant: React.FC = () => {
       )}
 
       {/* Launcher */}
-      <div className={cn("transition-[transform,opacity] duration-300 ease-[cubic-bezier(.22,1,.36,1)]", tucked && !isOpen && "pointer-events-none translate-y-24 opacity-0")}>
+      <div>
         <button
           onClick={() => setIsOpen(!isOpen)}
           className={cn(

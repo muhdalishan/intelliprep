@@ -6,8 +6,9 @@ run as the calling student, so a request can never see or change more than the p
 Backlog: IP-90, IP-91 (docs/scrum/product-backlog.md)
 """
 
+import json
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Response, UploadFile, status
@@ -15,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.db.errors import db_errors
-from app.db.session import UserDb
+from app.db.session import Sessions, UserDb, service_session
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -68,6 +69,8 @@ class Message(BaseModel):
     body: str
     created_at: datetime
     attachments: list[Attachment] = Field(default_factory=list)
+    resource: dict[str, Any] | None = None
+    """A snapshot of a quiz, deck, summary or document shared from a subject."""
 
 
 class CreateGroup(BaseModel):
@@ -228,7 +231,7 @@ async def list_messages(
     rows = await db.execute(
         text(
             "select m.id, m.user_id, coalesce(l.full_name, 'A former member') as author, "
-            "m.body, m.created_at from group_messages m "
+            "m.body, m.created_at, m.resource from group_messages m "
             "left join group_member_list(:gid) l on l.user_id = m.user_id "
             "where m.group_id = :gid and m.id > :after order by m.id desc limit 100"
         ),
@@ -449,3 +452,222 @@ async def delete_message(group_id: UUID, message_id: int, db: UserDb) -> None:
     ).first()
     if deleted is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found.")
+
+
+# Sharing from subjects ----------------------------------------------------------------------
+
+ResourceKind = Literal["document", "quiz", "deck", "summary"]
+
+
+class Shareable(BaseModel):
+    kind: ResourceKind
+    id: UUID
+    title: str
+    subject_name: str
+    detail: str
+    created_at: datetime
+
+
+class ShareResource(BaseModel):
+    kind: ResourceKind
+    id: UUID
+    comment: str = Field(default="", max_length=2_000)
+
+
+@router.get("/{group_id}/shareables")
+async def list_shareables(group_id: UUID, db: UserDb) -> list[Shareable]:
+    """Your own documents, quizzes, decks and summaries that can be shared into this group."""
+    rows = await db.execute(
+        text(
+            "select * from ("
+            " select 'document' as kind, d.id, d.filename as title, s.name as subject_name,"
+            "  coalesce(d.page_count, 0)::text"
+            "  || case when d.page_count = 1 then ' page' else ' pages' end as detail, d.created_at"
+            "  from documents d join subjects s on s.id = d.subject_id"
+            "  where d.user_id = (select auth.uid()) and d.kind = 'notes'"
+            "  and d.status = 'completed'"
+            " union all"
+            " select 'quiz', q.id, q.title, s.name,"
+            "  q.question_count::text || ' questions', q.created_at"
+            "  from quizzes q join subjects s on s.id = q.subject_id"
+            "  where q.user_id = (select auth.uid())"
+            " union all"
+            " select 'deck', k.id, k.title, s.name,"
+            "  (select count(*) from flashcards f where f.deck_id = k.id)::text || ' cards',"
+            "  k.created_at"
+            "  from flashcard_decks k join subjects s on s.id = k.subject_id"
+            "  where k.user_id = (select auth.uid())"
+            " union all"
+            " select 'summary', m.id, m.title, s.name,"
+            "  case when m.cites_pages then 'cites pages' else 'summary' end, m.created_at"
+            "  from summaries m join subjects s on s.id = m.subject_id"
+            "  where m.user_id = (select auth.uid())"
+            ") items order by created_at desc limit 150"
+        )
+    )
+    # Being a member is checked when sharing; listing only shows the caller's own items.
+    return [Shareable(**row) for row in rows.mappings()]
+
+
+async def _snapshot(
+    db: UserDb, sessions: Sessions, kind: str, item_id: UUID
+) -> tuple[dict[str, Any], list]:
+    """The shared copy of an item the caller owns, plus any file to attach."""
+    not_found = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nothing to share.")
+    if kind == "quiz":
+        head = (
+            await db.execute(
+                text(
+                    "select q.title, s.name as subject from quizzes q join subjects s "
+                    "on s.id = q.subject_id where q.id = :id and q.user_id = (select auth.uid())"
+                ),
+                {"id": item_id},
+            )
+        ).mappings().first()
+        if head is None:
+            raise not_found
+        # Students can't read quiz answers directly (they're checked on the server). Ownership was
+        # confirmed above, so the answers are copied for the group to check themselves against.
+        async with service_session(sessions) as service:
+            questions = (
+                await service.execute(
+                    text(
+                        "select question, options, correct_index, explanation, topic "
+                        "from quiz_questions where quiz_id = :id order by position"
+                    ),
+                    {"id": item_id},
+                )
+            ).mappings().all()
+        return {"kind": "quiz", **head, "questions": [dict(q) for q in questions]}, []
+    if kind == "deck":
+        head = (
+            await db.execute(
+                text(
+                    "select k.title, s.name as subject from flashcard_decks k join subjects s "
+                    "on s.id = k.subject_id where k.id = :id and k.user_id = (select auth.uid())"
+                ),
+                {"id": item_id},
+            )
+        ).mappings().first()
+        if head is None:
+            raise not_found
+        cards = (
+            await db.execute(
+                text(
+                    "select term as front, definition as back from flashcards "
+                    "where deck_id = :id order by created_at"
+                ),
+                {"id": item_id},
+            )
+        ).mappings().all()
+        return {"kind": "deck", **head, "cards": [dict(c) for c in cards]}, []
+    if kind == "summary":
+        row = (
+            await db.execute(
+                text(
+                    "select m.title, s.name as subject, m.content, m.cites_pages from summaries m "
+                    "join subjects s on s.id = m.subject_id "
+                    "where m.id = :id and m.user_id = (select auth.uid())"
+                ),
+                {"id": item_id},
+            )
+        ).mappings().first()
+        if row is None:
+            raise not_found
+        return {"kind": "summary", **row, "content": row["content"][:40_000]}, []
+
+    # A document: the original file when it was kept, otherwise its text.
+    doc = (
+        await db.execute(
+            text(
+                "select d.filename, d.page_count, s.name as subject, f.content_type, f.data "
+                "from documents d join subjects s on s.id = d.subject_id "
+                "left join document_files f on f.document_id = d.id "
+                "where d.id = :id and d.user_id = (select auth.uid())"
+            ),
+            {"id": item_id},
+        )
+    ).mappings().first()
+    if doc is None:
+        raise not_found
+    if doc["data"] is not None and len(doc["data"]) <= MAX_FILE_BYTES:
+        files = [(doc["filename"], doc["content_type"], bytes(doc["data"]))]
+    else:
+        chunks = (
+            await db.execute(
+                text(
+                    "select content from document_chunks where document_id = :id "
+                    "order by chunk_index"
+                ),
+                {"id": item_id},
+            )
+        ).scalars().all()
+        body = "\n\n".join(chunks).encode("utf-8")[:MAX_FILE_BYTES]
+        stem = doc["filename"].rsplit(".", 1)[0]
+        files = [(f"{stem} (text).txt", "text/plain", body)]
+    resource = {
+        "kind": "document",
+        "title": doc["filename"],
+        "subject": doc["subject"],
+        "pages": doc["page_count"],
+    }
+    return resource, files
+
+
+@router.post("/{group_id}/messages/share", status_code=status.HTTP_201_CREATED)
+async def share_resource(
+    group_id: UUID, body: ShareResource, db: UserDb, sessions: Sessions
+) -> Message:
+    """Shares a copy of your quiz, deck, summary or document into the group chat."""
+    resource, files = await _snapshot(db, sessions, body.kind, body.id)
+    with db_errors():
+        row = (
+            (
+                await db.execute(
+                    text(
+                        "insert into group_messages (group_id, body, resource) "
+                        "values (:gid, :body, cast(:resource as jsonb)) "
+                        "returning id, user_id, body, created_at, resource"
+                    ),
+                    {
+                        "gid": group_id,
+                        "body": body.comment.strip(),
+                        "resource": json.dumps(resource),
+                    },
+                )
+            )
+            .mappings()
+            .one()
+        )
+        attachments = []
+        for name, kind, data in files:
+            saved = (
+                (
+                    await db.execute(
+                        text(
+                            "insert into group_attachments "
+                            "(message_id, group_id, filename, content_type, size_bytes, data) "
+                            "values (:mid, :gid, :name, :kind, :size, :data) "
+                            "returning id, filename, content_type, size_bytes"
+                        ),
+                        {
+                            "mid": row["id"],
+                            "gid": group_id,
+                            "name": name[-200:],
+                            "kind": kind,
+                            "size": len(data),
+                            "data": data,
+                        },
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            attachments.append(Attachment(**saved))
+    author = (
+        await db.execute(
+            text("select full_name from group_member_list(:gid) where user_id = :uid"),
+            {"gid": group_id, "uid": row["user_id"]},
+        )
+    ).scalar_one_or_none()
+    return Message(**row, author=author or "You", attachments=attachments)

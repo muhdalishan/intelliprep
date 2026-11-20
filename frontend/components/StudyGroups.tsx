@@ -1,17 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, BookOpen, Check, Copy, Crown, Database, ImagePlus, Info, LogIn, LogOut, Paperclip, Plus,
+  ArrowLeft, BookOpen, Check, Copy, Crown, Database, ImagePlus, Info, LogIn, LogOut, Mic, Paperclip, Plus,
   RefreshCw, SendHorizontal, Share2, Trash2, Upload, Users, X,
 } from 'lucide-react';
 import { Button, cn } from './UIComponents';
 import { apiFetch, ApiError } from '../services/apiClient';
 import * as groups from '../services/groupService';
-import type { GroupAttachment, GroupDetail, GroupMessage, GroupSummary } from '../services/groupService';
-import { saveSubjectToAccount } from '../services/workspaceService';
+import type { GroupAttachment, GroupDetail, GroupMessage, GroupSummary, SharedResource } from '../services/groupService';
+import { listAccountSubjects, saveSubjectToAccount } from '../services/workspaceService';
+import { ResourceCard, ResourceViewer, SharePicker } from './GroupResources';
 import { Subject } from '../types';
 import { confirmAction, notify } from './Feedback';
 import { FileCard, formatSize, KIND_STYLE, mediaKind, MediaViewer, MessageMedia, fileUrl } from './GroupMedia';
+import { clock, MAX_VOICE_SECONDS, useVoiceRecorder } from '../hooks/useVoiceRecorder';
 
 interface Props {
   /** The subject the student is in; the Groups page passes none. */
@@ -23,11 +25,8 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,video/mp4,video/webm,video/quicktime,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.csv,.zip';
 
 const initials = (name: string) => name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() || '?';
-const HUES = ['bg-rose-500', 'bg-amber-500', 'bg-emerald-500', 'bg-sky-500', 'bg-violet-500', 'bg-pink-500', 'bg-teal-500', 'bg-indigo-500'];
-const NAME_TONES = ['text-rose-500', 'text-amber-500', 'text-emerald-500', 'text-sky-500', 'text-violet-500', 'text-pink-500', 'text-teal-500', 'text-indigo-500'];
-const hash = (text: string) => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-const hue = (key: string) => HUES[hash(key) % HUES.length];
-const nameTone = (key: string) => NAME_TONES[hash(key) % NAME_TONES.length];
+// People and groups are quiet initials on a raised neutral; colour is kept for what they share.
+const TILE = "bg-gray-100 text-gray-700 ring-1 ring-inset ring-black/[.06] dark:bg-white/[.07] dark:text-gray-200 dark:ring-white/[.08]";
 
 const timeLabel = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const dayLabel = (iso: string) => {
@@ -40,7 +39,7 @@ const dayLabel = (iso: string) => {
 };
 
 const Avatar: React.FC<{ name: string; id: string; size?: 'sm' | 'md' }> = ({ name, id, size = 'md' }) => (
-  <span className={cn("flex shrink-0 items-center justify-center rounded-full font-semibold text-white", hue(id), size === 'sm' ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs")}>
+  <span data-id={id} className={cn("flex shrink-0 items-center justify-center rounded-full font-medium", TILE, size === 'sm' ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs")}>
     {initials(name)}
   </span>
 );
@@ -67,6 +66,13 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
   const [copied, setCopied] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [viewing, setViewing] = useState<GroupAttachment | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const [openResource, setOpenResource] = useState<{ resource: SharedResource; from: string } | null>(null);
+  const [mySubjects, setMySubjects] = useState<{ id: string; name: string }[]>([]);
+  const [subjectMenu, setSubjectMenu] = useState(false);
+  useEffect(() => {
+    listAccountSubjects().then(list => setMySubjects(list.filter(s => s.owned).map(s => ({ id: s.id, name: s.name })))).catch(() => setMySubjects([]));
+  }, []);
   const scroller = useRef<HTMLDivElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
@@ -116,11 +122,38 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
     return () => window.clearInterval(timer);
   }, [selected, messages]);
 
-  // Keep the newest message in view.
+  // Keep the newest message in view, also while photos and files finish loading, unless the
+  // student has scrolled up to read older messages.
+  const pinned = useRef(true);
+  const content = useRef<HTMLDivElement>(null);
+  useEffect(() => { pinned.current = true; }, [selected?.id]);
   useEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    if (el && pinned.current) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages.length, selected?.id]);
+  useEffect(() => {
+    const el = scroller.current;
+    const inner = content.current;
+    if (!el || !inner) return;
+    // Only scrolling up unpins; our own scrolling down (and content growing) never does.
+    let lastTop = el.scrollTop;
+    const onScroll = () => {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      if (nearBottom) pinned.current = true;
+      else if (el.scrollTop < lastTop - 4) pinned.current = false;
+      lastTop = el.scrollTop;
+    };
+    const grow = new ResizeObserver(() => { if (pinned.current) el.scrollTop = el.scrollHeight; });
+    el.addEventListener('scroll', onScroll, { passive: true });
+    grow.observe(inner);
+    return () => { el.removeEventListener('scroll', onScroll); grow.disconnect(); };
+  }, [selected?.id]);
+
+  // Tell Nova a message box is at the bottom, so its button moves out of the way.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('chat-composer', { detail: selected ? (showInfo ? 'beside-panel' : 'above') : false }));
+    return () => { window.dispatchEvent(new CustomEvent('chat-composer', { detail: false })); };
+  }, [selected, showInfo]);
 
   const afterChange = (detail: GroupDetail | undefined) => {
     if (detail) { setSelected(detail); refreshList(); }
@@ -166,6 +199,20 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
     } finally {
       setSending(false);
     }
+  };
+
+  // Voice notes: record in the browser, then send like any other file.
+  const recorder = useVoiceRecorder(useCallback((message: string) => notify(message, 'error'), []));
+  const sendVoice = async () => {
+    if (!selected) return;
+    const file = await recorder.stop();
+    if (!file) { notify('Nothing was recorded.', 'info'); return; }
+    if (file.size > MAX_BYTES) { notify('That voice note is over 10 MB.', 'error'); return; }
+    setSending(true);
+    try {
+      const message = await groups.postFiles(selected.id, [file], '');
+      setMessages(current => [...current, message]);
+    } catch (e) { fail(e); } finally { setSending(false); }
   };
 
   const removeMessage = async (message: GroupMessage) => {
@@ -217,6 +264,8 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
   const canShareHere = groups.isAccountSubjectId(subjectId);
   const alreadyShared = selected?.subjects.some(s => s.id === subjectId);
 
+  const unsharedSubjects = mySubjects.filter(s => !selected?.subjects.some(shared => shared.id === s.id));
+
   const shareThisSubject = async () => {
     if (!selected || !subject) return;
     if (canShareHere) { afterChange(await run(() => groups.shareSubject(selected.id, subjectId))); return; }
@@ -224,22 +273,24 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
     const accountId = await run(() => saveSubjectToAccount(subject));
     if (!accountId) return;
     const detail = await run(() => groups.shareSubject(selected.id, accountId));
-    if (detail) navigate(`/subject/${accountId}?tab=studyroom`, { replace: true });
+    if (detail) refreshList();
   };
 
   // Group details: invite code, subjects, members, files.
   const details = selected && (
     <div className="space-y-6 p-4">
-      <div className="text-center">
-        <span className={cn("mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-semibold text-white", hue(selected.id))}>{initials(selected.name)}</span>
-        <h3 className="mt-2 text-[15px] font-semibold text-gray-900 dark:text-white">{selected.name}</h3>
+      <div className="flex items-center gap-3">
+        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-medium", TILE)}>{initials(selected.name)}</span>
+        <div className="min-w-0">
+        <h3 className="truncate text-[15px] font-medium text-gray-900 dark:text-white">{selected.name}</h3>
         <p className="text-xs text-gray-500">{selected.members.length} member{selected.members.length === 1 ? '' : 's'} · you're {selected.role === 'lead' ? 'the lead' : 'a member'}</p>
+        </div>
       </div>
 
       <div className="rounded-lg border border-gray-200 p-3 dark:border-white/[.07]">
         <p className="text-xs text-gray-500">Invite code</p>
         <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="font-mono text-base font-semibold tracking-[0.2em] text-gray-900 dark:text-white">{selected.invite_code}</span>
+          <span className="font-mono text-[15px] tabular-nums tracking-[0.08em] text-gray-900 dark:text-white">{selected.invite_code}</span>
           <button onClick={() => copyCode(selected.invite_code)} className="flex h-7 items-center gap-1 rounded-md border border-gray-200 px-2 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/[.09] dark:text-gray-300 dark:hover:bg-white/[.05]">
             {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />} {copied ? 'Copied' : 'Copy'}
           </button>
@@ -248,13 +299,32 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
 
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h4 className="flex items-center gap-1.5 text-xs font-medium text-gray-500"><BookOpen className="h-3.5 w-3.5" /> Shared subjects</h4>
-          {subject && !alreadyShared && (
+          <h4 className="text-xs font-medium text-gray-500">Shared subjects</h4>
+          {subject && !alreadyShared ? (
             <button onClick={shareThisSubject} disabled={busy} className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">
               <Share2 className="h-3.5 w-3.5" /> Share {subject.name}
             </button>
+          ) : unsharedSubjects.length > 0 && (
+            <button onClick={() => setSubjectMenu(!subjectMenu)} className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">
+              <Plus className="h-3.5 w-3.5" /> Share a subject
+            </button>
           )}
         </div>
+        {subjectMenu && (
+          <ul className="mb-2 overflow-hidden rounded-lg border border-gray-200 animate-in dark:border-white/[.08]">
+            {unsharedSubjects.map(s => (
+              <li key={s.id}>
+                <button
+                  disabled={busy}
+                  onClick={async () => { setSubjectMenu(false); afterChange(await run(() => groups.shareSubject(selected.id, s.id))); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-gray-800 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[.04]"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-gray-400" /> {s.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {selected.subjects.length === 0 ? <p className="text-[13px] text-gray-400">No subjects shared yet.</p> : (
           <ul className="space-y-1">
             {selected.subjects.map(s => (
@@ -271,14 +341,14 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
       </section>
 
       <section>
-        <h4 className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500"><Users className="h-3.5 w-3.5" /> Members</h4>
+        <h4 className="mb-2 text-xs font-medium text-gray-500">Members</h4>
         <ul className="space-y-1">
           {selected.members.map(member => (
             <li key={member.user_id} className="group/member flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-white/[.03]">
               <Avatar name={member.full_name || 'Student'} id={member.user_id} size="sm" />
               <span className="min-w-0 flex-1 truncate text-[13px] text-gray-800 dark:text-gray-200">{member.full_name || 'Student'}{member.user_id === me ? <span className="text-gray-400"> (you)</span> : null}</span>
               {member.role === 'lead'
-                ? <Crown className="h-3.5 w-3.5 text-amber-500" aria-label="Lead" />
+                ? <span className="text-[11px] text-gray-500">Lead</span>
                 : selected.role === 'lead' && member.user_id !== me && (
                   <button className="text-[11px] text-gray-400 opacity-0 hover:text-red-500 group-hover/member:opacity-100"
                     onClick={async () => { if (await confirmAction({ title: `Remove ${member.full_name}?`, message: 'They lose access to the shared subjects and chat. They can rejoin with the invite code.', confirmLabel: 'Remove', danger: true })) afterChange(await run(() => groups.removeMember(selected.id, member.user_id))); }}>
@@ -291,7 +361,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
       </section>
 
       <section>
-        <h4 className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-500"><Paperclip className="h-3.5 w-3.5" /> Shared files <span className="text-gray-400">{sharedFiles.length}</span></h4>
+        <h4 className="mb-2 text-xs font-medium text-gray-500">Shared files <span className="font-mono text-gray-400">{sharedFiles.length}</span></h4>
         {sharedFiles.length === 0 ? <p className="text-[13px] text-gray-400">Photos and files sent in the chat show up here.</p> : (
           <div className="space-y-2">
             {sharedImages.length > 0 && (
@@ -307,7 +377,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
       </section>
 
       <button
-        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-red-500/30 py-2 text-[13px] text-red-600 hover:bg-red-500/10 dark:text-red-400"
+        className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-[13px] text-red-600 transition-colors hover:bg-red-500/10 dark:text-red-400"
         onClick={async () => {
           const ok = await confirmAction({ title: `Leave ${selected.name}?`, message: "You'll lose access to its shared subjects and chat.", confirmLabel: 'Leave group', danger: true });
           if (!ok) return;
@@ -383,14 +453,14 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
               onClick={() => { open(group.id); setShowInfo(false); }}
               className={cn(
                 "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors",
-                selected?.id === group.id ? "bg-gray-100 dark:bg-white/[.07]" : "hover:bg-gray-50 dark:hover:bg-white/[.03]"
+                selected?.id === group.id ? "bg-gray-100 dark:bg-white/[.06] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" : "hover:bg-gray-50 dark:hover:bg-white/[.03]"
               )}
             >
-              <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-semibold text-white", hue(group.id))}>{initials(group.name)}</span>
+              <span className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-medium", TILE)}>{initials(group.name)}{selected?.id === group.id && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white dark:ring-gray-900" aria-hidden="true" />}</span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">
                   <span className="truncate">{group.name}</span>
-                  {group.role === 'lead' && <Crown className="h-3 w-3 shrink-0 text-amber-500" />}
+                  {group.role === 'lead' && <Crown className="h-3 w-3 shrink-0 text-gray-400" aria-label="You lead this group" />}
                 </span>
                 <span className="block truncate text-xs text-gray-500">{group.member_count} member{group.member_count === 1 ? '' : 's'} · {group.subject_count} subject{group.subject_count === 1 ? '' : 's'}</span>
               </span>
@@ -418,7 +488,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
               <button onClick={() => setSelected(null)} className="-ml-1 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/[.06] md:hidden" aria-label="Back to groups">
                 <ArrowLeft className="h-4 w-4" />
               </button>
-              <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-semibold text-white", hue(selected.id))}>{initials(selected.name)}</span>
+              <span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-medium", TILE)}>{initials(selected.name)}</span>
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-semibold text-gray-900 dark:text-white">{selected.name}</p>
                 <p className="truncate text-[11px] text-gray-500">{selected.members.map(m => m.full_name.split(' ')[0]).join(', ')}</p>
@@ -431,17 +501,18 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
               <button onClick={() => copyCode(selected.invite_code)} className="hidden h-7 items-center gap-1 rounded-md border border-gray-200 px-2 font-mono text-[11px] text-gray-600 hover:bg-gray-50 dark:border-white/[.09] dark:text-gray-300 dark:hover:bg-white/[.05] sm:flex" title="Copy invite code">
                 {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />} {selected.invite_code}
               </button>
-              <button onClick={() => setShowInfo(!showInfo)} className={cn("flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[.06] xl:hidden", showInfo && "bg-gray-100 text-gray-900 dark:bg-white/[.08] dark:text-white")} aria-label="Group details">
+              <button onClick={() => setShowInfo(!showInfo)} className={cn("flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[.06]", showInfo && "bg-gray-100 text-gray-900 dark:bg-white/[.08] dark:text-white")} aria-label={showInfo ? "Hide group details" : "Show group details"} title="Group details">
                 <Info className="h-4 w-4" />
               </button>
             </div>
           </header>
 
-          <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
+          <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 pb-16 pt-4 sm:px-6">
+            <div ref={content} className="min-h-full">
             {messages.length === 0 && (
               <div className="flex h-full flex-col items-center justify-center text-center">
-                <span className={cn("flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-semibold text-white", hue(selected.id))}>{initials(selected.name)}</span>
-                <p className="mt-3 text-[15px] font-semibold text-gray-900 dark:text-white">Welcome to {selected.name}</p>
+                <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl text-base font-medium", TILE)}>{initials(selected.name)}</span>
+                <p className="mt-3 text-[15px] font-medium text-gray-900 dark:text-white">{selected.name}</p>
                 <p className="mt-1 max-w-xs text-[13px] text-gray-500">Say hi, or share lecture slides, photos of the whiteboard, voice notes or past papers.</p>
               </div>
             )}
@@ -457,25 +528,27 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
                       <span className="h-px flex-1 bg-gray-200 dark:bg-white/[.07]" />
                     </div>
                   )}
-                  <div className={cn("group/msg flex items-end gap-2", mine ? "flex-row-reverse" : "", continued ? "mt-0.5" : "mt-3")}>
+                  <div className={cn("group/msg flex items-end gap-2", mine ? "flex-row-reverse" : "", continued ? "mt-1" : "mt-4")}>
                     {!mine && (continued ? <span className="w-8 shrink-0" /> : <Avatar name={message.author} id={message.user_id} />)}
-                    <div className={cn("flex min-w-0 max-w-[82%] flex-col sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
-                      {!mine && !continued && <span className={cn("mb-1 px-1 text-xs font-semibold", nameTone(message.user_id))}>{message.author}</span>}
-                      <div className={cn(
-                        "relative max-w-full break-words text-[13px] leading-relaxed",
-                        (hasText || message.attachments.some(a => mediaKind(a.content_type, a.filename) !== 'image')) && "rounded-2xl px-3 py-2",
-                        hasText || message.attachments.some(a => mediaKind(a.content_type, a.filename) !== 'image')
-                          ? mine ? "rounded-br-md bg-primary-600 text-white" : "rounded-bl-md bg-gray-100 text-gray-900 dark:bg-white/[.07] dark:text-gray-100"
-                          : ""
-                      )}>
-                        {message.attachments.length > 0 && (
-                          <div className={cn(hasText && "mb-1.5")}>
-                            <MessageMedia groupId={selected.id} files={message.attachments} mine={mine} onOpen={setViewing} />
-                          </div>
-                        )}
-                        {hasText && <p className="whitespace-pre-wrap">{message.body}</p>}
-                      </div>
-                      <span className="mt-0.5 px-1 text-[10px] text-gray-400 opacity-0 transition-opacity group-hover/msg:opacity-100">{timeLabel(message.created_at)}</span>
+                    <div className={cn("flex min-w-0 max-w-[82%] flex-col gap-1 sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
+                      {!mine && !continued && <span className="px-1 text-xs font-medium text-gray-700 dark:text-gray-300">{message.author}</span>}
+                      {message.resource && (
+                        <ResourceCard resource={message.resource} mine={false} onOpen={() => setOpenResource({ resource: message.resource!, from: mine ? 'you' : message.author })} />
+                      )}
+                      {message.attachments.length > 0 && (
+                        <MessageMedia groupId={selected.id} files={message.attachments} mine={false} onOpen={setViewing} />
+                      )}
+                      {hasText && (
+                        <p className={cn(
+                          "max-w-full whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-[13px] leading-relaxed text-gray-900 dark:text-gray-100",
+                          mine
+                            ? "rounded-br-md bg-gray-100 dark:bg-white/[.09]"
+                            : "rounded-bl-md border border-gray-200 bg-white dark:border-white/[.08] dark:bg-white/[.02]"
+                        )}>
+                          {message.body}
+                        </p>
+                      )}
+                      <span className="px-1 text-[11px] tabular-nums text-gray-500 opacity-0 transition-opacity group-hover/msg:opacity-100">{timeLabel(message.created_at)}</span>
                     </div>
                     {mine && (
                       <button onClick={() => removeMessage(message)} className="mb-5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 hover:bg-red-500/10 hover:text-red-500 group-hover/msg:opacity-100" aria-label="Delete message">
@@ -486,6 +559,7 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
                 </React.Fragment>
               );
             })}
+            </div>
           </div>
 
           {/* Composer */}
@@ -519,6 +593,25 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
                   })}
                 </div>
               )}
+              {recorder.state === 'recording' ? (
+                <div className="flex items-center gap-2 p-2" role="status" aria-live="polite">
+                  <button onClick={recorder.cancel} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-500" title="Discard" aria-label="Discard voice note">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium tabular-nums text-gray-900 dark:text-gray-100">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" /> {clock(recorder.seconds)}
+                  </span>
+                  <div className="flex h-9 min-w-0 flex-1 items-center gap-[3px] overflow-hidden px-2" aria-hidden="true">
+                    {recorder.levels.map((level, i) => (
+                      <span key={i} className="w-[3px] shrink-0 rounded-full bg-primary-500/80 transition-[height] duration-100" style={{ height: `${Math.max(3, level * 32)}px` }} />
+                    ))}
+                  </div>
+                  <span className="hidden shrink-0 text-[11px] text-gray-400 sm:inline">Up to {MAX_VOICE_SECONDS / 60} min</span>
+                  <button onClick={sendVoice} className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary-600 px-3 text-[13px] font-medium text-white hover:bg-primary-500" aria-label="Send voice note">
+                    <SendHorizontal className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Send</span>
+                  </button>
+                </div>
+              ) : (<>
               <textarea
                 ref={textarea}
                 value={draft}
@@ -533,24 +626,42 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
               />
               <div className="flex items-center justify-between px-2 pb-2">
                 <div className="flex items-center gap-0.5">
+                  <button onClick={() => setSharing(true)} className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/[.06] dark:hover:text-white" title="Share notes, quizzes, flashcards or summaries from your subjects" aria-label="Share from your subjects">
+                    <BookOpen className="h-4 w-4" /> <span className="hidden sm:inline">Share</span>
+                  </button>
+                  <span className="mx-0.5 h-4 w-px bg-gray-200 dark:bg-white/[.08]" />
                   <button onClick={() => picker.current?.click()} className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.06] dark:hover:text-white" title="Attach files" aria-label="Attach files">
                     <Paperclip className="h-4 w-4" />
                   </button>
                   <button onClick={() => { if (picker.current) { picker.current.accept = 'image/*,video/*'; picker.current.click(); picker.current.accept = ACCEPT; } }} className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/[.06] dark:hover:text-white" title="Photo or video" aria-label="Attach photo or video">
                     <ImagePlus className="h-4 w-4" />
                   </button>
-                  <span className="ml-1 hidden text-[11px] text-gray-400 sm:inline">Photos, video, audio, PDF, Office · up to 10 MB</span>
+                  <button onClick={recorder.start} disabled={sending} className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/[.06] dark:hover:text-white" title="Record a voice note" aria-label="Record a voice note">
+                    <Mic className="h-4 w-4" />
+                  </button>
+                  <span className="ml-2 hidden text-xs text-gray-500 lg:inline">Up to 10 MB per file</span>
                 </div>
-                <button
-                  onClick={send}
-                  disabled={sending || (!draft.trim() && pending.length === 0)}
-                  className="flex h-8 items-center gap-1.5 rounded-lg bg-primary-600 px-3 text-[13px] font-medium text-white hover:bg-primary-500 disabled:opacity-40"
-                  aria-label="Send"
-                >
-                  {sending ? <Upload className="h-3.5 w-3.5 animate-pulse" /> : <SendHorizontal className="h-3.5 w-3.5" />}
-                  <span className="hidden sm:inline">{sending ? (pending.length ? 'Uploading…' : 'Sending…') : 'Send'}</span>
-                </button>
+                {!draft.trim() && pending.length === 0 && !sending ? (
+                  <button
+                    onClick={recorder.start}
+                    className="flex h-8 items-center gap-1.5 rounded-lg bg-primary-600 px-3 text-[13px] font-medium text-white hover:bg-primary-500"
+                    aria-label="Record voice note"
+                  >
+                    <Mic className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Voice</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={send}
+                    disabled={sending || (!draft.trim() && pending.length === 0)}
+                    className="flex h-8 items-center gap-1.5 rounded-lg bg-primary-600 px-3 text-[13px] font-medium text-white hover:bg-primary-500 disabled:opacity-40"
+                    aria-label="Send"
+                  >
+                    {sending ? <Upload className="h-3.5 w-3.5 animate-pulse" /> : <SendHorizontal className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">{sending ? (pending.length ? 'Uploading…' : 'Sending…') : 'Send'}</span>
+                  </button>
+                )}
               </div>
+              </>)}
             </div>
             <input ref={picker} type="file" multiple accept={ACCEPT} className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
           </div>
@@ -564,9 +675,9 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
         </section>
       )}
 
-      {/* Details: always on wide screens, as a panel elsewhere */}
-      {selected && (
-        <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 dark:border-white/[.07] xl:block">{details}</aside>
+      {/* Details, on demand: a side pane on wide screens, a sheet elsewhere */}
+      {selected && showInfo && (
+        <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-gray-200 animate-in dark:border-white/[.07] xl:block">{details}</aside>
       )}
       {selected && showInfo && (
         <div className="fixed inset-0 z-50 xl:hidden" role="dialog" aria-label="Group details">
@@ -579,6 +690,22 @@ export const StudyGroups: React.FC<Props> = ({ subject }) => {
       )}
 
       {viewing && selected && <MediaViewer groupId={selected.id} file={viewing} onClose={() => setViewing(null)} />}
+      {openResource && <ResourceViewer resource={openResource.resource} from={openResource.from} onClose={() => setOpenResource(null)} />}
+      {sharing && selected && (
+        <SharePicker
+          groupId={selected.id}
+          groupName={selected.name}
+          onClose={() => setSharing(false)}
+          onShare={async (item, comment) => {
+            try {
+              const message = await groups.shareResource(selected.id, item.kind, item.id, comment);
+              setMessages(current => [...current, message]);
+              notify(`Shared ${item.title}`, 'success');
+              return true;
+            } catch (e) { fail(e); return false; }
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -588,7 +715,7 @@ const GalleryThumb: React.FC<{ groupId: string; file: GroupAttachment; onOpen: (
   useEffect(() => { let live = true; fileUrl(groupId, file).then(u => live && setUrl(u)).catch(() => {}); return () => { live = false; }; }, [groupId, file]);
   return (
     <button onClick={onOpen} className="aspect-square overflow-hidden rounded-md bg-gray-100 dark:bg-white/[.05]" aria-label={`Open ${file.filename}`}>
-      {url && <img src={url} alt={file.filename} className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />}
+      {url && <img src={url} alt={file.filename} className="h-full w-full object-cover transition-opacity duration-150 hover:opacity-90" />}
     </button>
   );
 };
