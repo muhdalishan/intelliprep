@@ -1,99 +1,148 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { KanbanTask, StickyNote } from '../types';
 import { Card, Button } from './UIComponents';
-import { Plus, X, Image as ImageIcon, Move, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, X, Image as ImageIcon, Move, MoreHorizontal, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { cn } from './UIComponents';
 
-// --- KANBAN ---
+// --- PLANNER: the same tasks as a list (default on phones) or a board ---
 
 interface KanbanBoardProps {
   tasks: KanbanTask[];
   onUpdateTasks: (tasks: KanbanTask[]) => void;
+  view?: 'list' | 'board';
 }
 
-const COLUMNS: { id: KanbanTask['status']; title: string; color: string }[] = [
-  { id: 'todo', title: 'To Study', color: 'border-red-400' },
-  { id: 'learning', title: 'Learning', color: 'border-yellow-400' },
-  { id: 'practiced', title: 'Practiced', color: 'border-blue-400' },
-  { id: 'mastered', title: 'Mastered', color: 'border-green-400' },
+// Each stage keeps one small dot of colour: it is what tells the stages apart.
+const COLUMNS: { id: KanbanTask['status']; title: string; dot: string }[] = [
+  { id: 'todo', title: 'To study', dot: 'bg-gray-400' },
+  { id: 'learning', title: 'Learning', dot: 'bg-amber-500' },
+  { id: 'practiced', title: 'Practiced', dot: 'bg-sky-500' },
+  { id: 'mastered', title: 'Mastered', dot: 'bg-emerald-500' },
 ];
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onUpdateTasks }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onUpdateTasks, view = 'board' }) => {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [overColumn, setOverColumn] = useState<KanbanTask['status'] | null>(null);
 
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedTaskId(id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent, status: KanbanTask['status']) => {
-    e.preventDefault();
-    if (draggedTaskId) {
-      const updated = tasks.map(t => t.id === draggedTaskId ? { ...t, status } : t);
-      onUpdateTasks(updated);
-      setDraggedTaskId(null);
-    }
-  };
-
+  const setStatus = (id: string, status: KanbanTask['status']) =>
+    onUpdateTasks(tasks.map(t => (t.id === id ? { ...t, status } : t)));
   const moveTask = (id: string, step: number) => {
-    onUpdateTasks(tasks.map(t => {
-      if (t.id !== id) return t;
-      const next = COLUMNS[COLUMNS.findIndex(c => c.id === t.status) + step];
-      return next ? { ...t, status: next.id } : t;
-    }));
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const next = COLUMNS[COLUMNS.findIndex(c => c.id === task.status) + step];
+    if (next) setStatus(id, next.id);
   };
+  const remove = (id: string) => onUpdateTasks(tasks.filter(t => t.id !== id));
 
-  const allowDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+  if (view === 'list') {
+    return (
+      <div className="space-y-6">
+        {COLUMNS.map((col, colIndex) => {
+          const items = tasks.filter(t => t.status === col.id);
+          return (
+            <section key={col.id}>
+              <h3 className="mb-2 flex items-center gap-2 px-1 text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                <span className={cn("h-2 w-2 rounded-full", col.dot)} /> {col.title}
+                <span className="font-mono text-xs font-normal text-gray-500">{items.length}</span>
+              </h3>
+              {items.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-gray-200 px-4 py-3 text-[13px] text-gray-400 dark:border-white/[.08]">Nothing here</p>
+              ) : (
+                <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white dark:divide-white/[.06] dark:border-white/[.07] dark:bg-white/[.015]">
+                  {items.map(task => (
+                    <li key={task.id} className="group flex items-center gap-2 px-3 py-2.5">
+                      <button
+                        onClick={() => setStatus(task.id, task.status === 'mastered' ? 'todo' : 'mastered')}
+                        className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                          task.status === 'mastered' ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 hover:border-gray-400 dark:border-white/25")}
+                        aria-label={task.status === 'mastered' ? `Mark ${task.title} as not done` : `Mark ${task.title} as mastered`}
+                      >
+                        {task.status === 'mastered' && <Check className="h-3 w-3" />}
+                      </button>
+                      <span className={cn("min-w-0 flex-1 break-words text-[14px]", task.status === 'mastered' ? "text-gray-400 line-through" : "text-gray-900 dark:text-gray-100")}>{task.title}</span>
+                      <div className="flex shrink-0 items-center">
+                        {colIndex > 0 && (
+                          <button onClick={() => moveTask(task.id, -1)} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[.06] dark:hover:text-white" aria-label={`Move to ${COLUMNS[colIndex - 1].title}`}>
+                            <ChevronLeft className="h-4 w-4" />
+                          </button>
+                        )}
+                        {colIndex < COLUMNS.length - 1 && (
+                          <button onClick={() => moveTask(task.id, 1)} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[.06] dark:hover:text-white" aria-label={`Move to ${COLUMNS[colIndex + 1].title}`}>
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button onClick={() => remove(task.id)} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:text-red-400" aria-label={`Delete ${task.title}`}>
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-full gap-4 overflow-x-auto pb-4 snap-x snap-mandatory sm:snap-none xl:grid xl:grid-cols-4 xl:overflow-visible">
-      {COLUMNS.map((col, colIndex) => (
-        <div
-          key={col.id}
-          onDragOver={allowDrop}
-          onDrop={(e) => handleDrop(e, col.id)}
-          className={cn("flex-shrink-0 w-[min(18rem,80vw)] xl:w-auto xl:min-w-0 snap-start rounded-xl bg-gray-100 dark:bg-gray-800/50 p-4 border-t-4", col.color)}
-        >
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-gray-700 dark:text-gray-200">{col.title}</h3>
-            <span className="text-xs text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
-              {tasks.filter(t => t.status === col.id).length}
-            </span>
-          </div>
-          <div className="space-y-3">
-            {tasks.filter(t => t.status === col.id).map(task => (
-              <div
-                key={task.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, task.id)}
-                className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow border border-gray-200 dark:border-gray-600"
-              >
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-100 break-words">{task.title}</p>
-                {/* Touch screens can't drag, so tasks also move with these arrows. */}
-                <div className="mt-2 flex justify-end gap-1">
-                  {colIndex > 0 && (
-                    <button onClick={() => moveTask(task.id, -1)} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-600 dark:hover:text-white" aria-label={`Move to ${COLUMNS[colIndex - 1].title}`}>
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                  )}
-                  {colIndex < COLUMNS.length - 1 && (
-                    <button onClick={() => moveTask(task.id, 1)} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-600 dark:hover:text-white" aria-label={`Move to ${COLUMNS[colIndex + 1].title}`}>
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-            {tasks.filter(t => t.status === col.id).length === 0 && (
-              <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-                Drop items here
-              </div>
+    <div className="flex h-full gap-3 overflow-x-auto pb-4 snap-x snap-mandatory sm:snap-none xl:grid xl:grid-cols-4 xl:overflow-visible">
+      {COLUMNS.map((col, colIndex) => {
+        const items = tasks.filter(t => t.status === col.id);
+        return (
+          <div
+            key={col.id}
+            onDragOver={e => { e.preventDefault(); setOverColumn(col.id); }}
+            onDragLeave={() => setOverColumn(c => (c === col.id ? null : c))}
+            onDrop={e => { e.preventDefault(); if (draggedTaskId) setStatus(draggedTaskId, col.id); setDraggedTaskId(null); setOverColumn(null); }}
+            className={cn(
+              "flex w-[min(18rem,80vw)] flex-shrink-0 snap-start flex-col rounded-2xl border p-3 transition-colors xl:w-auto xl:min-w-0",
+              overColumn === col.id ? "border-primary-500/50 bg-primary-500/[.04]" : "border-gray-200 bg-gray-50/60 dark:border-white/[.07] dark:bg-white/[.015]"
             )}
+          >
+            <div className="mb-3 flex items-center gap-2 px-1">
+              <span className={cn("h-2 w-2 rounded-full", col.dot)} />
+              <h3 className="text-[13px] font-medium text-gray-900 dark:text-gray-100">{col.title}</h3>
+              <span className="ml-auto font-mono text-xs text-gray-500">{items.length}</span>
+            </div>
+            <div className="space-y-2">
+              {items.map(task => (
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={e => { setDraggedTaskId(task.id); e.dataTransfer.effectAllowed = 'move'; }}
+                  onDragEnd={() => { setDraggedTaskId(null); setOverColumn(null); }}
+                  className={cn("group cursor-grab rounded-xl border border-gray-200 bg-white p-3 transition-[border-color,opacity] hover:border-gray-300 active:cursor-grabbing dark:border-white/[.08] dark:bg-gray-800 dark:hover:border-white/[.16]", draggedTaskId === task.id && "opacity-50")}
+                >
+                  <p className="break-words text-[14px] text-gray-900 dark:text-gray-100">{task.title}</p>
+                  {/* Touch screens can't drag, so tasks also move with these arrows. */}
+                  <div className="mt-2 flex items-center justify-end gap-0.5">
+                    {colIndex > 0 && (
+                      <button onClick={() => moveTask(task.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[.06] dark:hover:text-white" aria-label={`Move to ${COLUMNS[colIndex - 1].title}`}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                    )}
+                    {colIndex < COLUMNS.length - 1 && (
+                      <button onClick={() => moveTask(task.id, 1)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[.06] dark:hover:text-white" aria-label={`Move to ${COLUMNS[colIndex + 1].title}`}>
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button onClick={() => remove(task.id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 dark:hover:text-red-400" aria-label={`Delete ${task.title}`}>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {items.length === 0 && (
+                <div className="rounded-xl border border-dashed border-gray-200 py-6 text-center text-[13px] text-gray-400 dark:border-white/[.08]">
+                  Drop a task here
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
