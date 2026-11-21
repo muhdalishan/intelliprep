@@ -168,52 +168,10 @@ export const AppShell: React.FC<AppShellProps> = ({ title, actions, context, bod
   const { pathname } = useLocation();
   useEffect(() => setDrawer(false), [pathname]);
 
-  // The sidebar is resizable: drag its right edge (double-click resets). The width is remembered.
-  const [width, setWidth] = useState(() => {
-    try { const saved = Number(localStorage.getItem('ip_sidebar_width')); if (saved >= 200 && saved <= 420) return saved; } catch { /* storage blocked */ }
-    return 240;
-  });
-  const [resizing, setResizing] = useState(false);
-  const startResize = (e: React.PointerEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startWidth = width;
-    setResizing(true);
-    const move = (ev: PointerEvent) => setWidth(Math.min(420, Math.max(200, startWidth + ev.clientX - startX)));
-    const up = () => {
-      setResizing(false);
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      setWidth(w => { try { localStorage.setItem('ip_sidebar_width', String(w)); } catch { /* storage blocked */ } return w; });
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
-  const resetWidth = () => { setWidth(240); try { localStorage.setItem('ip_sidebar_width', '240'); } catch { /* storage blocked */ } };
-
   return (
-    <div className={cn("flex h-dvh overflow-hidden bg-gray-100/70 text-gray-900 dark:bg-gray-950 dark:text-gray-100", resizing && "cursor-col-resize select-none")}>
-      <aside className="relative hidden shrink-0 lg:block" style={{ width }}>
+    <div className="flex h-dvh overflow-hidden bg-gray-100/70 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+      <aside className="hidden w-60 shrink-0 lg:block">
         <Sidebar context={context} />
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize sidebar"
-          aria-valuemin={200}
-          aria-valuemax={420}
-          aria-valuenow={width}
-          tabIndex={0}
-          onPointerDown={startResize}
-          onDoubleClick={resetWidth}
-          onKeyDown={e => {
-            if (e.key === 'ArrowLeft') setWidth(w => Math.max(200, w - 16));
-            if (e.key === 'ArrowRight') setWidth(w => Math.min(420, w + 16));
-          }}
-          title="Drag to resize · double-click to reset"
-          className="group absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize"
-        >
-          <span className={cn("absolute inset-y-3 left-1/2 w-px -translate-x-1/2 rounded-full transition-colors", resizing ? "bg-primary-500" : "bg-transparent group-hover:bg-gray-300 dark:group-hover:bg-white/20")} />
-        </div>
       </aside>
 
       {drawer && (

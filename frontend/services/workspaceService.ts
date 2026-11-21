@@ -31,6 +31,8 @@ interface RemoteNote {
   color: string;
   x: number;
   y: number;
+  width: number;
+  height: number;
   created_by: string;
 }
 
@@ -71,18 +73,21 @@ export const updateTask = (taskId: string, changes: Partial<Pick<KanbanTask, "ti
 export const deleteTask = (taskId: string) => apiFetch<void>(`/workspace/tasks/${taskId}`, json("DELETE"));
 
 export const listNotes = async (subjectId: string): Promise<StickyNote[]> =>
-  (await apiFetch<RemoteNote[]>(`/workspace/subjects/${subjectId}/notes`)).map(({ id, content, color, x, y }) => ({ id, content, color, x, y }));
+  (await apiFetch<RemoteNote[]>(`/workspace/subjects/${subjectId}/notes`)).map(({ id, content, color, x, y, width, height }) => ({ id, content, color, x, y, w: width, h: height }));
 
 export const createNote = async (subjectId: string, note: Omit<StickyNote, "id">) => {
   const n = await apiFetch<RemoteNote>(`/workspace/subjects/${subjectId}/notes`, json("POST", {
     content: note.content, color: note.color, x: Math.max(0, Math.round(note.x)), y: Math.max(0, Math.round(note.y)),
+    ...(note.w ? { width: Math.round(note.w), height: Math.round(note.h ?? note.w) } : {}),
   }));
-  return { id: n.id, content: n.content, color: n.color, x: n.x, y: n.y } as StickyNote;
+  return { id: n.id, content: n.content, color: n.color, x: n.x, y: n.y, w: n.width, h: n.height } as StickyNote;
 };
 
-export const updateNote = (noteId: string, changes: Partial<Omit<StickyNote, "id">>) =>
+export const updateNote = (noteId: string, { w, h, ...changes }: Partial<Omit<StickyNote, "id">>) =>
   apiFetch<RemoteNote>(`/workspace/notes/${noteId}`, json("PATCH", {
     ...changes,
+    ...(w !== undefined ? { width: Math.round(w) } : {}),
+    ...(h !== undefined ? { height: Math.round(h) } : {}),
     ...(changes.x !== undefined ? { x: Math.max(0, Math.round(changes.x)) } : {}),
     ...(changes.y !== undefined ? { y: Math.max(0, Math.round(changes.y)) } : {}),
   }));

@@ -45,6 +45,9 @@ export interface StickyNote {
   y: number;
   content: string;
   color: string;
+  /** Size in px; 176 when not set. */
+  w?: number;
+  h?: number;
 }
 
 export interface Reminder {

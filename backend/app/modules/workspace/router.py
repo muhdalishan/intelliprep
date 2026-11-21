@@ -65,6 +65,8 @@ class Note(BaseModel):
     color: str
     x: int
     y: int
+    width: int = 176
+    height: int = 176
     created_by: UUID
 
 
@@ -73,6 +75,8 @@ class NoteIn(BaseModel):
     color: str = Field(default="bg-yellow-200", max_length=40)
     x: int = Field(default=100, ge=0, le=5_000)
     y: int = Field(default=100, ge=0, le=5_000)
+    width: int = Field(default=176, ge=120, le=480)
+    height: int = Field(default=176, ge=120, le=480)
 
 
 class NotePatch(BaseModel):
@@ -80,6 +84,8 @@ class NotePatch(BaseModel):
     color: str | None = Field(default=None, max_length=40)
     x: int | None = Field(default=None, ge=0, le=5_000)
     y: int | None = Field(default=None, ge=0, le=5_000)
+    width: int | None = Field(default=None, ge=120, le=480)
+    height: int | None = Field(default=None, ge=120, le=480)
 
 
 def _not_found(what: str) -> HTTPException:
@@ -221,7 +227,8 @@ async def delete_task(task_id: UUID, db: UserDb) -> None:
 async def list_notes(subject_id: UUID, db: UserDb) -> list[Note]:
     rows = await db.execute(
         text(
-            "select id, subject_id, content, color, x, y, created_by from board_notes "
+            "select id, subject_id, content, color, x, y, width, height, created_by "
+            "from board_notes "
             "where subject_id = :sid order by created_at"
         ),
         {"sid": subject_id},
@@ -236,9 +243,9 @@ async def add_note(subject_id: UUID, body: NoteIn, db: UserDb) -> Note:
             (
                 await db.execute(
                     text(
-                        "insert into board_notes (subject_id, content, color, x, y) "
-                        "values (:sid, :content, :color, :x, :y) "
-                        "returning id, subject_id, content, color, x, y, created_by"
+                        "insert into board_notes (subject_id, content, color, x, y, width, height) "
+                        "values (:sid, :content, :color, :x, :y, :width, :height) "
+                        "returning id, subject_id, content, color, x, y, width, height, created_by"
                     ),
                     {"sid": subject_id, **body.model_dump()},
                 )
@@ -263,7 +270,7 @@ async def update_note(note_id: UUID, body: NotePatch, db: UserDb) -> Note:
                 await db.execute(
                     text(
                         f"update board_notes set {assignments} where id = :id "  # noqa: S608
-                        "returning id, subject_id, content, color, x, y, created_by"
+                        "returning id, subject_id, content, color, x, y, width, height, created_by"
                     ),
                     {**changes, "id": note_id},
                 )
