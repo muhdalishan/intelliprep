@@ -4,8 +4,6 @@ One request returns everything the "what should I study today?" screen needs. It
 in the student's own session, so row-level security decides every number: their own subjects
 and data, plus subjects shared with their groups. Flashcards, quiz scores and weak topics stay
 personal even in shared subjects.
-
-Backlog: IP-120 (docs/scrum/product-backlog.md)
 """
 
 from datetime import date, datetime

@@ -74,7 +74,7 @@ def create_app() -> FastAPI:
     if missing := settings.missing_for_deploy():
         raise RuntimeError(
             f"ENVIRONMENT={settings.environment} needs these settings: {', '.join(missing)}. "
-            "See LAUNCH.md."
+            "See the deployment guide."
         )
     app = FastAPI(
         title="IntelliPrep AI API",

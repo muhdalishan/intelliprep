@@ -7,8 +7,6 @@ Two ways in:
   is created as the student (so RLS checks they own the subject), then the ingestion job chunks
   and embeds it in the background and sets its status. The original file isn't kept until the
   Storage bucket exists (IP-20); its future path is recorded already.
-
-Backlog: IP-20, IP-21, IP-22, IP-23, IP-24, IP-25, IP-26 (docs/scrum/product-backlog.md)
 """
 
 import re

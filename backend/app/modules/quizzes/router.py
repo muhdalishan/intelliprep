@@ -6,8 +6,6 @@ Two ways to quiz:
   the server and come back WITHOUT answers; the database hides the correct option from the
   student's role entirely. An attempt is scored on the server, which then reveals the answers,
   stores the result and adds every wrong answer's topic to the student's weak topics.
-
-Backlog: IP-42 (docs/scrum/product-backlog.md)
 """
 
 import json

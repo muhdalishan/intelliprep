@@ -31,3 +31,11 @@ Thumbs.db
 
 # Local development database (DATABASE_URL=local)
 .localdb/
+
+# Private: FYP documents, notes and guides that are not part of the deployed app
+private-docs/
+
+# Local tooling
+.claude/
+.impeccable/
+backend/.localdb/

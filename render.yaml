@@ -1,5 +1,5 @@
 # Render blueprint for the API (New -> Blueprint, pick this repo). Values marked sync: false are
-# typed into the Render dashboard; they never go in git. See LAUNCH.md.
+# typed into the Render dashboard; they never go in git.
 services:
   - type: web
     name: intelliprep-api

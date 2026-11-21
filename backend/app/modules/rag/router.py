@@ -3,8 +3,6 @@
 Ask a question about a subject; the answer comes only from the passages found in that subject's
 indexed documents, with the document and pages each point came from. When nothing relevant is
 found, the student is told it isn't in their notes and no AI call is made.
-
-Backlog: IP-30, IP-31, IP-32, IP-33, IP-34, IP-35 (docs/scrum/product-backlog.md)
 """
 
 import re

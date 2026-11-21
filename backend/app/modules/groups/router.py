@@ -2,8 +2,6 @@
 
 Access rules live in the database (migration 20261103000000_study_groups.sql); these endpoints
 run as the calling student, so a request can never see or change more than the policies allow.
-
-Backlog: IP-90, IP-91 (docs/scrum/product-backlog.md)
 """
 
 import json
