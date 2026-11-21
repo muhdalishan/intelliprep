@@ -4,8 +4,6 @@ For account subjects, the real engine ranks topics from the student's own past p
 them to /papers (questions are extracted and embedded in the background, processing.py), and
 /predictions returns topics ranked by frequency x recency (ranking.py) once 3 or more are in.
 /guess gives a notes-based estimate, which the UI labels as such, for everything else.
-
-Backlog: IP-60, IP-61, IP-62 (docs/scrum/product-backlog.md)
 """
 
 from datetime import datetime

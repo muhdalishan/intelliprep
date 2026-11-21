@@ -3,8 +3,6 @@
 It answers study questions like a tutor (in full when typed, in a few sentences when spoken) and
 lists actions (save a note, set a reminder, add a task, open a section). The app carries the
 actions out; the server only decides and validates them.
-
-Backlog: IP-140, IP-141, IP-142 (docs/scrum/product-backlog.md)
 """
 
 from datetime import datetime

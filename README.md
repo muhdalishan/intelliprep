@@ -1,58 +1,73 @@
 # IntelliPrep AI
 
-AI-powered exam preparation that only answers from the student's own notes.
-BS(CS) Final Year Project, University of Central Punjab, group S26-CS-037.
+Exam preparation from your own notes. Upload lecture PDFs and past papers, and IntelliPrep turns
+them into summaries, flashcards with spaced repetition, quizzes that track weak topics, adaptive
+mock exams and likely exam topics. Study alone or with classmates in group chats, with Nova, an
+assistant you can type or talk to.
 
-- **Team:** Muhammad Murtaza Baber Bajwa, Muhammad Alishan
-- **Product Owner / Advisor:** Bilal Shahid
+## Stack
 
-## Repository layout
+- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS (`frontend/`)
+- **Backend:** FastAPI, SQLAlchemy (async), Python 3.12 (`backend/`)
+- **Database and auth:** Supabase (Postgres with row-level security, pgvector, Supabase Auth)
+- **AI:** OpenAI (generation and embeddings)
+- **Hosting:** Netlify (frontend), Render (API, Docker)
+
+## Repository
 
 ```
-frontend/      React + Vite web app (recovered Phase 1 prototype)
-backend/       FastAPI API, one package per module (app/modules/*)
-docs/
-  phase-1-srs/   Phase 1 Software Requirements Specification (PDF)
-  phase-2-sds/   Phase 2 Software Design Specification (PDF)
-  scrum/         How we run Scrum, Product Backlog, Release Plan, sprint files
-  architecture/  Architecture decisions that update the SDS
-infra/         Deployment configuration (Terraform for the AWS phase)
-automation/    n8n workflows (reminders)
-archive/       Old debugging scripts kept for reference, not part of the app
+backend/
+  app/                 API, one package per feature (app/modules/*)
+  supabase/migrations/ Database schema, applied in filename order
+  tests/               pytest suite (database tests use an embedded Postgres)
+  Dockerfile
+frontend/
+  pages/, components/, services/, hooks/
+  netlify.toml
+render.yaml            Render blueprint for the API
 ```
-
-## Start here
-
-**Where things stand:** [KANBAN.md](KANBAN.md), every backlog item as done, in progress, to do or later.
-
-1. [docs/scrum/README.md](docs/scrum/README.md): roles, events, Definition of Done
-2. [docs/scrum/release-plan.md](docs/scrum/release-plan.md): the 7 sprints and their goals
-3. [docs/scrum/sprints/sprint-01.md](docs/scrum/sprints/sprint-01.md): the current sprint
-4. [docs/architecture/decisions.md](docs/architecture/decisions.md): stack decisions
 
 ## Run locally
 
-**Backend** (needs [uv](https://docs.astral.sh/uv/)):
+Backend (needs [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 cd backend
-cp .env.example .env
+cp .env.example .env        # set ENVIRONMENT=local, DATABASE_URL=local and OPENAI_API_KEY
 uv sync
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload
 ```
 
-**Frontend** (needs Node 20+):
+Frontend:
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                 # http://localhost:3000
 ```
 
-Frontend runs on http://localhost:3000, API on http://localhost:8000 (docs at `/docs`).
+`DATABASE_URL=local` runs a private Postgres on your machine, so no Supabase project is needed for
+development. Without `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, sign-in runs in a local test
+mode.
 
-## Environments
+## Tests
 
-| Environment | Frontend | API |
-|---|---|---|
-| Staging | _added in IP-04_ | _added in IP-04_ |
+```bash
+cd backend && uv run ruff check . && uv run pytest
+cd frontend && npm run typecheck && npm run build
+```
+
+CI runs both on every pull request.
+
+## Configuration
+
+| Where | Variables |
+|---|---|
+| API (`backend/.env`, Render) | `ENVIRONMENT`, `DATABASE_URL`, `SUPABASE_URL`, `CORS_ORIGINS`, `SIGNING_SECRET`, `OPENAI_API_KEY`, optional `AI_REQUESTS_PER_MINUTE`, `AI_DAILY_TOKEN_BUDGET`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME` |
+| Website (`frontend/.env.local`, Netlify) | `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
+
+In production the API refuses to start if a required setting is missing and says which one.
+
+## License
+
+Final Year Project, BS Computer Science, University of Central Punjab. All rights reserved.

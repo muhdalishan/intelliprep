@@ -4,8 +4,6 @@ The app keeps the session's history and asks for one question at a time; the rul
 pick the level and the topic, and the AI writes a question at that level from the student's
 notes. The correct answer travels back to the browser only inside a sealed (encrypted) token, so it
 can't be read before the student answers: POST /answer checks the choice and reveals it.
-
-Backlog: IP-70, IP-71 (docs/scrum/product-backlog.md)
 """
 
 import hashlib

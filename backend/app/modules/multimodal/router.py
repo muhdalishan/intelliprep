@@ -4,8 +4,6 @@ The student sends a photo of a diagram, a handwritten equation or a page of note
 a structured explanation with any equations as LaTeX, which the app renders with KaTeX. The image
 is checked by its content, not its name. It isn't stored yet: keeping it in the private `images`
 bucket comes with Storage (IP-20).
-
-Backlog: IP-80 (docs/scrum/product-backlog.md)
 """
 
 from typing import Annotated, Literal

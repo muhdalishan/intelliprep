@@ -4,8 +4,6 @@ Students create reminders here (from the Reminders screen, Nova or the planner);
 scheduler.py delivers them when due. In-app reminders appear in /inbox for the open app to show.
 Telegram is linked with a one-time code: the student opens the bot, the n8n workflow passes the
 code back to /telegram/connect, and the server saves their chat id.
-
-Backlog: IP-110, IP-111 (docs/scrum/product-backlog.md)
 """
 
 import json

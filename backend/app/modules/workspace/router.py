@@ -2,8 +2,6 @@
 
 A subject's planner and board are shared by everyone who can access the subject: its owner and
 the members of any group it's shared with. Personal data (flashcards, reminders) lives elsewhere.
-
-Backlog: IP-14, IP-100, IP-101 (docs/scrum/product-backlog.md)
 """
 
 from datetime import date

@@ -4,8 +4,6 @@
 - /documents summarises documents already saved to an account subject from their stored,
   page-numbered chunks, so every point can cite its page, and saves the result.
 - /saved keeps a summary the student made (e.g. from /generate) and lists their history.
-
-Backlog: IP-40 (docs/scrum/product-backlog.md)
 """
 
 from datetime import datetime

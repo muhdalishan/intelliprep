@@ -4,8 +4,6 @@
 card starts with SM-2's starting values, the due queue shows what to review today (in the
 student's own time zone), and each rating updates that card's schedule and the study streak.
 Cards are personal, even in a subject shared with a group.
-
-Backlog: IP-41, IP-50, IP-51 (docs/scrum/product-backlog.md)
 """
 
 from datetime import date, datetime

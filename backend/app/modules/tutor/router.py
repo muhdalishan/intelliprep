@@ -2,8 +2,6 @@
 
 Answers use the notes the student has open; retrieval over all their documents (IP-34) and
 actions such as reminders and notes (IP-142) come later.
-
-Backlog: IP-140, IP-141, IP-142 (docs/scrum/product-backlog.md)
 """
 
 from typing import Annotated, Literal

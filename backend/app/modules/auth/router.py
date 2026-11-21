@@ -2,8 +2,6 @@
 
 Sign-up, login and token refresh happen in the browser with Supabase Auth; this
 module only verifies tokens and serves the caller's profile.
-
-Backlog: IP-10, IP-11, IP-12, IP-13 (docs/scrum/product-backlog.md)
 """
 
 from typing import Annotated
