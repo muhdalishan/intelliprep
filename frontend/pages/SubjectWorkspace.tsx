@@ -1,0 +1,2028 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Subject, TabType, Flashcard, QuizQuestion, KanbanTask, StickyNote } from '../types';
+import { Button, Card, cn, Input, ProgressBar, Badge, SoonBadge } from '../components/UIComponents';
+import { AppShell, ContextItem } from '../components/AppShell';
+import { KanbanBoard, MoodBoard } from '../components/WorkspaceTools';
+import { useSharedBoard } from '../hooks/useSharedBoard';
+import { usePersistentState } from '../hooks/usePersistentState';
+import { isAccountSubjectId, listAccountSubjects, toSubject } from '../services/workspaceService';
+import {
+  generateSummary,
+  summarise,
+  notesPayload,
+  generateFlashcards,
+  generateQuiz,
+  generateGuessPaper,
+  chatWithAssistant,
+  ChatMessage,
+  GuessPaperResult
+} from '../services/aiService';
+import { daysUntil, formatDue, GLOBAL_SUBJECT, loadItems, logStudyDay, saveItems, STORE_EVENT, studyDaysThisWeek, studyStreak } from '../services/studyStore';
+import { isIndexable, listDocuments, readStudyFile, StoredDocument, uploadDocument } from '../services/documentService';
+import { createQuiz, getQuiz, listQuizzes, SavedQuiz, saveDeck, saveSummary, summariseDocuments } from '../services/studyService';
+import { useWeakTopics } from '../hooks/useWeakTopics';
+import { AccountFlashcards } from '../components/AccountFlashcards';
+import { SavedQuizList, SavedQuizRunner } from '../components/AccountQuiz';
+import { SavedSummaries } from '../components/SavedSummaries';
+import { PastPapers } from '../components/PastPapers';
+import { AskNotes } from '../components/AskNotes';
+import { DiagramExplainer } from '../components/DiagramExplainer';
+import { AdaptiveExam } from '../components/AdaptiveExam';
+import { RemindersPanel } from '../components/RemindersPanel';
+import { confirmAction, notify } from '../components/Feedback';
+import {
+  ArrowLeft, LayoutDashboard, Upload, FileText, Layers, CheckSquare,
+  Columns, ListTodo, Layout, GraduationCap, Bell, ChevronLeft, ChevronRight, RotateCw,
+  Play, Send, Image as ImageIcon, Flame, MessageSquare, AlertTriangle,
+  CheckCircle2, Plus, Clock, HelpCircle, X, BrainCircuit, Activity, Trash2, Volume2,
+  Users, Compass, BookOpen, PenTool, FileUp, Calendar, Hash, Shield, Share2, LogOut, PlusCircle,
+  Eye, History, Paperclip
+} from 'lucide-react';
+// Recharts removed for native SVG performance and absolute reliability
+
+export const SubjectWorkspace: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  // Load consolidated subjects state so added/edited subjects exist here
+  const [subjects, setSubjects] = useState<Subject[]>(() => {
+    const saved = localStorage.getItem('prep_subjects');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Subjects from the account (e.g. shared with you through a group) aren't in this browser's list.
+  const localSubject = subjects.find(s => s.id === id);
+  const [remoteSubject, setRemoteSubject] = useState<Subject | null>(null);
+  const [remoteChecked, setRemoteChecked] = useState(false);
+  const subject = localSubject ?? remoteSubject ?? undefined;
+
+  useEffect(() => {
+    if (localSubject || !id || !isAccountSubjectId(id)) {
+      setRemoteChecked(true);
+      return;
+    }
+    listAccountSubjects()
+      .then(list => {
+        const found = list.find(s => s.id === id);
+        if (found) setRemoteSubject(toSubject(found));
+      })
+      .catch(() => {})
+      .finally(() => setRemoteChecked(true));
+  }, [id, localSubject]);
+
+  useEffect(() => {
+    if (subjects.length > 0) {
+      localStorage.setItem('prep_subjects', JSON.stringify(subjects));
+    }
+  }, [subjects]);
+
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabType>(() => (searchParams.get('tab') as TabType) || 'overview');
+
+  // Nova can open a section by linking to ?tab=...
+  useEffect(() => {
+    const tab = searchParams.get('tab') as TabType | null;
+    // Groups moved out of subjects; an old link to that tab goes to the Groups page.
+    if (tab === 'studyroom') { navigate('/groups', { replace: true }); return; }
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
+  const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
+  // Planner: a list on phones by default, a board on wider screens; the choice is remembered.
+  const [planView, setPlanView] = useState<'list' | 'board'>(() => {
+    try { const saved = localStorage.getItem('ip_plan_view'); if (saved === 'list' || saved === 'board') return saved; } catch { /* storage blocked */ }
+    return window.matchMedia('(max-width: 767px)').matches ? 'list' : 'board';
+  });
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+
+  const userName = localStorage.getItem('userName') || 'Scholar';
+  const profilePic = localStorage.getItem('profilePic') || '';
+
+  // State Management
+  const [generatedSummary, setGeneratedSummary] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [loadedFiles, setLoadedFiles] = usePersistentState<{name: string, content: string, date: string}[]>(`ip_files_${id}`, () => []);
+
+  // Flashcards state
+  const [flashcards, setFlashcards] = usePersistentState<Flashcard[]>(`ip_cards_${id}`, () => []);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+
+
+  // Quiz state
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [quizActive, setQuizActive] = useState(false);
+  const [quizScore, setQuizScore] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [isAdaptiveMode, setIsAdaptiveMode] = useState(false);
+  const [adaptiveActive, setAdaptiveActive] = useState(false);
+  const [lastQuestionFeedback, setLastQuestionFeedback] = useState<{correct: boolean, chosen: number, explanation: string} | null>(null);
+  const [showQuizResult, setShowQuizResult] = useState(false);
+
+  // Exam mode countdown stats
+  const [examActive, setExamActive] = useState(false);
+  const [examTimeLeft, setExamTimeLeft] = useState(600); // 10 mins
+  const [selectedExamAnswers, setSelectedExamAnswers] = useState<Record<string, number>>({});
+  const [examFeedbackText, setExamFeedbackText] = useState('');
+
+  // Guess Engine state
+  const [guessResults, setGuessResults] = useState<GuessPaperResult | null>(null);
+  const [isGuessing, setIsGuessing] = useState(false);
+
+  // Kanban and Moodboard state
+  // Plan, moodboard and reminders persist per subject through the shared store (Nova writes there too)
+  const storeId = id ?? GLOBAL_SUBJECT;
+  const [kanbanTasks, setKanbanTasks] = useState<KanbanTask[]>(() => loadItems('tasks', storeId));
+  const [moodNotes, setMoodNotes] = useState<StickyNote[]>(() => loadItems('notes', storeId));
+
+  // Account subjects use the planner and board shared with their groups; others stay in this browser.
+  const isAccountSubject = isAccountSubjectId(storeId);
+  const sharedBoard = useSharedBoard(storeId, isAccountSubject);
+  const planTasks = isAccountSubject ? sharedBoard.tasks : kanbanTasks;
+  const setPlanTasks = isAccountSubject ? sharedBoard.setTasks : setKanbanTasks;
+  const boardNotes = isAccountSubject ? sharedBoard.notes : moodNotes;
+  const setBoardNotes = isAccountSubject ? sharedBoard.setNotes : setMoodNotes;
+
+  // Weak topics: on the server for account subjects (quiz attempts add to them there), else in this browser.
+  const { topics: weakTopics, add: addWeak, clear: clearWeak, refresh: refreshWeak } = useWeakTopics(storeId, isAccountSubject);
+
+  // Account subjects save decks, quizzes and summaries to the account (IP-40, IP-41, IP-42).
+  const [deckVersion, setDeckVersion] = useState(0);
+  const [quizVersion, setQuizVersion] = useState(0);
+  const [summaryVersion, setSummaryVersion] = useState(0);
+  const [serverQuiz, setServerQuiz] = useState<SavedQuiz | null>(null);
+  const [quizRun, setQuizRun] = useState(0);
+  const startSavedQuiz = (quiz: SavedQuiz) => {
+    setAdaptiveActive(false);
+    setServerQuiz(quiz);
+    setQuizRun(r => r + 1);
+  };
+
+  // Workspace AI Assistant Chatbot
+  const [tutorHistory, setTutorHistory] = useState<ChatMessage[]>([]);
+  const [tutorInputValue, setTutorInputValue] = useState('');
+  const [tutorIsLoading, setTutorIsLoading] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { saveItems('tasks', storeId, kanbanTasks); }, [storeId, kanbanTasks]);
+  useEffect(() => { saveItems('notes', storeId, moodNotes); }, [storeId, moodNotes]);
+
+  // Pick up changes made elsewhere (e.g. Nova adding a task while this subject is open)
+  useEffect(() => {
+    const reload = (event: Event) => {
+      const { kind, subjectId } = (event as CustomEvent<{ kind: string; subjectId: string }>).detail;
+      if (subjectId !== storeId) return;
+      if (kind === 'tasks') setKanbanTasks(loadItems('tasks', storeId));
+      if (kind === 'notes') setMoodNotes(loadItems('notes', storeId));
+    };
+    window.addEventListener(STORE_EVENT, reload);
+    return () => window.removeEventListener(STORE_EVENT, reload);
+  }, [storeId]);
+
+  const scrollChatToBottom = () => {
+    if (chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    scrollChatToBottom();
+  }, [tutorHistory]);
+
+  // FEATURE REFACTOR: DUAL-INPUT & HISTORY
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [customTopic, setCustomTopic] = useState('');
+  const [showDocSelector, setShowDocSelector] = useState(false);
+
+  const [summaryHistory, setSummaryHistory] = usePersistentState<{id: string, doc: string[], content: string, date: string}[]>(`ip_summaries_${id}`, () => []);
+  const [quizHistory, setQuizHistory] = usePersistentState<{id: string, doc: string[], score: number, total: number, date: string, questions?: QuizQuestion[]}[]>(`ip_quizzes_${id}`, () => []);
+  const [flashcardDeckHistory, setFlashcardDeckHistory] = usePersistentState<{id: string, doc: string[], cardCount: number, date: string, cards?: Flashcard[]}[]>(`ip_decks_${id}`, () => []);
+  const [guessPaperHistory, setGuessPaperHistory] = usePersistentState<{id: string, doc: string[], date: string, questions: number, result?: GuessPaperResult}[]>(`ip_guesses_${id}`, () => []);
+
+  const [previewContent, setPreviewContent] = useState<{title: string, text: string} | null>(null);
+  const [documentsVersion, setDocumentsVersion] = useState(0);
+
+  // Reads a .txt/.md/.pdf file into the library. PDFs are read by the backend.
+  const addStudyFile = async (file: File): Promise<string | null> => {
+    setIsUploading(true);
+    try {
+      const { content, note } = await readStudyFile(file);
+      setLoadedFiles(prev => [{ name: file.name, content, date: new Date().toLocaleDateString() }, ...prev.filter(f => f.name !== file.name)]);
+      notify(note || `${file.name} added`, note ? 'info' : 'success');
+      // Account subjects also keep the document and make it searchable with citations.
+      if (isAccountSubject && isIndexable(file)) {
+        uploadDocument(storeId, file)
+          .then(() => setDocumentsVersion(v => v + 1))
+          .catch(error => notify(`Couldn't save ${file.name} for search: ${error instanceof Error ? error.message : 'try again'}`, 'error'));
+      }
+      return content;
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "This file couldn't be read.", 'error');
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleUploadFromChat = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const content = await addStudyFile(file);
+    if (content !== null) setSelectedDocs(prev => prev.includes(file.name) ? prev : [...prev, file.name]);
+  };
+
+  const renderDualInputHeader = (title: string, subtext: string, onGenerate: () => void, isGenerating: boolean, actionLabel: string = "Generate") => {
+    const isReady = customTopic.trim() !== '' || selectedDocs.length > 0;
+
+    return (
+    <div className="w-full mt-auto animate-in slide-in-from-bottom-4 duration-500">
+      <div className="relative rounded-2xl border border-gray-200 bg-white transition-colors focus-within:border-gray-300 dark:border-white/[.08] dark:bg-white/[.015] dark:focus-within:border-white/[.16]">
+
+        {/* Header Title (Subtle) */}
+        <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-[13px] font-medium text-gray-900 dark:text-gray-100">
+              {title}
+            </h3>
+          </div>
+          <div className="flex flex-wrap gap-1">
+             {selectedDocs.map(doc => (
+                <span key={doc} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-0.5 text-[11px] text-gray-700 dark:border-white/[.09] dark:text-gray-300">
+                  <FileText className="w-2.5 h-2.5" />
+                  <span className="max-w-[100px] truncate">{doc}</span>
+                  <button onClick={() => setSelectedDocs(docs => docs.filter(d => d !== doc))} className="hover:text-red-500 transition-colors"><X className="w-2.5 h-2.5"/></button>
+                </span>
+             ))}
+          </div>
+        </div>
+
+        {/* Chat Input Area */}
+        <div className="relative">
+          <textarea
+            value={customTopic}
+            onChange={(e) => setCustomTopic(e.target.value)}
+            placeholder="Type a topic, or leave it empty to use the attached notes"
+            className="min-h-[64px] w-full resize-none border-0 bg-transparent px-4 py-3 text-[14px] text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100"
+          />
+
+          <div className="flex flex-wrap justify-between items-center gap-2 px-3 pb-3">
+            <div className="relative flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="h-8 rounded-lg px-2.5 text-[13px] text-gray-600 dark:text-gray-300" onClick={() => setShowDocSelector(!showDocSelector)}>
+                <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                <span>{selectedDocs.length > 0 ? `${selectedDocs.length} Attached` : 'Attach'}</span>
+              </Button>
+
+              <label>
+                <span className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg px-2.5 text-[13px] text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/[.06] dark:hover:text-white">
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  {isUploading ? 'Reading…' : 'Upload'}
+                </span>
+                <input type="file" accept=".pdf,.txt,.md,.csv" className="hidden" onChange={(e) => {
+                  handleUploadFromChat(e);
+                  setShowDocSelector(true); // Open the selector so they see it
+                }} />
+              </label>
+
+              {showDocSelector && (
+                <div className="absolute bottom-full left-0 mb-2 w-[min(18rem,calc(100vw-3rem))] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 p-4 z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl">
+                  <div className="flex justify-between items-center mb-3">
+                     <h4 className="text-[13px] font-medium text-gray-900 dark:text-gray-100">Your notes</h4>
+                     <button onClick={() => setShowDocSelector(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"><X className="w-4 h-4"/></button>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-hide">
+                    {loadedFiles.length === 0 ? <p className="text-[10px] text-gray-400 text-center py-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">No documents in library.</p> : null}
+                    {loadedFiles.map(file => {
+                      const isSelected = selectedDocs.includes(file.name);
+                      return (
+                        <div
+                          key={file.name}
+                          onClick={() => setSelectedDocs(prev => isSelected ? prev.filter(d => d !== file.name) : [...prev, file.name])}
+                          className={cn("text-xs p-2.5 rounded-xl cursor-pointer flex items-center justify-between transition-all font-medium", isSelected ? "bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300" : "hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300")}
+                        >
+                           <div className="flex items-center gap-2 truncate">
+                             <FileText className="w-3.5 h-3.5 opacity-70"/>
+                             <span className="truncate">{file.name}</span>
+                           </div>
+                           {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-primary-500" />}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 max-sm:w-full">
+              <span className="hidden text-xs text-gray-500 sm:inline">
+                {isReady ? (selectedDocs.length ? `From ${selectedDocs.length} note${selectedDocs.length === 1 ? '' : 's'}` : 'From your topic') : 'Attach notes or type a topic'}
+              </span>
+              <Button
+                size="sm"
+                className={cn("h-8 rounded-lg px-4 max-sm:w-full", !isReady && "cursor-not-allowed opacity-50")}
+                onClick={isReady ? onGenerate : undefined}
+                isLoading={isGenerating}
+                disabled={!isReady}
+              >
+                {actionLabel}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )};
+
+  // Seven sections. Sections with several screens show them as sub-tabs.
+  const sections: { id: string; label: string; icon: any; tabs: { id: TabType; label: string }[] }[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard, tabs: [{ id: 'overview', label: 'Overview' }] },
+    { id: 'notes', label: 'Notes', icon: FileText, tabs: [{ id: 'upload', label: 'Documents' }, { id: 'summary', label: 'Summaries' }, { id: 'diagrams', label: 'Diagrams' }] },
+    { id: 'flashcards', label: 'Flashcards', icon: Layers, tabs: [{ id: 'flashcards', label: 'Flashcards' }] },
+    { id: 'practice', label: 'Practice', icon: CheckSquare, tabs: [{ id: 'quiz', label: 'Quiz' }, { id: 'exam', label: 'Timed exam' }, { id: 'weak-topics', label: 'Weak topics' }] },
+    { id: 'predictions', label: 'Exam predictions', icon: BrainCircuit, tabs: [{ id: 'guess-engine', label: 'Predictions' }] },
+    { id: 'plan', label: 'Plan', icon: Columns, tabs: [{ id: 'kanban', label: 'Tasks' }, { id: 'reminders', label: 'Reminders' }, { id: 'moodboard', label: 'Board' }] },
+  ];
+  const activeSection = sections.find(section => section.tabs.some(tab => tab.id === activeTab)) ?? sections[0];
+  const openSection = (section: typeof sections[number]) => {
+    setActiveTab(section.tabs[0].id);
+    setLastQuestionFeedback(null);
+  };
+
+  const handleAddSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const day = (form.elements.namedItem('schedule_day') as HTMLSelectElement).value;
+    const time = (form.elements.namedItem('schedule_time') as HTMLInputElement).value;
+    const room = (form.elements.namedItem('schedule_room') as HTMLInputElement).value;
+
+    if (subject) {
+      const updatedSubject = {
+        ...subject,
+        schedule: [...(subject.schedule || []), { day, time, room, type: 'Lecture' }]
+      };
+
+      setSubjects(subjects.map(s => s.id === subject.id ? updatedSubject : s));
+    }
+
+    setShowAddScheduleModal(false);
+  };
+
+  const handleRemoveSchedule = (idx: number) => {
+    if (subject) {
+      const updatedSubject = {
+        ...subject,
+        schedule: (subject.schedule || []).filter((_, i) => i !== idx)
+      };
+      setSubjects(subjects.map(s => s.id === subject.id ? updatedSubject : s));
+    }
+  };
+
+  // -- High Stakes Exam Mode Timer --
+  useEffect(() => {
+    let interval: any;
+    if (examActive && examTimeLeft > 0) {
+      interval = setInterval(() => {
+        setExamTimeLeft(p => p - 1);
+      }, 1000);
+    } else if (examActive && examTimeLeft === 0) {
+      handleExamSubmit();
+    }
+    return () => clearInterval(interval);
+  }, [examActive, examTimeLeft]);
+
+  // Early return must stay below every hook, or React crashes when the subject disappears
+  if (!subject) {
+    if (!remoteChecked) {
+      return <div className="p-16 text-center text-sm text-gray-400">Loading subject…</div>;
+    }
+    return (
+      <div className="p-16 text-center">
+        <ArrowLeft className="w-8 h-8 text-primary-500 mx-auto mb-4 cursor-pointer" onClick={() => navigate('/dashboard')} />
+        <h3 className="text-xl font-bold">Workspace Not Found</h3>
+        <p className="text-gray-400 mt-2">The selected curriculum workspace could not be located.</p>
+        <Button className="mt-4" onClick={() => navigate('/dashboard')}>Return to Panel</Button>
+      </div>
+    );
+  }
+
+  // -- Dynamic File Upload Handler (FileReader) --
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const content = await addStudyFile(file);
+    if (content === null) return;
+    setSelectedDocs([file.name]);
+    setActiveTab('summary'); // Direct immediately to study summary!
+  };
+
+  // "Process AI" on a library file: attach it and open Summaries.
+  const handleSelectMaterial = (fileName: string) => {
+    setSelectedDocs([fileName]);
+    setActiveTab('summary');
+  };
+
+  // What the AI works from: the attached files as notes, and the typed topic kept apart.
+  // With nothing attached, the topic alone is enough; no sample notes are sent.
+  const material = () => ({
+    text: selectedDocs.map(doc => loadedFiles.find(f => f.name === doc)?.content || '').join('\n\n'),
+    focus: customTopic.trim() || undefined,
+  });
+  const hasMaterial = () => {
+    const { text, focus } = material();
+    return Boolean(text.trim() || focus);
+  };
+
+  // Library documents stored on the server that match the attached files (all of them, or none).
+  const attachedDocumentIds = async (): Promise<string[] | null> => {
+    if (!isAccountSubject || selectedDocs.length === 0) return null;
+    // Fresh list: a file uploaded a moment ago may have just finished indexing.
+    const docs = await listDocuments(storeId).catch(() => [] as StoredDocument[]);
+    const ids = selectedDocs.map(name => docs.find(d => d.filename === name && d.status === 'completed')?.id);
+    return ids.every(Boolean) ? (ids as string[]) : null;
+  };
+
+  // A name for what was made: the typed topic, else the attached files, else the subject.
+  const sourceTitle = (kind: string) => {
+    const topic = customTopic.trim();
+    if (topic) return topic.length > 80 ? `${topic.slice(0, 77)}…` : topic;
+    if (selectedDocs.length) return selectedDocs.join(', ');
+    return `${subject.name} ${kind}`;
+  };
+
+  // Account subjects: summaries of stored documents cite pages; anything else is summarised, then saved.
+  const saveAccountSummary = async () => {
+    const documentIds = await attachedDocumentIds();
+    const { text, focus } = material();
+    try {
+      if (documentIds) {
+        const saved = await summariseDocuments(storeId, documentIds, focus);
+        setGeneratedSummary(saved.content);
+      } else {
+        const content = await summarise(text, focus);
+        setGeneratedSummary(content);
+        await saveSummary(storeId, sourceTitle('summary'), content);
+      }
+      logStudyDay();
+      setSummaryVersion(v => v + 1);
+      notify('Summary saved to your account', 'success');
+    } catch (error) {
+      notify(`Couldn't make the summary. ${error instanceof Error ? error.message : ''}`, 'error');
+    }
+  };
+
+  // AI Summary generation
+  const handleGenerateSummary = async () => {
+    if (!hasMaterial()) return;
+    setIsGenerating(true);
+    if (isAccountSubject) {
+      await saveAccountSummary();
+      setIsGenerating(false);
+      return;
+    }
+    const { text, focus } = material();
+    const result = await generateSummary(text, focus);
+    setGeneratedSummary(result);
+    logStudyDay();
+    setSummaryHistory(prev => [{
+      id: Math.random().toString(),
+      doc: [...selectedDocs],
+      content: result,
+      date: new Date().toLocaleTimeString()
+    }, ...prev]);
+    setIsGenerating(false);
+  };
+
+  // AI Flashcard generation based on textbooks
+  const handleGenerateFlashcards = async () => {
+    if (!hasMaterial()) return;
+    const { text, focus } = material();
+    setIsGenerating(true);
+    const result = await generateFlashcards(text, focus);
+    if (isAccountSubject) {
+      if (result.length > 0) {
+        try {
+          await saveDeck(storeId, sourceTitle('deck'), result.map(({ front, back }) => ({ front, back })), (await attachedDocumentIds()) ?? []);
+          logStudyDay();
+          setDeckVersion(v => v + 1);
+          notify(`Deck of ${result.length} cards saved; they're due today`, 'success');
+        } catch (error) {
+          notify(`Couldn't save the deck. ${error instanceof Error ? error.message : ''}`, 'error');
+        }
+      }
+      setIsGenerating(false);
+      return;
+    }
+    if (result && result.length > 0) {
+      setFlashcards(result);
+      setActiveCardIndex(0);
+      setIsFlipped(false);
+      logStudyDay();
+      setFlashcardDeckHistory(prev => [{
+        id: Math.random().toString(),
+        doc: [...selectedDocs],
+        cardCount: result.length,
+        cards: result,
+        date: new Date().toLocaleTimeString()
+      }, ...prev]);
+    }
+    setIsGenerating(true); // Complete
+    setTimeout(() => setIsGenerating(false), 300);
+  };
+
+  // Flag active flashcard as weak topic
+  const flagFlashcardAsWeak = async (card: { front: string; back: string }) => {
+    // Avoid double entries
+    if (weakTopics.some(wt => wt.name.includes(card.front))) {
+      notify('Already in your weak topics.', 'info');
+      return;
+    }
+    await addWeak(
+      isAccountSubject ? card.front : `Flashcard query: "${card.front}"`,
+      'flashcard',
+      `Check answer explanation: "${card.back}". Consider reviewing related lecture notes.`,
+    );
+    notify('Added to your weak topics in Practice.', 'success');
+  };
+
+  // Quiz submission & explanation block
+  const handleQuizAnswer = (chosenIndex: number) => {
+    const q = quizQuestions[currentQuestion];
+    const isCorrect = chosenIndex === q.correctIndex;
+
+    setLastQuestionFeedback({
+      correct: isCorrect,
+      chosen: chosenIndex,
+      explanation: q.explanation
+        ? `${isCorrect ? "Correct!" : `The answer is "${q.options[q.correctIndex]}".`} ${q.explanation}`
+        : isCorrect
+        ? "Excellent work! Your knowledge base aligns perfectly with this subject point."
+        : `Correction: The proper answer is "${q.options[q.correctIndex]}". Let's sync this question to your Weak Topics Tracker panel so we can review later.`
+    });
+
+    if (isCorrect) {
+      setQuizScore(s => s + 1);
+    } else {
+      // Auto register quiz failure to Weak Topics!
+      if (!weakTopics.some(wt => wt.name.includes(q.question))) {
+        addWeak(
+          `Incorrect Quiz Point: "${q.question}"`,
+          'quiz',
+          `Study correct answer parameters: "${q.options[q.correctIndex]}". Practice active recall inside practice quizzes.`,
+        );
+      }
+    }
+  };
+
+  const handleNextQuizQuestion = () => {
+    setLastQuestionFeedback(null);
+    if (currentQuestion < quizQuestions.length - 1) {
+      setCurrentQuestion(c => c + 1);
+    } else {
+      setShowQuizResult(true);
+      logStudyDay();
+      setQuizHistory(prev => [{
+        id: Math.random().toString(),
+        doc: [...selectedDocs],
+        score: quizScore,
+        total: quizQuestions.length,
+        questions: quizQuestions,
+        date: new Date().toLocaleTimeString()
+      }, ...prev]);
+    }
+  };
+
+  const handleResetQuiz = () => {
+    setQuizActive(false);
+    setQuizScore(0);
+    setCurrentQuestion(0);
+    setLastQuestionFeedback(null);
+    setShowQuizResult(false);
+  };
+
+  const addMissedTopic = (topic: string, explanation: string) => {
+    addWeak(topic, 'exam', explanation);
+  };
+
+  // Account subjects: "Start" opens the newest saved quiz.
+  const openLatestSavedQuiz = async () => {
+    try {
+      const [latest] = await listQuizzes(storeId);
+      if (!latest) {
+        notify('Generate a quiz below first. It will be saved to your account.', 'info');
+        return;
+      }
+      startSavedQuiz(await getQuiz(latest.id));
+    } catch (error) {
+      notify(`Couldn't open your quizzes. ${error instanceof Error ? error.message : ''}`, 'error');
+    }
+  };
+
+  const handleGenerateQuiz = async () => {
+    if (!hasMaterial()) return;
+    const { text, focus } = material();
+    setIsGenerating(true);
+    if (isAccountSubject) {
+      try {
+        const quiz = await createQuiz(storeId, notesPayload(text), focus, sourceTitle('quiz'), (await attachedDocumentIds()) ?? []);
+        startSavedQuiz(quiz);
+        setQuizVersion(v => v + 1);
+      } catch (error) {
+        notify(`Couldn't make a quiz. ${error instanceof Error ? error.message : ''}`, 'error');
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+    try {
+      const gQuestions = await generateQuiz(text, focus);
+      if (gQuestions && gQuestions.length > 0) {
+        setQuizQuestions(gQuestions);
+        setQuizActive(true);
+        setCurrentQuestion(0);
+        setQuizScore(0);
+        setLastQuestionFeedback(null);
+        setShowQuizResult(false);
+      }
+    } catch (err) {
+      console.error(err);
+      notify("Couldn't make a quiz. Try again in a moment.", 'error');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Run AI Guess Engine
+  const handleRunGuessEngine = async () => {
+    if (!hasMaterial()) return;
+    const { text, focus } = material();
+    setIsGuessing(true);
+    const result = await generateGuessPaper(subject.name, text, focus);
+    setGuessResults(result);
+    logStudyDay();
+    setGuessPaperHistory(prev => [{
+      id: Math.random().toString(),
+      doc: [...selectedDocs],
+      date: new Date().toLocaleTimeString(),
+      questions: result.sampleQuestions.length,
+      result
+    }, ...prev]);
+    setIsGuessing(false);
+  };
+
+  // Custom AI Interactive Tutor Assistant Chat bubble
+  const handleSendTutorChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tutorInputValue.trim()) return;
+
+    const userMsg = tutorInputValue.trim();
+    setTutorInputValue('');
+    const updatedHistory: ChatMessage[] = [
+      ...tutorHistory,
+      { role: 'user', text: userMsg }
+    ];
+    setTutorHistory(updatedHistory);
+    setTutorIsLoading(true);
+
+    const reply = await chatWithAssistant(subject.name, updatedHistory, userMsg);
+    setTutorHistory([
+      ...updatedHistory,
+      { role: 'model', text: reply }
+    ]);
+    setTutorIsLoading(false);
+  };
+
+
+  // Start exam mode
+  const startExamModeSession = () => {
+    if (quizQuestions.length === 0) {
+      notify('Generate a quiz first; the timed exam uses its questions.', 'info');
+      return;
+    }
+    setSelectedExamAnswers({});
+    setExamTimeLeft(600); // 10 minutes session
+    setExamFeedbackText('');
+    setExamActive(true);
+  };
+
+  // High Stakes Exam submission
+  const handleExamSubmit = () => {
+    logStudyDay();
+    setExamActive(false);
+    // Grade calculations
+    let correctCount = 0;
+    quizQuestions.forEach(q => {
+      if (selectedExamAnswers[q.id] === q.correctIndex) {
+        correctCount += 1;
+      }
+    });
+
+    const scorePct = Math.round((correctCount / quizQuestions.length) * 100);
+    const mockFeedbacks = scorePct >= 80
+      ? `Amazing final grade: ${scorePct}%! Your syllabus knowledge base is highly advanced. Keep this steady study momentum!`
+      : `Final grade achieved: ${scorePct}%. Several gaps of core theory were flagged. Recommended action: Review your synchronized terms inside the Weak Topics Tracker panel immediately.`;
+
+    // Auto register wrong questions to Weak Topics tracker
+    quizQuestions.forEach(q => {
+      if (selectedExamAnswers[q.id] !== q.correctIndex) {
+        if (!weakTopics.some(wt => wt.name.includes(q.question))) {
+          addWeak(
+            isAccountSubject && q.topic ? q.topic : `Missed Exam Question: "${q.question}"`,
+            'exam',
+            `Focus on corrective syllabus terms: "${q.options[q.correctIndex]}" immediately.`,
+          );
+        }
+      }
+    });
+
+    setExamFeedbackText(mockFeedbacks);
+  };
+
+  // Delete dynamic weak item
+  const handleClearWeakTopic = (id: string) => {
+    clearWeak(id);
+  };
+
+
+
+  const studiedDays = studyDaysThisWeek();
+  const sectionNav = (
+    <div className="space-y-0.5 py-0.5">
+      {sections.map(section => (
+        <ContextItem
+          key={section.id}
+          icon={section.icon}
+          label={section.label}
+          active={activeSection.id === section.id}
+          badge={section.id === 'practice' ? weakTopics.length : undefined}
+          onClick={() => openSection(section)}
+        />
+      ))}
+      <p className="px-2.5 pt-2 text-[11px] text-gray-500" title="Days you studied this week, from your activity">
+        Studied {studiedDays} of {Number(localStorage.getItem('goal_days') || 5)} days this week
+      </p>
+    </div>
+  );
+
+  return (
+    <AppShell
+      context={sectionNav}
+      bodyClassName="flex flex-col overflow-hidden"
+      title={
+        <div className="flex min-w-0 items-center gap-1.5">
+          <button onClick={() => navigate('/dashboard')} className="hidden shrink-0 text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 sm:inline">Subjects</button>
+          <span className="hidden text-gray-400 sm:inline">/</span>
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", subject.color)} />
+          <span className="truncate">{subject.name}</span>
+          <span className="hidden truncate text-xs font-normal text-gray-500 md:inline">· {subject.teacher || 'No instructor added'} · {subject.credits} credits</span>
+        </div>
+      }
+      actions={
+        <span className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 dark:border-white/[.08] dark:text-gray-300" title="Days in a row you've studied">
+          <Flame className="h-3.5 w-3.5 text-orange-500" /> <span>{studyStreak()}<span className="hidden sm:inline">-day streak</span></span>
+        </span>
+      }
+    >
+        {/* 3. Deep Focus High-Stakes Exam Mode Screen Overlay (Takes full height/width) */}
+        {activeTab === 'exam' && examActive && (
+          <div className="absolute inset-0 z-[100] bg-gray-950 text-white flex flex-col animate-in fade-in duration-300">
+
+            {/* Header focused timer */}
+            <header className="h-16 flex items-center justify-between gap-3 px-4 sm:px-8 border-b border-gray-800 bg-gray-900">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-red-650 flex items-center justify-center text-white text-sm font-bold">
+                  EX
+                </div>
+                <div>
+                  <h1 className="font-bold text-sm">Exam Mode Session: {subject.name}</h1>
+                  <span className="block text-[10px] text-gray-400">Strict academic evaluation mode is active</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2 bg-red-950/50 border border-red-800 px-4 py-1.5 rounded-xl font-mono text-base font-black text-red-400 animate-pulse">
+                  <Clock className="w-4 h-4" /> {Math.floor(examTimeLeft / 60)}:{String(examTimeLeft % 60).padStart(2, '0')}
+                </div>
+
+                <Button variant="ghost" className="text-gray-400 hover:text-white" size="sm" onClick={async () => {
+                  if (await confirmAction({ title: 'Leave this exam?', message: "Your answers so far won't be marked.", confirmLabel: 'Leave exam', danger: true })) {
+                    setExamActive(false);
+                    setActiveTab('overview');
+                  }
+                }}>
+                  Leave exam
+                </Button>
+              </div>
+            </header>
+
+            {/* Scrollable Questions Board */}
+            <div className="flex-1 overflow-y-auto py-10 px-6 max-w-3xl mx-auto w-full space-y-8">
+              <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
+                <h2 className="text-base font-bold flex items-center gap-2 text-yellow-400 mb-2">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500" /> Instructions For Scoring
+                </h2>
+                <ul className="list-disc pl-5 text-xs text-gray-400 space-y-1">
+                  <li>Questions come from your current practice quiz set.</li>
+                  <li>Questions got wrong are auto-synced into weak topics tracking to help you review parameters easily.</li>
+                  <li>Do not navigate away from this screen or close the tab, otherwise score is deleted.</li>
+                </ul>
+              </div>
+
+              {quizQuestions.map((q, qIndex) => (
+                <Card key={q.id} className="bg-gray-900 border border-gray-800 p-6 space-y-4 shadow-sm text-left">
+                  <span className="uppercase text-[10px] font-extrabold text-primary-400 tracking-wider">
+                    Question {qIndex + 1} of {quizQuestions.length}
+                  </span>
+                  <h3 className="text-base font-bold text-gray-100">{q.question}</h3>
+
+                  <div className="space-y-2 pt-2">
+                    {q.options.map((opt, optIndex) => {
+                      const isSelected = selectedExamAnswers[q.id] === optIndex;
+                      return (
+                        <label
+                          key={optIndex}
+                          className={cn(
+                            "flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all text-xs touch-manipulation",
+                            isSelected
+                              ? "border-primary-500 bg-primary-950/20 text-white"
+                              : "border-gray-800 bg-gray-950 text-gray-400 hover:border-gray-700 hover:text-white"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name={q.id}
+                            checked={isSelected}
+                            onChange={() => setSelectedExamAnswers({ ...selectedExamAnswers, [q.id]: optIndex })}
+                            className="w-4 h-4 text-primary-600 border-gray-700 bg-gray-800 focus:ring-primary-500"
+                          />
+                          <span>{opt}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </Card>
+              ))}
+
+              <div className="pt-4 pb-12 flex justify-center">
+                <Button size="lg" className="w-full" onClick={handleExamSubmit}>
+                  Finalize and Submit Exam Paper
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSection.tabs.length > 1 && (
+          <div className="flex shrink-0 gap-4 overflow-x-auto border-b border-gray-200 px-4 dark:border-white/[.07] md:px-8 no-scrollbar" role="tablist" aria-label={activeSection.label}>
+            {activeSection.tabs.map(tab => (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                onClick={() => { setActiveTab(tab.id); setLastQuestionFeedback(null); }}
+                className={cn(
+                  "-mb-px whitespace-nowrap border-b-2 py-2.5 text-[13px] font-medium transition-colors",
+                  activeTab === tab.id
+                    ? "border-primary-500 text-gray-900 dark:text-white"
+                    : "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                )}
+              >
+                {tab.label}
+                {tab.id === 'weak-topics' && weakTopics.length > 0 && <span className="ml-1.5 rounded bg-orange-500/15 px-1.5 text-[11px] text-orange-600 dark:text-orange-400">{weakTopics.length}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 4. Content area. Phones scroll every screen and leave room for the bottom bar. */}
+        <div className={cn(
+          "flex-1 min-h-0 relative w-full flex flex-col overflow-y-auto",
+          "ip-content p-4 md:p-8",
+          "pb-40 lg:pb-28"
+        )}>
+
+          {/* TAB 4.1: OVERVIEW: real numbers for this subject and what to do next */}
+          {activeTab === 'overview' && (() => {
+            const daysLeft = daysUntil(subject.examDate);
+            const mastered = flashcards.filter(c => c.mastered).length;
+            const lastQuiz = quizHistory[0];
+            const ownNotes = loadedFiles.filter(file => file.date !== 'Sample').length;
+            const isLocalSubject = subjects.some(s => s.id === subject.id);
+            const nextSteps: { label: string; detail: string; tab: TabType }[] = [];
+            if (ownNotes === 0) nextSteps.push({ label: 'Upload your lecture notes', detail: 'Everything the AI makes comes from them.', tab: 'upload' });
+            if (flashcards.length - mastered > 0) nextSteps.push({ label: `Review ${flashcards.length - mastered} flashcard${flashcards.length - mastered === 1 ? '' : 's'}`, detail: 'Mark the ones you know as mastered.', tab: 'flashcards' });
+            if (weakTopics.length > 0) nextSteps.push({ label: `Go over ${weakTopics.length} weak topic${weakTopics.length === 1 ? '' : 's'}`, detail: 'From questions you got wrong or flagged.', tab: 'weak-topics' });
+            if (!lastQuiz) nextSteps.push({ label: 'Take a practice quiz', detail: 'Find out what you already know.', tab: 'quiz' });
+            if (daysLeft !== null && daysLeft >= 0 && daysLeft <= 14) nextSteps.push({ label: 'Do a timed exam', detail: 'Practise under exam conditions.', tab: 'exam' });
+
+            return (
+            <div className="space-y-6 animate-in fade-in duration-300 text-left">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6">
+                  <p className="text-xs font-bold uppercase text-gray-400">Next paper</p>
+                  {daysLeft !== null && daysLeft >= 0 ? (
+                    <>
+                      <p className="mt-2 text-3xl font-black text-gray-900 dark:text-white">{daysLeft === 0 ? 'Today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'}`}</p>
+                      <p className="text-xs text-gray-500">{formatDue(subject.examDate!)}</p>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-500">{daysLeft !== null ? 'This exam date has passed.' : 'No exam date set yet.'}</p>
+                  )}
+                  {isLocalSubject && (
+                    <label className="mt-4 block text-[11px] font-semibold text-gray-500">
+                      Exam date
+                      <Input type="date" value={subject.examDate ?? ''} className="mt-1 text-xs"
+                        onChange={e => setSubjects(subjects.map(s => s.id === subject.id ? { ...s, examDate: e.target.value || undefined } : s))} />
+                    </label>
+                  )}
+                </Card>
+
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 md:col-span-2">
+                  <p className="text-xs font-bold uppercase text-gray-400">Your progress</p>
+                  <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    {[
+                      { label: 'Flashcards mastered', value: `${mastered} / ${flashcards.length}` },
+                      { label: 'Last quiz', value: lastQuiz ? `${lastQuiz.score} / ${lastQuiz.total}` : '—' },
+                      { label: 'Weak topics', value: String(weakTopics.length) },
+                      { label: 'Your documents', value: String(ownNotes) },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <dt className="text-[11px] font-medium text-gray-500">{item.label}</dt>
+                        <dd className="mt-1 text-2xl font-black text-gray-900 dark:text-white">{item.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {flashcards.length > 0 && <ProgressBar value={Math.round((mastered / flashcards.length) * 100)} className="mt-5 h-2" />}
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 lg:col-span-2">
+                  <h3 className="text-sm font-extrabold text-gray-900 dark:text-white">What to do next</h3>
+                  {nextSteps.length === 0 ? (
+                    <p className="mt-3 flex items-center gap-2 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4" /> You're on top of this subject. Keep reviewing to stay there.</p>
+                  ) : (
+                    <ul className="mt-3 divide-y divide-gray-100 dark:divide-gray-700">
+                      {nextSteps.map(step => (
+                        <li key={step.label} className="flex items-center justify-between gap-4 py-3">
+                          <div>
+                            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{step.label}</p>
+                            <p className="text-xs text-gray-500">{step.detail}</p>
+                          </div>
+                          <Button size="sm" variant="secondary" onClick={() => setActiveTab(step.tab)}>Start</Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+
+                <div className="space-y-6">
+                  {/* Subject Timetable Snapshot */}
+                  <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left flex flex-col shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xs font-bold uppercase text-gray-400 flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-primary-500" /> Subject Timetable
+                      </h3>
+                      <button
+                        onClick={() => setShowAddScheduleModal(true)}
+                        className="p-1 px-2 rounded bg-primary-50 dark:bg-primary-950/40 text-primary-600 hover:bg-primary-100 hover:text-primary-700 transition-colors text-xs font-semibold flex items-center gap-1"
+                        title="Add Scheduled Time"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add
+                      </button>
+                    </div>
+
+                    <div className="space-y-3.5 flex-1">
+                      {subject?.schedule && subject.schedule.length > 0 ? (
+                        subject.schedule.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="group/item flex items-center justify-between p-2.5 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 hover:bg-gray-50 dark:hover:bg-gray-900/60 transition-colors"
+                          >
+                            <div className="relative pl-3 border-l-2 border-primary-500 py-0.5">
+                              <div className="absolute w-1.5 h-1.5 rounded-full bg-primary-500 -left-[4px] top-1.5"></div>
+                              <span className="block text-xs font-bold text-gray-800 dark:text-gray-200">{item.day}</span>
+                              <span className="block text-[10px] text-gray-500 mt-0.5">{item.time} • {item.room}</span>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveSchedule(idx)}
+                              className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-950/20 transition-all opacity-0 group-hover/item:opacity-100 focus:opacity-100"
+                              title="Delete timing"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-gray-400 italic py-6 text-center border border-dashed border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/30 dark:bg-gray-900/10">
+                          <Compass className="w-6 h-6 mx-auto text-gray-350 mb-1.5" />
+                          No scheduled class timings set.
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            </div>
+            );
+          })()}
+
+          {/* TAB 4.2: UPLOAD & DISK FILES INTERACTION (FFileReader) */}
+          {activeTab === 'upload' && (
+            <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-300">
+
+              <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl bg-white dark:bg-gray-800/20">
+                <Upload className="w-16 h-16 text-primary-500 mx-auto mb-4 opacity-75" />
+                <h3 className="text-xl font-bold mb-1">Your notes</h3>
+                <p className="text-xs text-gray-400 max-w-md mx-auto mb-6">
+                  Upload lecture PDFs or text notes. Summaries, flashcards, quizzes and predictions are made from them.
+                </p>
+
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-3">
+                  <label className="cursor-pointer">
+                    <span className="inline-flex items-center justify-center rounded-xl font-bold bg-primary-600 text-white hover:bg-primary-700 px-5 py-2.5 text-xs shadow-lg shadow-primary-500/25">
+                      {isUploading ? 'Reading file…' : 'Upload PDF or text file'}
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,.txt,.md"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                  </label>
+
+                  <span className="text-xs text-gray-400">PDF, TXT or Markdown, up to 25 MB</span>
+                </div>
+              </div>
+
+              <AskNotes subjectId={storeId} enabled={isAccountSubject} refreshKey={documentsVersion} />
+
+              {/* Log List of upload history */}
+              <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left">
+                <h4 className="font-bold text-sm text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-primary-500" /> Tracked Upload History ({loadedFiles.length})
+                </h4>
+
+                <div className="space-y-2.5">
+                  {loadedFiles.map((f, fIdx) => (
+                    <div key={fIdx} className="flex justify-between items-center p-3 bg-gray-50/50 dark:bg-gray-800 rounded-xl border border-gray-200/50">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
+                          <FileText size={16} />
+                        </div>
+                        <div className="min-w-0 leading-none">
+                          <span className="font-bold text-xs text-gray-700 dark:text-gray-200 truncate block">{f.name}</span>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Uploaded: {f.date} • {f.content.length} chars</span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-1.5">
+                        <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => handleSelectMaterial(f.name)}>
+                          Process AI
+                        </Button>
+                        <button onClick={() => setLoadedFiles(loadedFiles.filter((_, i) => i !== fIdx))} className="text-gray-400 hover:text-red-500 p-1.5 rounded transition-colors bg-white border border-gray-200 shadow-sm">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+            </div>
+          )}
+
+          {/* Diagrams and equations from photos */}
+          {activeTab === 'diagrams' && (
+            <DiagramExplainer subjectId={storeId} subjectName={subject.name} />
+          )}
+
+          {/* TAB 4.3: AI SUMMARIES */}
+          {activeTab === 'summary' && (
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6">
+                {/* Left pane: structured parsed output */}
+                <Card className="flex flex-col bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 dark:border-gray-700 text-left p-4 sm:p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-base flex items-center gap-2">
+                      <BrainCircuit className="w-4 h-4 text-emerald-500" /> Summary
+                    </h3>
+
+                    {generatedSummary && (
+                      <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => {
+                        navigator.clipboard.writeText(generatedSummary);
+                        notify('Summary copied', 'success');
+                      }}>
+                        Copy Summary
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="min-h-[280px] max-h-[65vh] overflow-auto bg-white dark:bg-gray-900 p-4 sm:p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+                    {generatedSummary ? (
+                      <div className="whitespace-pre-wrap text-xs text-gray-750 dark:text-gray-200 leading-relaxed space-y-4 font-sans prose dark:prose-invert">
+                        {generatedSummary}
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-400 py-12">
+                        <BrainCircuit className="w-12 h-12 mb-3 text-gray-300 animate-pulse" />
+                        <p className="font-bold text-sm text-gray-600 dark:text-gray-300">No summary yet</p>
+                        <p className="text-[11px] text-gray-400 mt-1 max-w-sm text-center">
+                          Generate an AI summary from your selected document or custom topic below.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+                <div className="shrink-0">
+                  {renderDualInputHeader("AI Summaries", "Distill concepts into concise notes", handleGenerateSummary, isGenerating, "Generate Summary")}
+                </div>
+              </div>
+
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
+                {/* Right pane: Earlier summaries (saved to the account for account subjects) */}
+                {isAccountSubject ? (
+                  <SavedSummaries
+                    subjectId={storeId}
+                    refreshKey={summaryVersion}
+                    onOpen={s => setPreviewContent({ title: s.title, text: s.content })}
+                  />
+                ) : (
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
+                  <h3 className="font-bold text-base mb-4 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-primary-500"/> Local History Vault
+                  </h3>
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
+                    {summaryHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
+                      <div className="text-xs text-gray-400 text-center py-8">No summaries generated for this source yet.</div>
+                    ) : (
+                      summaryHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).map((hist, idx) => (
+                        <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl flex justify-between items-start">
+                          <div>
+                            <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Generated Summary</p>
+                            <p className="text-[10px] text-gray-400">{hist.date}</p>
+                          </div>
+                          <Button variant="ghost" size="sm" className="h-6" onClick={() => setPreviewContent({title: "Summary Preview", text: hist.content})}>
+                            <Eye className="w-3.5 h-3.5 text-gray-500" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4.4: FLASHCARDS (account subjects: saved decks and SM-2 review) */}
+          {activeTab === 'flashcards' && isAccountSubject && (
+            <AccountFlashcards
+              subjectId={storeId}
+              refreshKey={deckVersion}
+              input={renderDualInputHeader("Flashcards Room", "Flip cards to test active recall definitions", handleGenerateFlashcards, isGenerating, "Generate Deck")}
+              onFlagWeak={flagFlashcardAsWeak}
+              onReviewed={logStudyDay}
+            />
+          )}
+          {activeTab === 'flashcards' && !isAccountSubject && (
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6">
+                {/* Left Pane: Flashcard Interaction */}
+                <div className="flex flex-col items-center bg-slate-50/50 dark:bg-gray-800/10 border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6">
+                  <div className="w-full max-w-lg mb-4 sm:mb-6">
+                    <h2 className="text-xl font-extrabold text-gray-900 dark:text-white text-center">Flashcards</h2>
+                  </div>
+
+                  {flashcards.length > 0 ? (
+                    <div className="w-full max-w-3xl flex items-start justify-center gap-4">
+
+                      {/* Left Navigation Arrow */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mt-[136px] shrink-0 w-12 h-12 rounded-full hidden sm:flex bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700"
+                        aria-label="Previous card"
+                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }}
+                        disabled={activeCardIndex === 0}
+                      >
+                        <ChevronLeft className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                      </Button>
+
+                      {/* Card Container */}
+                      <div className="w-full min-w-0 max-w-lg space-y-5">
+                        {/* Rotating Card */}
+                        <div
+                          className="perspective-1000 w-full h-72 sm:h-80 relative cursor-pointer active:scale-[0.99] transition-transform"
+                          onClick={() => setIsFlipped(!isFlipped)}
+                        >
+                          <div className={cn(
+                            "w-full h-full transition-transform duration-500 transform-style-3d relative shadow-xl rounded-2xl border border-gray-200 dark:border-gray-700",
+                            isFlipped ? "rotate-y-180" : ""
+                          )}>
+                            {/* Front face query block */}
+                            <div className="absolute inset-0 backface-hidden bg-white dark:bg-gray-800 p-5 sm:p-8 flex flex-col justify-between rounded-2xl">
+                              <div className="flex justify-between items-center">
+                                <span className="uppercase text-[10px] font-extrabold text-primary-500 tracking-wider">Question</span>
+                                <HelpCircle className="w-4 h-4 text-gray-350" />
+                              </div>
+
+                              <div className="min-h-0 flex-1 overflow-y-auto flex items-center justify-center text-center py-3">
+                                <p className="text-lg sm:text-xl md:text-2xl font-black text-gray-850 dark:text-white leading-snug">
+                                  {flashcards[activeCardIndex].front}
+                                </p>
+                              </div>
+
+                              <div className="text-center text-[11px] text-gray-400 font-medium tracking-wide">
+                                <span className="font-mono text-gray-300">[{activeCardIndex + 1}/{flashcards.length}]</span> Tap the card to see the answer
+                              </div>
+                            </div>
+
+                            {/* Back face explanation block */}
+                            <div className="absolute inset-0 backface-hidden rotate-y-180 bg-gradient-to-br from-primary-700 to-primary-950 text-white p-5 sm:p-8 flex flex-col justify-between rounded-2xl shadow-inner">
+                              <div className="flex justify-between items-center">
+                                <span className="uppercase text-[10px] font-bold text-primary-200 tracking-wider">Answer</span>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-450" />
+                              </div>
+
+                              <div className="min-h-0 flex-1 overflow-y-auto flex items-center justify-center text-center py-3">
+                                <p className="text-base sm:text-lg md:text-xl font-bold leading-relaxed text-blue-50">
+                                  {flashcards[activeCardIndex].back}
+                                </p>
+                              </div>
+
+                              <div className="text-center text-[10px] text-primary-200 font-medium">
+                                <span className="font-mono text-primary-300/50">[{activeCardIndex + 1}/{flashcards.length}]</span> Tap again for the question
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Feedback Action Row: Mastered vs Flag Weak */}
+                        <div className="flex justify-center flex-wrap items-center gap-3">
+                          <Button
+                            variant="secondary"
+                            className="text-xs font-bold border-red-200/50 hover:bg-red-50 text-red-600 flex items-center gap-1.5"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              flagFlashcardAsWeak(flashcards[activeCardIndex]);
+                            }}
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" /> Flag as Weak
+                          </Button>
+
+                          <Button
+                            variant="secondary"
+                            className={cn(
+                              "text-xs font-bold flex items-center gap-1.5",
+                              flashcards[activeCardIndex].mastered
+                                ? "bg-green-150 border-green-300 text-green-700"
+                                : "hover:bg-green-50 text-emerald-600"
+                            )}
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const updated = flashcards.map((c, i) => i === activeCardIndex ? { ...c, mastered: !c.mastered } : c);
+                              logStudyDay();
+                              setFlashcards(updated);
+                            }}
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> {flashcards[activeCardIndex].mastered ? "Mastered ✓" : "Mark Mastered"}
+                          </Button>
+                        </div>
+
+                        {/* Mobile Navigation (only visible on small screens) */}
+                        <div className="flex sm:hidden items-center justify-between">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.max(0, i-1)); }}
+                            disabled={activeCardIndex === 0}
+                          >
+                            <ChevronLeft className="w-4 h-4" /> Prev
+                          </Button>
+                          <span className="text-[10px] font-mono font-bold text-gray-400">
+                            {activeCardIndex + 1} / {flashcards.length}
+                          </span>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            aria-label="Next card"
+                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }}
+                            disabled={activeCardIndex === flashcards.length-1}
+                          >
+                            Next <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Right Navigation Arrow */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mt-[136px] shrink-0 w-12 h-12 rounded-full hidden sm:flex bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700"
+                        aria-label="Next card"
+                        onClick={() => { setIsFlipped(false); setActiveCardIndex(i => Math.min(flashcards.length-1, i+1)); }}
+                        disabled={activeCardIndex === flashcards.length-1}
+                      >
+                        <ChevronRight className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center text-sm text-gray-500">No flashcards yet. Attach your notes or type a topic below, then press Generate Deck.</div>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  {renderDualInputHeader("Flashcards Room", "Flip cards to test active recall definitions", handleGenerateFlashcards, isGenerating, "Generate Deck")}
+                </div>
+              </div>
+
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
+                {/* Right Pane: Flashcard Deck History */}
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
+                  <h3 className="font-bold text-base mb-4 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-purple-500"/> Earlier decks
+                  </h3>
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
+                    {flashcardDeckHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
+                      <div className="text-xs text-gray-400 text-center py-8">No flashcard decks generated for this source yet.</div>
+                    ) : (
+                      flashcardDeckHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).map((hist, idx) => (
+                        <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl flex justify-between items-center">
+                          <div>
+                            <p className="text-xs font-bold text-gray-800 dark:text-gray-200">Revision Deck ({hist.cardCount} cards)</p>
+                            <p className="text-[10px] text-gray-400">{hist.date}</p>
+                          </div>
+                          <Button size="sm" variant="secondary" className="h-7 text-[10px] font-bold" onClick={() => { if (hist.cards?.length) { setFlashcards(hist.cards); setActiveCardIndex(0); setIsFlipped(false); } }} disabled={!hist.cards?.length}>
+                            Launch Study Session
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4.5: PRACTICE QUIZ */}
+          {activeTab === 'quiz' && (
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6 text-left">
+                <div className="flex flex-col space-y-6">
+
+                  {adaptiveActive ? (
+                    <AdaptiveExam
+                      material={material()}
+                      weakTopics={weakTopics.map(w => w.name)}
+                      onMissed={addMissedTopic}
+                      onFinished={logStudyDay}
+                      onExit={() => setAdaptiveActive(false)}
+                    />
+                  ) : serverQuiz ? (
+                    <SavedQuizRunner
+                      key={quizRun}
+                      quiz={serverQuiz}
+                      onFinished={() => { logStudyDay(); refreshWeak(); setQuizVersion(v => v + 1); }}
+                      onExit={() => setServerQuiz(null)}
+                    />
+                  ) : !quizActive ? (
+                    <section className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-white/[.07] dark:bg-white/[.015]">
+                      <h2 className="text-xl font-medium text-gray-900 dark:text-white">Practice</h2>
+                      <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">Questions come from your notes or the topic you type below. Anything you get wrong becomes a weak topic.</p>
+
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Kind of practice">
+                        {[
+                          { adaptive: false, title: 'Quick quiz', detail: '5 questions with explanations, saved so you can retake it', meta: '5 questions' },
+                          { adaptive: true, title: 'Adaptive exam', detail: 'Gets harder or easier as you answer, focused on your weak topics', meta: '10 questions' },
+                        ].map(mode => {
+                          const chosen = isAdaptiveMode === mode.adaptive;
+                          return (
+                            <button
+                              key={mode.title}
+                              role="radio"
+                              aria-checked={chosen}
+                              onClick={() => setIsAdaptiveMode(mode.adaptive)}
+                              className={cn(
+                                "rounded-xl border p-4 text-left transition-colors",
+                                chosen
+                                  ? "border-primary-500/60 bg-primary-500/[.06] ring-1 ring-primary-500/30"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-white/[.08] dark:hover:border-white/[.14] dark:hover:bg-white/[.03]"
+                              )}
+                            >
+                              <span className="flex items-center justify-between">
+                                <span className="text-[14px] font-medium text-gray-900 dark:text-white">{mode.title}</span>
+                                <span className={cn("h-4 w-4 rounded-full border", chosen ? "border-[5px] border-primary-500" : "border-gray-300 dark:border-white/25")} aria-hidden="true" />
+                              </span>
+                              <span className="mt-1 block text-[13px] text-gray-500 dark:text-gray-400">{mode.detail}</span>
+                              <span className="mt-3 block font-mono text-xs text-gray-500">{mode.meta}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-5 flex items-center gap-3">
+                        <Button onClick={() => {
+                          if (isAdaptiveMode) {
+                            if (!hasMaterial()) {
+                              notify('Attach your notes or type a topic below first, so the questions come from your material.', 'info');
+                              return;
+                            }
+                            setAdaptiveActive(true);
+                            return;
+                          }
+                          if (isAccountSubject) {
+                            openLatestSavedQuiz();
+                            return;
+                          }
+                          if (quizQuestions.length === 0) {
+                            notify('Generate a quiz from your notes or a topic first.', 'info');
+                            return;
+                          }
+                          setQuizActive(true);
+                          setCurrentQuestion(0);
+                          setQuizScore(0);
+                          setLastQuestionFeedback(null);
+                          setShowQuizResult(false);
+                        }}>
+                          {isAdaptiveMode ? 'Start adaptive exam' : 'Start quiz'}
+                        </Button>
+                        <span className="text-xs text-gray-500">{isAccountSubject && !isAdaptiveMode ? 'Opens your latest saved quiz, or make one below' : 'Attach notes or type a topic below first'}</span>
+                      </div>
+                    </section>
+                  ) : showQuizResult ? (
+                    <Card className="text-center p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6">
+                      <div className="w-14 h-14 rounded-full bg-emerald-105 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+                        <CheckCircle2 className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">MCQ Session Finalized!</h2>
+                        <p className="text-xs text-gray-400 mt-1">Check grade accomplishments below.</p>
+                      </div>
+
+                      <div className="inline-block px-10 py-4 bg-gray-50 rounded-2xl border">
+                        <p className="text-[10px] text-gray-400 font-extrabold uppercase leading-none mb-1">Achieved Grade</p>
+                        <span className="text-4xl font-black text-primary-600">
+                          {quizScore} / {quizQuestions.length}
+                        </span>
+                        <span className="block text-xs font-bold text-gray-500 mt-1">
+                          Score: {Math.round((quizScore / quizQuestions.length) * 100)}%
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+                        Missed parameters are marked inside your tutor checklist. Click reset to review other material questions.
+                      </p>
+
+                      <div className="flex justify-center gap-2 pt-2">
+                        <Button variant="ghost" onClick={handleResetQuiz}>Exit Quiz</Button>
+                        <Button onClick={handleResetQuiz}>Rerun Practice Set</Button>
+                      </div>
+                    </Card>
+                  ) : (
+                <Card className="relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+
+                  {/* Top slide tracker progress */}
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
+                    <div
+                      className="h-full bg-primary-500 transition-all duration-350"
+                      style={{ width: `${((currentQuestion + 1) / quizQuestions.length) * 100}%` }}
+                    />
+                  </div>
+
+                  <div className="p-6 md:p-8 space-y-6">
+                    <div className="flex justify-between items-center text-xs text-gray-400">
+                      <span className="font-bold">Syllabus Quiz Practice • Question {currentQuestion + 1} of {quizQuestions.length}</span>
+                      <span className="font-bold text-primary-500 bg-primary-50 px-2.5 py-0.5 rounded-full dark:bg-primary-950/40">Current Score: {quizScore}</span>
+                    </div>
+
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white leading-snug">
+                      {quizQuestions[currentQuestion].question}
+                    </h3>
+
+                    {/* MCQ Options */}
+                    <div className="space-y-2.5 pt-2">
+                      {quizQuestions[currentQuestion].options.map((opt, idx) => {
+                        const feedbackGiven = lastQuestionFeedback !== null;
+                        const isCorrectAnswer = idx === quizQuestions[currentQuestion].correctIndex;
+                        const isChosenAnswer = lastQuestionFeedback?.chosen === idx;
+
+                        return (
+                          <button
+                            key={idx}
+                            disabled={feedbackGiven}
+                            onClick={() => handleQuizAnswer(idx)}
+                            className={cn(
+                              "w-full text-left p-4 rounded-xl border transition-all text-xs flex items-center justify-between group",
+                              feedbackGiven
+                                ? isCorrectAnswer
+                                  ? "border-green-500 bg-green-50 text-green-800"
+                                  : isChosenAnswer
+                                    ? "border-red-500 bg-red-50 text-red-800"
+                                    : "border-gray-200 bg-gray-50 text-gray-400"
+                                : "border-gray-200 hover:border-primary-500 hover:bg-primary-50/20 text-gray-700 dark:text-gray-300"
+                            )}
+                          >
+                            <span>{opt}</span>
+                            <div className={cn(
+                              "w-4 h-4 rounded-full border flex items-center justify-center",
+                              feedbackGiven
+                                ? isCorrectAnswer
+                                  ? "border-green-500 bg-green-500 text-white text-[9px] font-bold"
+                                  : isChosenAnswer
+                                    ? "border-red-500 bg-red-500 text-white text-[9px] font-bold"
+                                    : "border-gray-300"
+                                : "border-gray-300 group-hover:border-primary-500"
+                            )}>
+                              {feedbackGiven && isCorrectAnswer && "✓"}
+                              {feedbackGiven && isChosenAnswer && !isCorrectAnswer && "✗"}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Rich Explanation Corrective box */}
+                    {lastQuestionFeedback && (
+                      <div className={cn(
+                        "p-4 rounded-xl border text-xs leading-relaxed transition-all animate-in fade-in",
+                        lastQuestionFeedback.correct
+                          ? "bg-green-50 border-green-200 text-green-800"
+                          : "bg-orange-50 border-orange-200/50 text-orange-850"
+                      )}>
+                        <p className="font-bold flex items-center gap-1.5">
+                          {lastQuestionFeedback.correct ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <AlertTriangle className="w-4 h-4 text-orange-600" />}
+                          AI Explanation Review:
+                        </p>
+                        <p className="mt-1">{lastQuestionFeedback.explanation}</p>
+
+                        <div className="mt-4 flex justify-end">
+                          <Button size="sm" onClick={handleNextQuizQuestion}>
+                            {currentQuestion === quizQuestions.length - 1 ? "Finish Quiz" : "Proceed Next Question"}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </Card>
+              )}
+                </div>
+                <div className="shrink-0 mt-auto">
+                  {renderDualInputHeader("Practice Quiz", "Generate randomized MCQ set reviews", handleGenerateQuiz, isGenerating, "Make quiz")}
+                </div>
+              </div>
+
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
+                {/* Right Pane: Past quizzes (saved to the account for account subjects) */}
+                {isAccountSubject ? (
+                  <SavedQuizList
+                    subjectId={storeId}
+                    refreshKey={quizVersion}
+                    onOpen={startSavedQuiz}
+                  />
+                ) : (
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
+                  <h3 className="font-bold text-base mb-4 flex items-center gap-2">
+                    <History className="w-4 h-4 text-pink-500"/> Quiz History Vault
+                  </h3>
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
+                    {quizHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
+                      <div className="text-xs text-gray-400 text-center py-8">No past quiz evaluations for this source.</div>
+                    ) : (
+                      quizHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).map((hist, idx) => (
+                        <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl flex justify-between items-center">
+                          <div>
+                            <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                              Score: <span className="text-primary-600">{hist.score}/{hist.total}</span>
+                            </p>
+                            <p className="text-[10px] text-gray-400">{hist.date}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" className="h-6" disabled={!hist.questions?.length}
+                            onClick={() => { if (hist.questions?.length) { setQuizQuestions(hist.questions); setQuizActive(true); setCurrentQuestion(0); setQuizScore(0); setLastQuestionFeedback(null); setShowQuizResult(false); } }}>
+                            Retake
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4.6: EXAM FEEDBACK RESULTS ONLY (Hidden if active exam is overlays) */}
+          {activeTab === 'exam' && !examActive && (
+            <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in duration-300 text-left">
+              <Card className="text-center p-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-6">
+                <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto shadow-inner">
+                  <GraduationCap className="w-10 h-10" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">Timed exam</h2>
+                  <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
+                    Answer every question in 10 minutes, like the real exam. Wrong answers go to your weak topics.
+                  </p>
+                </div>
+
+                {examFeedbackText && (
+                  <div className="p-4 bg-gray-50 border rounded-2xl text-xs space-y-3">
+                    <p className="font-bold uppercase text-[10px] text-gray-400">Previous Exam Results Diagnostic</p>
+                    <p className="text-gray-700 leading-relaxed font-semibold">{examFeedbackText}</p>
+                    <p className="text-[11px] text-gray-400 italic">Incorrect answers were automatically directed to your Weak Topics tracking pane.</p>
+                  </div>
+                )}
+
+                <div className="flex justify-center pt-2">
+                  <Button size="md" icon={Play} onClick={startExamModeSession}>
+                    Start 10-minute exam
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* TAB 4.7: EXAM GUESS ENGINE (Predicted final questions) */}
+          {activeTab === 'guess-engine' && (
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-8 items-start animate-in fade-in duration-300">
+              <div className="lg:col-span-7 flex min-w-0 flex-col gap-6 text-left">
+                <div className="flex flex-col space-y-6 sm:space-y-8">
+                  {/* Ranked topics from uploaded past papers (account subjects) */}
+                  <PastPapers subjectId={storeId} enabled={isAccountSubject} />
+
+                  {/* Trigger header */}
+                  <div className="shrink-0 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700">
+                    <div className="flex-1">
+                      <h2 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                        <BrainCircuit className="w-5 h-5 text-emerald-600" /> Exam Guess Engine
+                      </h2>
+                      <p className="text-xs text-gray-450 mt-1">
+                        AI analyzes your notes or subject title to predict key exam topics, probable questions, and structures.
+                      </p>
+                    </div>
+                  </div>
+
+                  {!guessResults ? (
+                    <Card className="flex-1 flex flex-col items-center justify-center text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 min-h-[300px]">
+                      <BrainCircuit className="w-14 h-14 text-emerald-500/80 mx-auto mb-4 animate-bounce" />
+                      <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No predictions yet</h3>
+                      <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1 leading-relaxed">
+                        Attach a document or provide a topic and click "Predict Exams" below to rank likely exam topics.
+                      </p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-300">
+
+                      {/* Predicted Topics Grid */}
+                      <div>
+                        <h3 className="text-xs uppercase font-extrabold text-gray-400 tracking-wider mb-4">Predicted Exam-Topic Probability Models</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {guessResults.predictions.map((p, idx) => {
+                            const isHigh = p.probability === 'High';
+                            const isMed = p.probability === 'Medium';
+
+                            return (
+                              <Card key={idx} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3 flex flex-col justify-between">
+                                <div className="flex justify-between items-start">
+                                  <span className="font-extrabold text-xs text-gray-800 dark:text-gray-200 leading-tight">{p.topic}</span>
+                                  <Badge color={
+                                    isHigh
+                                      ? "bg-red-50 text-red-700 font-bold"
+                                      : isMed
+                                        ? "bg-amber-50 text-amber-700"
+                                        : "bg-gray-50 text-gray-600"
+                                  }>
+                                    {p.probability} Prob
+                                  </Badge>
+                                </div>
+
+                                <p className="text-[11px] text-gray-500 leading-relaxed text-left">{p.reason}</p>
+
+                                <div className="pt-2 border-t text-[10px] text-gray-400 flex justify-between">
+                                  <span>Estimated weight of overall test:</span>
+                                  <span className="font-bold text-gray-700">{p.estimatedWeight}</span>
+                                </div>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Sample Questions Structure */}
+                      <div className="space-y-4">
+                        <h3 className="text-xs uppercase font-extrabold text-gray-400 tracking-wider">Estimated High-Yield Final Exam Questions</h3>
+                        <div className="space-y-4">
+                          {guessResults.sampleQuestions.map((sq, idx) => (
+                            <Card key={idx} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 space-y-3">
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="font-bold text-primary-600 uppercase">Question Type: {sq.format}</span>
+                                <span className="text-gray-400">Candidate Draft #{idx+1}</span>
+                              </div>
+                              <h4 className="font-bold text-sm text-gray-900 border-l-2 border-primary-500 pl-3 text-left leading-snug">
+                                {sq.question}
+                              </h4>
+                              <div className="bg-gray-50 dark:bg-gray-900 p-3.5 rounded-xl border text-xs leading-relaxed text-left space-y-1">
+                                <span className="font-extrabold text-[10px] uppercase text-gray-400">Perfect Exam Structure Outline:</span>
+                                <p className="whitespace-pre-wrap text-gray-600 font-mono text-[11px] mt-1 pr-4">{sq.suggestedStructure}</p>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Prep Strategic Advices */}
+                      <Card className="bg-emerald-50/20 dark:bg-emerald-950/10 border border-emerald-250 dark:border-emerald-900/30 p-6 space-y-2 text-left">
+                        <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                          <BrainCircuit className="w-5 h-5 text-emerald-600" />
+                          <h4 className="font-bold text-sm">Strategic Grade-A Preparation Blueprint</h4>
+                        </div>
+                        <p className="text-xs text-yellow-900 leading-relaxed text-left">
+                          {guessResults.strategicAdvice}
+                        </p>
+                      </Card>
+
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0 mt-auto">
+                  {renderDualInputHeader("Exam Guess Engine", "Predict final exam question structures", handleRunGuessEngine, isGuessing, "Predict Exams")}
+                </div>
+              </div>
+
+              <div className="lg:col-span-3 flex min-w-0 flex-col lg:sticky lg:top-0">
+                {/* Right Pane: Guess Engine History Vault */}
+                <Card className="flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-left p-5 sm:p-6">
+                  <h3 className="font-bold text-base mb-4 flex items-center gap-2">
+                    <History className="w-4 h-4 text-emerald-500"/> Earlier predictions
+                  </h3>
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3">
+                    {guessPaperHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).length === 0 ? (
+                      <div className="text-xs text-gray-400 text-center py-8">No predicted exams for this source.</div>
+                    ) : (
+                      guessPaperHistory.filter(h => h.doc.length === selectedDocs.length && selectedDocs.every(d => h.doc.includes(d))).map((hist, idx) => (
+                        <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl flex justify-between items-center">
+                          <div>
+                            <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                              {hist.questions} sample questions
+                            </p>
+                            <p className="text-[10px] text-gray-400">{hist.date}</p>
+                          </div>
+                          <Button size="sm" variant="ghost" className="h-6" disabled={!hist.result} onClick={() => hist.result && setGuessResults(hist.result)}>
+                            Open
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4.8: WEAK-TOPIC TRACKER */}
+          {activeTab === 'weak-topics' && (
+            <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-300 text-left">
+
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-6 rounded-2xl flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+                    <BrainCircuit className="w-5 h-5 text-amber-500" /> Weak topics
+                  </h2>
+                  <p className="text-xs text-gray-450 mt-1">
+                    Track dynamic syllabus components failed during practice testing or flagged in flashcard sessions.
+                  </p>
+                </div>
+                <Badge color="bg-amber-50 text-amber-800 font-bold">{weakTopics.length} to review</Badge>
+              </div>
+
+              {weakTopics.length === 0 ? (
+                <Card className="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
+                  <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No weak topics. You're on it.</h3>
+                  <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
+                    No weak items recorded. Run more practice quizzes or flag card modules to track focus areas.
+                  </p>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {weakTopics.map(wt => (
+                    <Card key={wt.id} className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-4 relative overflow-hidden">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2.5">
+                          <span className={cn(
+                            "w-2.5 h-2.5 rounded-full",
+                            wt.origin === 'quiz' ? "bg-pink-500" : "bg-purple-500"
+                          )}></span>
+                          <div>
+                            <span className="font-black text-xs text-gray-800 dark:text-gray-200 leading-tight block">{wt.name}</span>
+                            <span className="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider block">
+                              Source origin: {wt.origin} • {wt.misses ? `Missed ${wt.misses}× • Last: ${wt.date}` : `Added: ${wt.date}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button variant="secondary" size="sm" className="text-[10px] py-1 px-3" onClick={() => {
+                            window.dispatchEvent(new CustomEvent('open-tutor', {
+                              detail: { message: `Can you explain this weak area with a simple example: ${wt.name}` },
+                            }));
+                          }}>
+                            Ask Nova
+                          </Button>
+
+                          <button
+                            onClick={() => handleClearWeakTopic(wt.id)}
+                            className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded border border-gray-200 transition-colors bg-white shadow-sm"
+                            title="Mark Cleared / Mastered"
+                          >
+                            <CheckCircle2 size={13} className="text-emerald-500 hover:text-white" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 dark:bg-gray-900/55 p-3 rounded-xl border text-xs text-gray-650 leading-relaxed italic text-left">
+                        <span className="font-bold text-[10px] uppercase text-gray-400 not-italic block mb-0.5">Remedial Focus recommendation:</span>
+                        {wt.reviewIdea}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* TAB 4.10: KANBAN BOARD */}
+          {activeTab === 'kanban' && (
+            <div className="flex min-h-full flex-col gap-5 text-left">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-medium text-gray-900 dark:text-white">Planner</h2>
+                  <p className="mt-1 text-[13px] text-gray-500 dark:text-gray-400">
+                    {planTasks.filter(t => t.status === 'mastered').length} of {planTasks.length} mastered
+                    {isAccountSubject && <span> · {sharedBoard.error ?? 'shared with your study groups'}</span>}
+                  </p>
+                </div>
+                <div className="flex rounded-lg border border-gray-200 p-0.5 dark:border-white/[.08]" role="tablist" aria-label="Planner view">
+                  {(['list', 'board'] as const).map(v => (
+                    <button
+                      key={v}
+                      role="tab"
+                      aria-selected={planView === v}
+                      onClick={() => { setPlanView(v); try { localStorage.setItem('ip_plan_view', v); } catch { /* storage blocked */ } }}
+                      className={cn("flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-medium capitalize transition-colors",
+                        planView === v ? "bg-gray-100 text-gray-900 dark:bg-white/[.08] dark:text-white" : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200")}
+                    >
+                      {v === 'list' ? <ListTodo className="h-3.5 w-3.5" /> : <Columns className="h-3.5 w-3.5" />} {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <form
+                className="flex gap-2"
+                onSubmit={e => {
+                  e.preventDefault();
+                  const title = newTaskTitle.trim();
+                  if (!title) return;
+                  setPlanTasks([...planTasks, { id: Date.now().toString(), title, status: 'todo' }]);
+                  setNewTaskTitle('');
+                }}
+              >
+                <input
+                  value={newTaskTitle}
+                  onChange={e => setNewTaskTitle(e.target.value)}
+                  placeholder="Add a task, e.g. Revise AVL rotations"
+                  aria-label="New task"
+                  maxLength={200}
+                  className="h-10 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3.5 text-[14px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-primary-500/70 dark:border-white/[.08] dark:bg-white/[.02] dark:text-gray-100"
+                />
+                <Button type="submit" icon={Plus} className="h-10 rounded-xl" disabled={!newTaskTitle.trim()}>Add</Button>
+              </form>
+
+              <div className="min-h-[420px] flex-1">
+                <KanbanBoard tasks={planTasks} onUpdateTasks={setPlanTasks} view={planView} />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4.11: MOODBOARD */}
+          {activeTab === 'moodboard' && (
+            <div className="flex min-h-full flex-col space-y-4 text-left animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 sm:px-6 rounded-xl flex justify-between items-center shrink-0">
+                <div>
+                  <h3 className="font-extrabold text-sm text-gray-800 dark:text-white">Board</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Drag a note by its top edge to move it. Tap inside a note to write.</p>
+                  {isAccountSubject && <p className="mt-1 text-[11px] font-semibold text-emerald-600">{sharedBoard.error ?? 'Shared with your study groups · changes sync for everyone'}</p>}
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-[520px]">
+                <MoodBoard notes={boardNotes} onUpdateNotes={setBoardNotes} />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4.12: REMINDERS */}
+          {/* Reminders: kept on the server and delivered by the scheduler */}
+          {activeTab === 'reminders' && (
+            <RemindersPanel subjectKey={storeId} subjectName={subject.name} />
+          )}
+
+        </div>
+
+
+      <nav className="ip-safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-gray-200 bg-white/90 backdrop-blur-xl dark:border-white/[.07] dark:bg-gray-950/90 lg:hidden" aria-label="Subject sections">
+        {sections.map(section => (
+          <button
+            key={section.id}
+            onClick={() => openSection(section)}
+            aria-current={activeSection.id === section.id ? 'page' : undefined}
+            className={cn(
+              "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[9px] font-semibold",
+              activeSection.id === section.id ? "text-primary-600 dark:text-primary-400" : "text-gray-500 dark:text-gray-400"
+            )}
+          >
+            <section.icon className="h-5 w-5" />
+            <span className="max-w-full truncate px-0.5">{section.id === 'predictions' ? 'Predict' : section.label}</span>
+            {section.id === 'practice' && weakTopics.length > 0 && <span className="absolute right-2 top-1 h-2 w-2 rounded-full bg-orange-500" />}
+          </button>
+        ))}
+      </nav>
+
+      {/* Add Schedule Modal */}
+      {showAddScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-sm animate-in zoom-in-95 duration-200 bg-white dark:bg-gray-800 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary-500" /> Add Timetable
+              </h2>
+              <button onClick={() => setShowAddScheduleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSchedule} className="space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Class Day</label>
+                  <select name="schedule_day" className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-800 dark:text-white outline-none">
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Timing</label>
+                  <Input name="schedule_time" placeholder="e.g. 10:00 AM - 11:30 AM" defaultValue="10:00 AM - 11:30 AM" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Room / Location</label>
+                  <Input name="schedule_room" placeholder="e.g. Room 301" defaultValue="Room 301" />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 mt-6 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <Button type="button" variant="ghost" onClick={() => setShowAddScheduleModal(false)}>Cancel</Button>
+                <Button type="submit">Save Class</Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* History Preview Modal */}
+      {previewContent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-2xl animate-in zoom-in-95 duration-200 bg-white dark:bg-gray-900 shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Eye className="w-5 h-5 text-primary-500" /> {previewContent.title}
+              </h2>
+              <button onClick={() => setPreviewContent(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto bg-gray-50 dark:bg-gray-800 rounded-xl p-6 text-sm text-gray-700 dark:text-gray-200 font-serif whitespace-pre-wrap">
+              {previewContent.text}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setPreviewContent(null)}>Close Preview</Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+    </AppShell>
+  );
+};

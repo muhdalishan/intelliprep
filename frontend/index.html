@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>IntelliPrep AI: exam prep from your own notes</title>
+    <meta name="description" content="Turn your lecture notes and past papers into summaries, flashcards, quizzes and likely exam topics. Study alone or with your class." />
+    <meta name="theme-color" content="#111113" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f7f7f8" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="IntelliPrep AI" />
+    <meta property="og:description" content="Summaries, flashcards, quizzes and exam predictions made from your own notes." />
+    <meta name="twitter:card" content="summary" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..900&family=Geist+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script>
+      // Dark is the default; the saved choice is applied before first paint.
+      if (localStorage.getItem("theme") !== "light") document.documentElement.classList.add("dark");
+    </script>
+    <script>
+      const NEUTRAL = {
+        50: '#f7f7f8', 100: '#efeff1', 200: '#e4e4e7', 300: '#d0d0d5', 400: '#9a9ba3', 500: '#787a83',
+        600: '#5d5f67', 700: '#3e3f45', 800: '#232327', 900: '#19191c', 950: '#111113',
+      };
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            // Quieter type: the heavy weights settle at semibold, like Linear.
+            fontWeight: { black: '600', extrabold: '600', bold: '600', semibold: '560', medium: '500' },
+            // Tighter corners and flat surfaces; depth only for floating layers.
+            borderRadius: { md: '5px', lg: '6px', xl: '8px', '2xl': '10px', '3xl': '14px' },
+            boxShadow: {
+              sm: '0 1px 1px rgba(0,0,0,.03)',
+              DEFAULT: '0 1px 2px rgba(0,0,0,.05)',
+              md: '0 2px 6px -2px rgba(0,0,0,.08)',
+              lg: '0 8px 24px -10px rgba(0,0,0,.18)',
+              xl: '0 16px 40px -14px rgba(0,0,0,.28)',
+              '2xl': '0 24px 60px -18px rgba(0,0,0,.45)',
+              inner: 'inset 0 1px 2px rgba(0,0,0,.06)',
+            },
+            fontFamily: {
+              sans: ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+              mono: ['"Geist Mono"', 'ui-monospace', 'monospace'],
+            },
+            // One cool neutral for every grey in the app, from near-white to the app's near-black.
+            colors: {
+              gray: NEUTRAL,
+              slate: NEUTRAL,
+              primary: {
+                50: '#f0fdfa',
+                100: '#ccfbf1',
+                200: '#99f6e4',
+                300: '#5eead4',
+                400: '#2dd4bf',
+                500: '#14b8a6',
+                600: '#0d9488',
+                700: '#0f766e',
+                800: '#115e59',
+                900: '#134e4a',
+                950: '#042f2e',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body { font-family: "Geist", "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+      ::selection { background: #99f6e4; color: #042f2e; }
+
+      /* ---- Interaction layer ------------------------------------------------------------
+         Every control answers the hand: a quick press (scale), a calm hover, a visible focus
+         ring for keyboards. Colours come from the existing palette; nothing here recolours. */
+      :root {
+        --ip-ease: cubic-bezier(.22, 1, .36, 1);      /* settles like a spring, no overshoot */
+        --ip-press: cubic-bezier(.3, 0, .5, 1);
+        --ip-ring: #14b8a6;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
+      body { caret-color: #0d9488; accent-color: #0d9488; overscroll-behavior-y: none; }
+      input, textarea, select { caret-color: #0d9488; }
+
+      /* Press and hover feedback. :where() keeps it below Tailwind utilities, so anything a
+         component already sets (its own transition or active:scale) still wins. */
+      :where(button, [role="button"], a[href], summary, label[for], select) { touch-action: manipulation; }
+      :where(button, [role="button"], a[href], summary) {
+        transition-property: color, background-color, border-color, box-shadow, opacity, filter, scale, translate;
+        transition-duration: .2s;
+        transition-timing-function: var(--ip-ease);
+      }
+      :where(button, [role="button"], summary):not(:disabled):not([class*="active:scale"]):active { scale: .96; transition-duration: .08s; transition-timing-function: var(--ip-press); }
+      :where(a[href]):active { opacity: .7; transition-duration: .08s; }
+      @media (hover: hover) {
+        :where(button, [role="button"]):not(:disabled):hover { filter: brightness(1.04) saturate(1.04); }
+      }
+      :where(button, [role="button"]):disabled { cursor: not-allowed; }
+
+      /* Clickable cards (subject cards, saved items): lift on hover, sink on press. */
+      :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift) {
+        transition: box-shadow .25s var(--ip-ease), translate .25s var(--ip-ease), scale .12s var(--ip-press), border-color .2s var(--ip-ease);
+      }
+      @media (hover: hover) {
+        :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift):hover {
+          translate: 0 -2px;
+          box-shadow: 0 12px 28px -14px rgba(15, 23, 42, .22), 0 2px 6px -2px rgba(15, 23, 42, .06);
+        }
+      }
+      :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift):active { scale: .985; translate: 0 0; }
+
+      /* Fields: the border and ring ease in instead of snapping. */
+      :where(input, textarea, select) { transition: border-color .2s var(--ip-ease), box-shadow .2s var(--ip-ease), background-color .2s var(--ip-ease); }
+
+      /* Keyboard focus, always visible (mouse clicks don't show it). */
+      :where(button, a[href], input, textarea, select, summary, [role="button"], [tabindex]):focus-visible {
+        outline: 2px solid var(--ip-ring);
+        outline-offset: 2px;
+      }
+
+      /* Touch screens: grow small controls' tap area to about 44px without changing their look. */
+      @media (pointer: coarse) {
+        :where(button, [role="button"]):not([class*="absolute"]):not([class*="fixed"]):not([class*="sticky"]) { position: relative; }
+        :where(button, [role="button"])::after { content: ""; position: absolute; inset: -7px; }
+      }
+
+      /* Panels, tabs and sheets open with a short settle; pages cross-fade. */
+      .animate-in { animation: ip-enter .32s var(--ip-ease) both; }
+      @keyframes ip-enter { from { opacity: 0; transform: translateY(6px) scale(.99); } }
+      .ip-page { animation: ip-page .28s var(--ip-ease) backwards; }  /* no lasting layer once it has faded in */
+      @keyframes ip-page { from { opacity: 0; } }  /* opacity only: a transform would trap fixed bars */
+      /* The assistant grows out of its button, like an iOS sheet: scale, rise and un-blur. */
+      .ip-sheet { transform-origin: bottom right; animation: ip-sheet .38s var(--ip-ease) both; }
+      @keyframes ip-sheet { from { opacity: 0; transform: translateY(14px) scale(.9); filter: blur(6px); } }
+
+      .ip-drawer { animation: ip-drawer .3s var(--ip-ease) both; }
+      @keyframes ip-drawer { from { transform: translateX(-100%); } }
+
+      /* Scrollbars, thin and quiet, from the same greys. */
+      * { scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, .35) transparent; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .35); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+      ::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, .55); }
+      ::-webkit-scrollbar-track { background: transparent; }
+
+      /* Notched phones: bars clear the home indicator. */
+      .ip-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+      /* Very wide screens: tab content keeps a readable width instead of stretching. */
+      .ip-content > * { width: 100%; max-width: 1440px; margin-inline: auto; }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+        :where(button, [role="button"], summary):active { scale: 1; }
+        :where(.cursor-pointer.rounded-2xl, .cursor-pointer.rounded-xl, .lift):hover { translate: none; }
+      }
+
+      /* ---- Linear-style surfaces -------------------------------------------------------
+         Neutral greys, hairline borders, flat panels. Teal stays for the brand mark, primary
+         actions, active states and focus. */
+      body { font-feature-settings: "cv11", "ss01"; letter-spacing: -0.006em; }
+      h1, h2, h3 { letter-spacing: -0.015em; }
+
+      /* Brand-coloured glows and drop shadows read as decoration: keep the depth, drop the tint. */
+      [class*="shadow-primary-"], [class*="shadow-emerald-"], [class*="shadow-teal-"], [class*="shadow-red-"], [class*="shadow-rose-"] { --tw-shadow-color: rgba(0, 0, 0, .12) !important; }
+      .dark [class*="shadow-primary-"], .dark [class*="shadow-emerald-"], .dark [class*="shadow-teal-"] { --tw-shadow-color: rgba(0, 0, 0, .4) !important; }
+
+      /* Small all-caps labels become quiet sentence-case labels. */
+      :is(.text-[9px], .text-[10px], .text-[11px]).uppercase { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 500; }
+      .uppercase:is(.tracking-wide, .tracking-wider, .tracking-widest, .text-xs):not(.ip-keep-case) { text-transform: none; letter-spacing: 0; }
+
+      /* Dark mode: give light-only utility classes a dark counterpart.
+         Elements that already set their own dark: classes are left alone. */
+      .dark { color-scheme: dark; }
+      .dark ::selection { background: #115e59; color: #f0fdfa; }
+      .dark body { background: #111113; color: #e6e6e9; }
+      .dark :is(.bg-white, .bg-[#fafbff], .bg-[#fafafa]):not([class*="dark:bg-"]) { background-color: #19191c; }
+      .dark :is(.bg-gray-50, .bg-slate-50, .bg-gray-50/50, .bg-slate-50/50, .bg-gray-50/80):not([class*="dark:bg-"]) { background-color: #141416; }
+      .dark :is(.bg-gray-100, .bg-slate-100, .bg-gray-200):not([class*="dark:bg-"]) { background-color: #232327; }
+      .dark :is(.bg-primary-50, .bg-emerald-50, .bg-green-50, .bg-teal-50):not([class*="dark:bg-"]) { background-color: rgba(20, 184, 166, .10); }
+      .dark :is(.bg-red-50, .bg-red-100, .bg-orange-50, .bg-amber-50, .bg-pink-50, .bg-rose-50):not([class*="dark:bg-"]) { background-color: rgba(248, 113, 113, .10); }
+      .dark :is(.bg-blue-50, .bg-indigo-50, .bg-violet-50, .bg-purple-50, .bg-cyan-50):not([class*="dark:bg-"]) { background-color: rgba(129, 140, 248, .10); }
+      .dark :is(.text-gray-900, .text-gray-800, .text-slate-900, .text-slate-800, .text-gray-950, .text-slate-950):not([class*="dark:text-"]) { color: #e6e6e9; }
+      .dark :is(.text-gray-700, .text-gray-600, .text-slate-700, .text-slate-600):not([class*="dark:text-"]) { color: #b4b5bc; }
+      .dark :is(.text-gray-500, .text-slate-500):not([class*="dark:text-"]) { color: #8a8c95; }
+      .dark :is(.border-gray-200, .border-gray-100, .border-slate-200, .border-slate-100, .border-gray-300, .border-gray-200/50, .border-slate-200/80, .border-slate-200/60):not([class*="dark:border-"]) { border-color: rgba(255, 255, 255, .07); }
+      .dark :is(.hover:bg-gray-50, .hover:bg-gray-100, .hover:bg-slate-50, .hover:bg-slate-100):hover:not([class*="dark:hover:bg-"]) { background-color: #232327; }
+      .dark :is(.divide-gray-100, .divide-gray-200) > * + * { border-color: rgba(255, 255, 255, .07); }
+      /* Borders already set for dark mode use the same hairline. */
+      .dark :is(.dark:border-gray-700, .dark:border-gray-800, .dark:border-slate-800, .dark:border-slate-700, .dark:border-slate-900, .dark:border-gray-800/80, .dark:border-slate-800/80, .dark:border-slate-800/60, .dark:border-slate-900/60) { border-color: rgba(255, 255, 255, .07); }
+
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .no-scrollbar::-webkit-scrollbar {
+          display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+      }
+      .glass-panel { background: #fff; border: 1px solid #e4e4e7; }
+      .dark .glass-panel { background: #19191c; border: 1px solid rgba(255, 255, 255, .07); }
+      
+      /* 3D Flashcard Transitions */
+      .perspective-1000 {
+        perspective: 1000px;
+      }
+      .transform-style-3d {
+        transform-style: preserve-3d;
+      }
+      .backface-hidden {
+        backface-visibility: hidden;
+      }
+      .rotate-y-180 {
+        transform: rotateY(180deg);
+      }
+    </style>
+</head>
+  <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
