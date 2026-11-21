@@ -150,6 +150,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ tasks, onUpdateTasks, 
 // --- MOODBOARD ---
 
 const NOTE_SIZE = 176;
+const NOTE_MIN = 120;
+const NOTE_MAX = 480;
+const sizeOf = (note: StickyNote) => ({ w: note.w ?? NOTE_SIZE, h: note.h ?? NOTE_SIZE });
 
 // Sticky-note colours. Text on them is always dark, in either theme.
 const NOTE_COLORS = [
@@ -170,6 +173,8 @@ interface MoodBoardProps {
 export const MoodBoard: React.FC<MoodBoardProps> = ({ notes, onUpdateNotes }) => {
   const [activeNote, setActiveNote] = useState<string | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  // Resizing from the bottom-right corner.
+  const [resizing, setResizing] = useState<{ id: string; x: number; y: number; w: number; h: number } | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.PointerEvent, id: string, x: number, y: number) => {
@@ -182,18 +187,32 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ notes, onUpdateNotes }) =>
   };
 
   const handleMouseMove = (e: React.PointerEvent) => {
-    if (activeNote && boardRef.current) {
-      const rect = boardRef.current.getBoundingClientRect();
+    if (!boardRef.current) return;
+    const rect = boardRef.current.getBoundingClientRect();
+    if (resizing) {
+      const note = notes.find(n => n.id === resizing.id);
+      if (!note) return;
+      // Measure from where the note is drawn (its stored position can sit past the board's edge).
+      const left = Math.max(0, Math.min(note.x, rect.width - resizing.w));
+      const top = Math.max(0, Math.min(note.y, rect.height - resizing.h));
+      const w = Math.round(Math.max(NOTE_MIN, Math.min(NOTE_MAX, resizing.w + e.clientX - resizing.x, rect.width - left)));
+      const h = Math.round(Math.max(NOTE_MIN, Math.min(NOTE_MAX, resizing.h + e.clientY - resizing.y, rect.height - top)));
+      onUpdateNotes(notes.map(n => n.id === resizing.id ? { ...n, x: left, y: top, w, h } : n));
+      return;
+    }
+    if (activeNote) {
+      const moving = notes.find(n => n.id === activeNote);
+      const { w, h } = moving ? sizeOf(moving) : { w: NOTE_SIZE, h: NOTE_SIZE };
       // Keep the note inside the board
-      const newX = Math.max(0, Math.min(e.clientX - offset.x, rect.width - NOTE_SIZE));
-      const newY = Math.max(0, Math.min(e.clientY - offset.y, rect.height - NOTE_SIZE));
-
+      const newX = Math.max(0, Math.min(e.clientX - offset.x, rect.width - w));
+      const newY = Math.max(0, Math.min(e.clientY - offset.y, rect.height - h));
       onUpdateNotes(notes.map(n => n.id === activeNote ? { ...n, x: newX, y: newY } : n));
     }
   };
 
   const handleMouseUp = () => {
     setActiveNote(null);
+    setResizing(null);
   };
 
   const addNote = () => {
@@ -226,16 +245,16 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ notes, onUpdateNotes }) =>
         <Button onClick={addNote} variant="secondary" className="shadow-lg backdrop-blur-md bg-white/80" icon={Plus}>Add Note</Button>
       </div>
 
-      {notes.map(note => (
+      {notes.map(note => { const { w, h } = sizeOf(note); return (
         <div
           key={note.id}
-          style={{ left: `min(${note.x}px, calc(100% - ${NOTE_SIZE}px))`, top: `min(${note.y}px, calc(100% - ${NOTE_SIZE}px))`, width: NOTE_SIZE, height: NOTE_SIZE }}
+          style={{ left: `min(${note.x}px, calc(100% - ${w}px))`, top: `min(${note.y}px, calc(100% - ${h}px))`, width: w, height: h }}
           className={cn(
             "absolute p-3 shadow-lg rounded-lg cursor-move touch-none transition-shadow flex flex-col group",
             note.color,
-            activeNote === note.id ? "z-50 shadow-2xl scale-105" : "z-0"
+            (activeNote === note.id || resizing?.id === note.id) ? "z-50 shadow-2xl" : "z-0", activeNote === note.id && "scale-105"
           )}
-          onPointerDown={(e) => handleMouseDown(e, note.id, Math.min(note.x, (boardRef.current?.clientWidth ?? Infinity) - NOTE_SIZE), Math.min(note.y, (boardRef.current?.clientHeight ?? Infinity) - NOTE_SIZE))}
+          onPointerDown={(e) => handleMouseDown(e, note.id, Math.min(note.x, (boardRef.current?.clientWidth ?? Infinity) - w), Math.min(note.y, (boardRef.current?.clientHeight ?? Infinity) - h))}
         >
           <div className="mb-2 flex items-center justify-between gap-1 transition-opacity md:opacity-0 md:group-hover:opacity-100">
              <Move className="h-4 w-4 shrink-0 text-gray-700 dark:text-gray-700" />
@@ -269,8 +288,24 @@ export const MoodBoard: React.FC<MoodBoardProps> = ({ notes, onUpdateNotes }) =>
             onChange={(e) => onUpdateNotes(notes.map(n => n.id === note.id ? { ...n, content: e.target.value } : n))}
             onPointerDown={(e) => e.stopPropagation()} // Allow typing and selecting without dragging
           />
+          {/* Drag this corner to resize the note */}
+          <div
+            role="separator"
+            aria-label="Resize note"
+            title="Drag to resize"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+              setResizing({ id: note.id, x: e.clientX, y: e.clientY, w, h });
+            }}
+            className="absolute bottom-0 right-0 flex h-6 w-6 cursor-se-resize touch-none items-end justify-end p-1 text-gray-700/60 transition-opacity hover:text-gray-900 md:opacity-0 md:group-hover:opacity-100"
+          >
+            <svg viewBox="0 0 10 10" className="h-2.5 w-2.5" aria-hidden="true">
+              <path d="M9 1L1 9M9 5L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
         </div>
-      ))}
+      ); })}
     </div>
   );
 };

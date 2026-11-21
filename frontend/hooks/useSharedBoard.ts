@@ -100,6 +100,8 @@ export const useSharedBoard = (subjectId: string, enabled: boolean) => {
       if (old.y !== note.y) changes.y = note.y;
       if (old.content !== note.content) changes.content = note.content;
       if (old.color !== note.color) changes.color = note.color;
+      if (old.w !== note.w) changes.w = note.w;
+      if (old.h !== note.h) changes.h = note.h;
       if (Object.keys(changes).length) pendingNoteMoves.current[note.id] = { ...pendingNoteMoves.current[note.id], ...changes };
     }
     window.clearTimeout(moveTimer.current);
